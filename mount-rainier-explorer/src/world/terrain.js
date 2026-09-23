@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { stylize } from './materials.js';
-import { HEIGHT_GLSL, NOISE_GLSL } from '../shaders/common.glsl.js';
+import { HEIGHT_GLSL, NOISE_GLSL, MEADOW_GLSL } from '../shaders/common.glsl.js';
 
 /**
  * Geometry-clipmap terrain: nested square grids centred on the camera, each
@@ -51,19 +51,22 @@ uniform float uTreeFar;
 
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
 
+${MEADOW_GLSL}
+
 vec3 meadowColor(vec2 p, float n1, float n2, float h, float detail) {
-  // Summer: green with wildflower drifts (paintbrush, lupine, bistort)
-  vec3 summer = mix(srgb(vec3(0.36, 0.50, 0.20)), srgb(vec3(0.52, 0.58, 0.24)), n1);
-  float fl = smoothstep(0.62, 0.8, vnoise(p * 0.09)) * detail;
-  vec3 flower = mix(srgb(vec3(0.78, 0.28, 0.42)), srgb(vec3(0.45, 0.42, 0.78)), step(0.5, vnoise(p * 0.02 + 4.0)));
-  summer = mix(summer, flower, fl * 0.55);
-  // Autumn: huckleberry crimson, mountain-ash orange, cured golden grass
-  vec3 gold = mix(srgb(vec3(0.70, 0.54, 0.24)), srgb(vec3(0.60, 0.44, 0.20)), n2);
-  vec3 crimson = mix(srgb(vec3(0.62, 0.13, 0.08)), srgb(vec3(0.78, 0.30, 0.10)), n2);
-  float patchy = smoothstep(0.42, 0.62, fbm3(p * 0.012 + 11.0));
-  vec3 autumn = mix(gold, crimson, patchy * (0.5 + 0.5 * smoothstep(1300.0, 1800.0, h)));
-  autumn = mix(autumn, srgb(vec3(0.45, 0.32, 0.18)), smoothstep(0.7, 0.9, n1) * 0.4);
-  return uSeason < 0.5 ? summer : autumn;
+  // the same mosaic the shrub carpet uses, a touch darker for the gaps between shrubs
+  vec3 c = meadowPatch(p, uSeason) * 0.72;
+  // close up, the ground between shrubs is dark soil, heather and last year's leaves
+  vec3 soilCol = mix(srgb(vec3(0.2, 0.16, 0.1)), srgb(vec3(0.17, 0.19, 0.1)), vnoise(p * 0.7));
+  c = mix(soilCol * 0.9 + c * 0.25, c, smoothstep(40.0, 200.0, length(vWorldPos - cameraPosition)));
+  if (uSeason < 0.5) {
+    float fl = smoothstep(0.66, 0.82, vnoise(p * 0.09)) * detail;
+    vec3 flower = mix(srgb(vec3(0.85, 0.28, 0.5)), srgb(vec3(0.5, 0.42, 0.85)), step(0.5, vnoise(p * 0.02 + 4.0)));
+    c = mix(c, flower, fl * 0.5);
+  }
+  // speckle: individual shrubs and shadows between them
+  c *= 0.78 + 0.44 * vnoise(p * 1.3) * detail + 0.22 * (1.0 - detail);
+  return c;
 }
 
 vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
@@ -78,8 +81,10 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float n3 = mix(0.5, vnoise(wp.xz * 0.35), detail);
 
   // Volcanic rock: andesite greys with rusty oxidised bands
-  vec3 rock = mix(srgb(vec3(0.46, 0.38, 0.33)), srgb(vec3(0.62, 0.46, 0.36)), smoothstep(0.35, 0.75, fbm3(vec2(wp.x * 0.002, h * 0.02))));
-  rock = mix(rock, srgb(vec3(0.34, 0.31, 0.31)), smoothstep(2400.0, 3200.0, h) * 0.6);
+  // Rainier's andesite: grey-brown low down, dark rust and purple-brown on the cone
+  vec3 rock = mix(srgb(vec3(0.42, 0.37, 0.33)), srgb(vec3(0.55, 0.43, 0.35)), smoothstep(0.35, 0.75, fbm3(vec2(wp.x * 0.002, h * 0.02))));
+  vec3 cone = mix(srgb(vec3(0.30, 0.22, 0.20)), srgb(vec3(0.46, 0.28, 0.22)), smoothstep(0.3, 0.8, fbm3(vec2(wp.x * 0.003 + h * 0.01, wp.z * 0.003))));
+  rock = mix(rock, cone, smoothstep(1900.0, 2500.0, h));
   rock *= 0.85 + 0.3 * n3;
   vec3 scree = mix(srgb(vec3(0.56, 0.52, 0.46)), srgb(vec3(0.46, 0.43, 0.40)), n2);
   vec3 soil = srgb(vec3(0.38, 0.30, 0.21));
@@ -87,7 +92,7 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   vec3 meadow = meadowColor(wp.xz, n1, n2, h, detail);
   vec3 canopy = mix(srgb(vec3(0.075, 0.17, 0.12)), srgb(vec3(0.12, 0.22, 0.13)), n1);
   canopy = mix(canopy, srgb(vec3(0.16, 0.24, 0.14)), smoothstep(1300.0, 1800.0, h) * 0.6);
-  vec3 floorCol = mix(srgb(vec3(0.36, 0.30, 0.18)), srgb(vec3(0.27, 0.33, 0.17)), n2);
+  vec3 floorCol = mix(srgb(vec3(0.25, 0.2, 0.13)), srgb(vec3(0.19, 0.22, 0.12)), n2) * (0.8 + 0.4 * n3);
   vec3 forest = mix(floorCol, canopy, smoothstep(uTreeFar * 0.55, uTreeFar * 0.95, camDist));
 
   float veg = smoothstep(0.08, 0.55, cov.g);

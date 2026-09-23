@@ -54,6 +54,7 @@ export class Lakes {
         });
       }
     }
+    this._shores(hf);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx);
@@ -149,6 +150,30 @@ export class Lakes {
     this.mesh.name = 'lakes';
     this.mesh.renderOrder = 5;
     this.mesh.frustumCulled = false;
+  }
+
+  /** Build a gently rising shore around every lake: no dry ground below the waterline. */
+  _shores(hf) {
+    for (const L of this.lakes) {
+      const m = 50;
+      hf.carve(L.minX - m, L.minZ - m, L.maxX + m, L.maxZ + m, (x, z, h) => {
+        if (h >= L.level + 0.4) return h;
+        const inside = pointInPoly(x, z, L.contour) && !L.holes.some((q) => pointInPoly(x, z, q));
+        if (!inside && this.levelAt(x, z) !== null) return h;   // inside a neighbouring pond
+        let d = Infinity;
+        const r = L.contour;
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const ax = r[j].x, az = r[j].y, bx = r[i].x, bz = r[i].y;
+          const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez || 1;
+          const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / l2));
+          d = Math.min(d, Math.hypot(ax + ex * t - x, az + ez * t - z));
+        }
+        // inside: shelve up toward the edge so the waterline sits within the polygon
+        if (inside) return d < 12 ? Math.max(h, L.level - 0.7 + (12 - d) * 0.1) : h;
+        if (d > m) return h;
+        return Math.max(h, L.level + 0.4 + d * 0.04);
+      });
+    }
   }
 
   /** Water surface level at (x, z) or null if not inside a lake. */

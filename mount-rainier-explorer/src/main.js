@@ -8,6 +8,9 @@ import { PathNetwork } from './world/paths.js';
 import { Vegetation } from './world/vegetation.js';
 import { Lakes } from './world/water.js';
 import { Waterfalls } from './world/waterfalls.js';
+import { Cascades } from './world/cascades.js';
+import { MeadowCarpet } from './world/meadow.js';
+import { Clouds } from './world/clouds.js';
 import { Structures } from './world/structures.js';
 import { Character } from './player/character.js';
 import { Controller } from './player/controller.js';
@@ -121,12 +124,14 @@ async function boot() {
   const vegetation = new Vegetation(hf, paths, atmo, quality, renderer);
   terrain.treeFar.value = vegetation.farRadius;
   scene.add(vegetation.group);
+  const meadow = new MeadowCarpet(hf, paths, atmo, quality);
+  scene.add(meadow.group);
 
   setProgress(0.78, 'Filling alpine lakes…');
   await frame();
   const lakes = new Lakes(features, hf, atmo, renderer);
   scene.add(lakes.mesh);
-  const falls = new Waterfalls(features, hf, paths, atmo);
+  const falls = new Waterfalls(features, hf, paths, atmo, new Cascades(hf, paths, atmo));
   scene.add(falls.group);
   const structures = new Structures(features, hf, atmo, geo);
   scene.add(structures.group);
@@ -141,6 +146,9 @@ async function boot() {
   // --- places -----------------------------------------------------------
   const [sx, sz] = geo.toWorld(46.8529, -121.7604);
   const summit = { x: sx, z: sz };
+  const clouds = new Clouds(atmo, summit);
+  scene.add(clouds.mesh);
+  vegetation.setShores(lakes);
   const findPoint = (name, x, z, maxD = 3000) => {
     let best = null, bd = maxD;
     for (const q of features.points) {
@@ -218,17 +226,30 @@ async function boot() {
       }
     }
     if (p.kind === 'lake') {
-      const L = lakes.lakes.find((q) => q.name === p.osm && Math.hypot(q.cx - p.x, q.cz - p.z) < 50) || lakes.nearestLake(p.x, p.z, 400);
+      const named = lakes.lakes.filter((q) => q.name === p.osm && Math.hypot(q.cx - p.x, q.cz - p.z) < 1500);
+      const L = named.sort((a, b) => b.area - a.area)[0] || lakes.nearestLake(p.x, p.z, 400);
       if (L) {
-        // stand on the far shore so the mountain rises across the water
-        let dx = L.cx - summit.x, dz = L.cz - summit.z;
-        if (p.look === 'feature') { dx = 0; dz = 1; }
-        const l = Math.hypot(dx, dz) || 1;
-        dx /= l; dz /= l;
-        for (let r = 5; r < 900; r += 4) {
-          const px = L.cx + dx * r, pz = L.cz + dz * r;
-          if (lakes.levelAt(px, pz) === null && hf.heightAt(px + dx * 6, pz + dz * 6) > L.level + 0.2) { [x, z] = dry(px + dx * 6, pz + dz * 6); break; }
+        // stand on a low shore spot with open water between you and the view
+        const tx = p.look === 'feature' ? L.cx : summit.x, tz = p.look === 'feature' ? L.cz : summit.z;
+        let best = null, bs = -Infinity;
+        for (let k = 0; k < 36; k++) {
+          const ang = (k / 36) * Math.PI * 2, ux = Math.cos(ang), uz = Math.sin(ang);
+          for (let r = 4; r < 700; r += 4) {
+            const qx = L.cx + ux * r, qz = L.cz + uz * r;
+            if (lakes.levelAt(qx, qz) !== null) continue;
+            const sx2 = qx + ux * 5, sz2 = qz + uz * 5;
+            const above = hf.heightAt(sx2, sz2) - L.level;
+            if (above < 0.2) continue;
+            // facing the target across the lake, low to the water, clear sightline, not too steep
+            const vx = tx - sx2, vz = tz - sz2, vl = Math.hypot(vx, vz) || 1;
+            const across = -(ux * vx + uz * vz) / vl;
+            const score = (p.look === 'feature' ? 0 : across * 3) + lineOfSight(sx2, sz2, L.cx, L.level + 0.5, L.cz) * 4
+              - Math.max(0, above - 1.5) * 0.8 - hf.slopeAt(sx2, sz2) * 4;
+            if (score > bs) { bs = score; best = [sx2, sz2]; }
+            break;
+          }
         }
+        if (best) [x, z] = best;
         if (p.look === 'feature') { fx = L.cx; fz = L.cz; }
         return [x, z, fx, fz];
       }
@@ -272,6 +293,7 @@ async function boot() {
     controller.update(0.016, 0);
     terrain.update(camera.position);
     vegetation.update(controller.pos);
+    meadow.update(controller.pos);
     for (let i = 0; i < 6; i++) paths.update(controller.pos, QUALITY[quality].paths);
     if (!instant) { await frame(); fade.classList.remove('on'); }
     hud.title(p.name, `${p.regionLabel} · ${p.ft.toLocaleString()} ft`);
@@ -294,6 +316,7 @@ async function boot() {
     sun.castShadow = Q.shadow > 0;
     if (Q.shadow) setShadowSize(Q.shadow);
     vegetation.setQuality(q);
+    meadow.setQuality(q);
     terrain.treeFar.value = vegetation.farRadius;
     if (terrain.N !== Q.terrainN) {
       scene.remove(terrain.group);
@@ -309,7 +332,7 @@ async function boot() {
     atmo,
     quality,
     onTravel: (p) => travel(p),
-    onSeason: (s) => { atmo.setSeason(s); vegetation.setSeason(s); bake.update(true); },
+    onSeason: (s) => { atmo.setSeason(s); vegetation.setSeason(s); meadow.setSeason(s); bake.update(true); },
     onQuality: applyQuality,
     onVolume: (v) => audio.setVolume(v),
     onFast: () => toggleFast(),
@@ -373,7 +396,7 @@ async function boot() {
   setProgress(0.9, 'Lacing up boots…');
   atmo.update(0);
   bake.update(true);
-  const startId = params.get('at') || 'altavista';
+  const startId = params.get('at') || 'myrtle';
   const start = PLACES.find((p) => p.id === startId) || PLACES[0];
   await travel(start, true);
   // warm up shader programs before revealing the scene
@@ -437,6 +460,7 @@ async function boot() {
     terrain.update(camera.position);
     bake.update();
     vegetation.update(controller.pos);
+    meadow.update(controller.pos);
     paths.update(controller.pos, QUALITY[quality].paths);
     falls.update(camera, dt);
     structures.update(atmo);
@@ -444,7 +468,7 @@ async function boot() {
     sky.update(camera, stars);
     const view = game.update(dt, { camera, time: t });
 
-    lakes.updateReflection(scene, camera, [vegetation.pools.grass, vegetation.pools.flower, hiker.root, falls.group, paths.group, camp.group], QUALITY[quality].reflection);
+    lakes.updateReflection(scene, camera, [vegetation.pools.grass, vegetation.pools.flower, meadow.near, clouds.mesh, hiker.root, falls.group, paths.group, camp.group], QUALITY[quality].reflection);
     // god rays when looking toward a low sun
     camera.getWorldDirection(camDir);
     const sd = atmo.sunDir;

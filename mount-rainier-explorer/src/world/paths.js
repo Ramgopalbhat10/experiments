@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { lambert } from './materials.js';
+import { boulderGeometry } from './foliage.js';
+import { mulberry32, hash2 } from '../core/noise.js';
 
 const CHUNK = 1024;
 const GRID = 128;
@@ -23,7 +25,8 @@ export class PathNetwork {
     const add = (list, type, widthOf) => {
       for (const f of list) {
         if (f.p.length < 4) continue;
-        this.lines.push({ type, name: f.n || '', kind: f.k || 0, pts: Float32Array.from(f.p), w: widthOf(f) });
+        const paved = type === 'trail' && /asphalt|paved|concrete/.test(f.s || '');
+        this.lines.push({ type, name: f.n || '', kind: f.k || 0, paved, pts: Float32Array.from(f.p), w: paved ? 2.6 : widthOf(f) });
       }
     };
     add(features.trails, 'trail', (f) => TRAIL_W[f.k] ?? 1.5);
@@ -60,6 +63,7 @@ export class PathNetwork {
     this.group.name = 'paths';
     this.chunks = new Map();
     this.queue = [];
+    this.exclude = [];   // zones where stream ribbons are replaced by set pieces
     this._makeMaterials();
   }
 
@@ -73,14 +77,39 @@ export class PathNetwork {
       ...common,
       key: 'trail',
       pullToCamera: 0.9992,
+      vertexPars: 'attribute vec2 aRib; attribute float aKind; varying vec2 vRib; varying float vKind;',
+      vertexBegin: 'vRib = aRib; vKind = aKind;',
+      fragmentPars: 'varying vec2 vRib; varying float vKind; uniform float uSeason;',
       colorFragment: /* glsl */ `
         float edge = min(vRib.x, 1.0 - vRib.x);
         float n = vnoise(vec2(vRib.y * 0.8, vRib.x * 3.0));
-        diffuseColor.rgb = mix(vec3(0.16, 0.09, 0.05), vec3(0.26, 0.17, 0.10), n);
+        float grit = vnoise(vec2(vRib.y * 6.0, vRib.x * 14.0));
+        if (vKind > 2.5) {
+          // the paved Paradise trails: pale, sun-bleached asphalt with worn edges
+          diffuseColor.rgb = mix(vec3(0.22, 0.215, 0.205), vec3(0.3, 0.29, 0.275), n * 0.6 + grit * 0.4);
+          diffuseColor.rgb *= 1.0 - smoothstep(0.12, 0.0, edge) * 0.35;
+          diffuseColor.a = smoothstep(0.0, 0.03, edge);
+        } else {
+          // packed tread down the middle, loose soil and pebbles at the margins
+          vec3 tread = mix(vec3(0.2, 0.13, 0.08), vec3(0.3, 0.21, 0.13), n);
+          vec3 margin = mix(vec3(0.12, 0.08, 0.05), vec3(0.24, 0.2, 0.16), grit);
+          diffuseColor.rgb = mix(margin, tread, smoothstep(0.1, 0.35, edge));
+          diffuseColor.rgb *= 0.85 + 0.3 * step(0.8, grit);
+          diffuseColor.a = smoothstep(0.0, 0.22 + 0.15 * n, edge) * 0.95;
+        }
         if (uSeason > 1.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85, 0.87, 0.92), 0.8);
-        diffuseColor.a = smoothstep(0.0, 0.28 + 0.15 * n, edge) * 0.92;
       `,
     });
+    this.edgeMat = lambert(this.atmo, { vertexColors: true, flatShading: true }, {
+      key: 'edgestone', vertexPars: 'attribute float aFoliage;',
+      colorVertex: `
+        #ifdef USE_INSTANCING_COLOR
+          vColor.rgb = color.rgb * instanceColor.rgb;
+        #endif`,
+    });
+    this.stoneGeo = boulderGeometry(33);
+    this.postMat = lambert(this.atmo, { color: new THREE.Color('#6a5a48') }, { key: 'post' });
+    this.ropeMat = new THREE.LineBasicMaterial({ color: new THREE.Color('#8c7a5c') });
     this.roadMat = lambert(this.atmo, { color: 0xffffff, transparent: true, depthWrite: false }, {
       ...common,
       key: 'road',
@@ -180,6 +209,7 @@ export class PathNetwork {
     const grp = new THREE.Group();
     const segs = this.chunkSegs.get(k);
     const buckets = { trail: new RibbonBuilder(), road: new RibbonBuilder(), stream: new RibbonBuilder() };
+    const edges = { stones: [], posts: [], rope: [] };
     for (const [li, list] of segs) {
       const ln = this.lines[li];
       // group consecutive segments into runs
@@ -187,7 +217,20 @@ export class PathNetwork {
       const flush = () => {
         const s0 = run[0], s1 = run[run.length - 1] + 1;
         const pts = ln.pts.subarray(s0 * 2, s1 * 2 + 2);
-        buckets[ln.type].add(pts, ln.w, this.hf, ln.type === 'road' ? ln.kind : ln.type === 'stream' ? 1 : 0, ln.type);
+        if (ln.type === 'stream' && this.exclude.length) {
+          // split around waterfall set pieces
+          let cur = [];
+          const emit = () => { if (cur.length >= 4) buckets.stream.add(Float32Array.from(cur), ln.w, this.hf, 1, 'stream'); cur = []; };
+          for (let i = 0; i < pts.length; i += 2) {
+            const x = pts[i], z = pts[i + 1];
+            if (this.exclude.some((e) => Math.hypot(x - e.x, z - e.z) < e.r)) emit();
+            else cur.push(x, z);
+          }
+          emit();
+          return;
+        }
+        buckets[ln.type].add(pts, ln.w, this.hf, ln.type === 'road' ? ln.kind : ln.type === 'stream' ? 1 : ln.paved ? 3 : 0, ln.type);
+        if (ln.type === 'trail') this._edges(pts, ln, edges);
       };
       for (let i = 1; i < list.length; i++) {
         if (list[i] === run[run.length - 1] + 1) run.push(list[i]);
@@ -205,10 +248,90 @@ export class PathNetwork {
       m.receiveShadow = true;
       grp.add(m);
     }
+    // edge stones, posts and rope lines
+    if (edges.stones.length) {
+      const n = edges.stones.length / 6;
+      const im = new THREE.InstancedMesh(this.stoneGeo, this.edgeMat, n);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+      for (let i = 0; i < n; i++) {
+        const o = i * 6, sc = edges.stones[o + 3];
+        q.setFromAxisAngle(_up, edges.stones[o + 4]);
+        m4.compose(_v.set(edges.stones[o], edges.stones[o + 1], edges.stones[o + 2]), q, _s.set(sc, sc * 0.6, sc));
+        im.setMatrixAt(i, m4);
+        const g = 0.3 + edges.stones[o + 5] * 0.22;
+        im.setColorAt(i, c.setRGB(g, g * 0.95, g * 0.88));
+      }
+      im.castShadow = im.receiveShadow = true;
+      im.computeBoundingSphere();
+      grp.add(im);
+    }
+    if (edges.posts.length) {
+      const n = edges.posts.length / 3;
+      const im = new THREE.InstancedMesh(this.postGeo || (this.postGeo = new THREE.CylinderGeometry(0.05, 0.06, 1, 6).translate(0, 0.5, 0)), this.postMat, n);
+      const m4 = new THREE.Matrix4();
+      for (let i = 0; i < n; i++) {
+        m4.makeTranslation(edges.posts[i * 3], edges.posts[i * 3 + 1], edges.posts[i * 3 + 2]);
+        im.setMatrixAt(i, m4);
+      }
+      im.castShadow = true;
+      im.computeBoundingSphere();
+      grp.add(im);
+      const rg = new THREE.BufferGeometry();
+      rg.setAttribute('position', new THREE.Float32BufferAttribute(edges.rope, 3));
+      grp.add(new THREE.LineSegments(rg, this.ropeMat));
+    }
     this.group.add(grp);
     return grp;
   }
+
+  /** Rocks lining the tread; paved trails also get the Paradise post-and-rope lines. */
+  _edges(pts, ln, out) {
+    const hf = this.hf;
+    const rnd = mulberry32(hash2(Math.round(pts[0]), Math.round(pts[1])));
+    const step = ln.paved ? 0.9 : 2.2;
+    let carry = 0, sincePost = 0, prevPost = [null, null];
+    for (let i = 0; i < pts.length / 2 - 1; i++) {
+      const x0 = pts[i * 2], z0 = pts[i * 2 + 1], x1 = pts[i * 2 + 2], z1 = pts[i * 2 + 3];
+      const L = Math.hypot(x1 - x0, z1 - z0);
+      if (L < 1e-3) continue;
+      const tx = (x1 - x0) / L, tz = (z1 - z0) / L;
+      for (let d = carry; d < L; d += step) {
+        const x = x0 + tx * d, z = z0 + tz * d;
+        for (const side of [-1, 1]) {
+          if (!ln.paved && rnd() > 0.45) continue;
+          const off = ln.w / 2 + 0.12 + rnd() * (ln.paved ? 0.15 : 0.6);
+          const sx = x - tz * off * side, sz = z + tx * off * side;
+          const sc = ln.paved ? 0.18 + rnd() * 0.14 : 0.12 + rnd() * 0.3;
+          out.stones.push(sx, hf.heightAt(sx, sz) - sc * 0.15, sz, sc, rnd() * 6.28, rnd());
+        }
+        sincePost += step;
+        if (ln.paved && sincePost > 7) {
+          sincePost = 0;
+          for (const side of [-1, 1]) {
+            const off = ln.w / 2 + 0.6;
+            const px = x - tz * off * side, pz = z + tx * off * side, py = hf.heightAt(px, pz) - 0.1;
+            out.posts.push(px, py, pz);
+            const k = side < 0 ? 0 : 1, prev = prevPost[k];
+            if (prev && Math.hypot(prev[0] - px, prev[2] - pz) < 12) {
+              // rope sagging between posts
+              const N = 5;
+              for (let j = 0; j < N; j++) {
+                const t0 = j / N, t1 = (j + 1) / N;
+                const y = (t) => prev[1] + 0.85 + (py + 0.85 - prev[1] - 0.85) * t - Math.sin(t * Math.PI) * 0.18;
+                out.rope.push(prev[0] + (px - prev[0]) * t0, y(t0), prev[2] + (pz - prev[2]) * t0,
+                  prev[0] + (px - prev[0]) * t1, y(t1), prev[2] + (pz - prev[2]) * t1);
+              }
+            }
+            prevPost[k] = [px, py, pz];
+          }
+        }
+      }
+      carry = (carry + Math.ceil((L - carry) / step) * step) - L;
+    }
+  }
 }
+
+const _up = new THREE.Vector3(0, 1, 0), _v = new THREE.Vector3(), _s = new THREE.Vector3();
 
 function segDist(px, pz, x0, z0, x1, z1) {
   const dx = x1 - x0, dz = z1 - z0;

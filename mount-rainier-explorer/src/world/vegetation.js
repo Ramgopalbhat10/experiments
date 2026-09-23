@@ -13,9 +13,9 @@ const GCELL = 12;
 // --- Seasonal palettes -------------------------------------------------------
 const C = (h) => new THREE.Color(h);
 const PAL = {
-  douglas: [C('#3f7348'), C('#467a4a'), C('#386a44')],
+  douglas: [C('#345f3e'), C('#3b6840'), C('#2f573a')],
   hemlock: [C('#4d8050'), C('#56884e'), C('#4a7a4e')],
-  subalpine: [C('#4d8058'), C('#578a5c'), C('#46784f')],
+  subalpine: [C('#2f5a3e'), C('#386443'), C('#2a5239'), C('#41693f')],
   decid: {
     summer: [C('#6a9a3a'), C('#78a844')],
     autumn: [C('#e8b22a'), C('#f2c440'), C('#d9921e'), C('#c9b034')],
@@ -151,18 +151,18 @@ export class Vegetation {
     };
 
     const q = this.q;
-    const firA = coniferGeometry({ whorls: 14, radius: 0.24, cards: 5, droop: 0.45, seed: 11 });
-    const firB = coniferGeometry({ whorls: 16, radius: 0.21, cards: 6, droop: 0.6, seed: 29, crownBase: 0.2 });
-    const spire = coniferGeometry({ whorls: 18, radius: 0.16, cards: 5, droop: 0.35, seed: 71, crownBase: 0.04, taper: 0.8 });
+    const firA = coniferGeometry({ whorls: 20, radius: 0.24, cards: 6, droop: 0.45, seed: 11 });
+    const firB = coniferGeometry({ whorls: 22, radius: 0.21, cards: 7, droop: 0.6, seed: 29, crownBase: 0.2 });
+    const spire = coniferGeometry({ whorls: 26, radius: 0.15, cards: 6, droop: 0.5, seed: 71, crownBase: 0.02, taper: 0.9 });
     const decid = broadleafGeometry({ clumps: 24, seed: 5 });
     const conMats = [bark, needles], leafMats = [bark, leaves];
     this.pools = {
       firNear: mk(firA, q.nearCap, conMats),
       firNear2: mk(firB, q.nearCap, conMats),
-      spireNear: mk(spire, q.nearCap, conMats),
+      spireNear: mk(spire, q.nearCap * 2, conMats),
       decid: mk(decid, q.nearCap / 2, leafMats),
       firFar: imp(firA, [capBark, capNeedle], 0.54, q.farCap),
-      spireFar: imp(spire, [capBark, capNeedle], 0.38, q.farCap / 2),
+      spireFar: imp(spire, [capBark, capNeedle], 0.36, q.farCap),
       decidFar: imp(decid, [capBark, capLeaf], 0.7, q.farCap / 4),
       snag: mk(snagGeometry(4), 1500, bark),
       log: mk(logGeometry(), 1500, bark),
@@ -197,6 +197,32 @@ export class Vegetation {
     this.season = s;
     this.last.set(1e9, 0, 1e9);
     this.lastG.set(1e9, 0, 1e9);
+  }
+
+  /** Sample every lake shoreline so cells can line it with rocks and sedges. */
+  setShores(lakes) {
+    this.shore = new Map();
+    this.gshore = new Map();
+    const put = (map, size, x, z) => {
+      const k = `${Math.floor(x / size)},${Math.floor(z / size)}`;
+      let a = map.get(k);
+      if (!a) map.set(k, (a = []));
+      a.push(x, z);
+    };
+    for (const L of lakes.lakes) {
+      const ring = L.contour;
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i], b = ring[(i + 1) % ring.length];
+        const len = Math.hypot(b.x - a.x, b.y - a.y), n = Math.ceil(len / 2.5);
+        for (let j = 0; j < n; j++) {
+          const x = a.x + (b.x - a.x) * j / n, z = a.y + (b.y - a.y) * j / n;
+          put(this.shore, CELL, x, z);
+          put(this.gshore, GCELL, x, z);
+        }
+      }
+    }
+    this.cache.clear();
+    this.gcache.clear();
   }
 
   /** Keep viewpoints open: no trees within r of these spots. */
@@ -236,7 +262,7 @@ export class Vegetation {
         let p = Math.pow(f, 0.8) * 0.95;
         // subalpine parkland: spire-shaped firs in tight clumps within meadows
         const park = m * smoothstep(1250, 1450, y) * (1 - smoothstep(1900, 2150, y)) * smoothstep(0.52, 0.66, clump);
-        p = Math.max(p, park * 0.95);
+        p = Math.max(p, park * 0.25);
         p *= 1 - smoothstep(0.35, 0.6, s);
         if (n.y < 0.62) p *= 0.35;
         p *= this.q.density;
@@ -264,7 +290,7 @@ export class Vegetation {
           continue;
         }
         // understory / meadow shrubs (vine maple, huckleberry, mountain ash)
-        const pShrub = (m * 0.55 + f * 0.25 * (1 - smoothstep(1300, 1600, y)) + hf.riparianAt(x, z) * 0.3) * (1 - s);
+        const pShrub = (m * 0.08 + f * 0.3 * (1 - smoothstep(1300, 1600, y)) + hf.riparianAt(x, z) * 0.3) * (1 - s);
         if (r2 < pShrub * 1.6 && y < 2150) {
           if (paths.clearance(x, z) < 1) continue;
           const role = m > f ? 1 : 2;
@@ -282,10 +308,58 @@ export class Vegetation {
         }
       }
     }
+    this._parkland(cx, cz, rnd, out);
+    // shoreline boulders
+    const sh = this.shore?.get(k);
+    if (sh) {
+      for (let i = 0; i < sh.length; i += 2) {
+        if (rnd() > 0.35) continue;
+        const x = sh[i] + (rnd() - 0.5) * 2.5, z = sh[i + 1] + (rnd() - 0.5) * 2.5;
+        const sc = 0.4 + rnd() * rnd() * 2.2;
+        out.push(T_ROCK, x, hf.heightAt(x, z) - sc * 0.3, z, sc, rnd() * 40, 0, rnd());
+      }
+    }
     c = Float32Array.from(out);
     if (this.cache.size > 4000) this.cache.clear();
     this.cache.set(k, c);
     return c;
+  }
+
+  /**
+   * Subalpine fir & mountain hemlock "tree islands": tight clumps of narrow
+   * spires scattered through the meadows between ~1,300 and 2,100 m.
+   */
+  _parkland(cx, cz, rnd, out) {
+    const hf = this.hf, paths = this.paths;
+    const x0 = cx * CELL, z0 = cz * CELL;
+    const yc = hf.heightAt(x0 + CELL / 2, z0 + CELL / 2);
+    if (yc < 1150 || yc > 2250) return;
+    const n = new THREE.Vector3();
+    const D = 24, step = CELL / D;
+    for (let i = 0; i < D; i++) {
+      for (let j = 0; j < D; j++) {
+        const x = x0 + (i + rnd()) * step, z = z0 + (j + rnd()) * step;
+        const r1 = rnd(), r2 = rnd(), r3 = rnd();
+        if (r1 > 0.55 * this.q.density) continue;
+        // clump field: sharp-edged islands, larger & denser downhill
+        const cl = fbm(x * 0.018 + 3.1, z * 0.018 - 1.7, 2) * 0.75 + fbm(x * 0.06, z * 0.06, 2) * 0.35;
+        if (cl < 0.5) continue;
+        const y = hf.heightAt(x, z);
+        const band = smoothstep(1250, 1450, y) * (1 - smoothstep(1950, 2200, y));
+        const m = hf.meadowAt(x, z), f = hf.forestAt(x, z);
+        const thresh = 0.6 - (1 - smoothstep(1500, 1900, y)) * 0.06 - f * 0.1;
+        const p = band * smoothstep(thresh, thresh + 0.05, cl) * Math.min(1, m + f) * 0.55 * this.q.density;
+        if (r1 > p) continue;
+        if (hf.flagsAt(x, z) & (FLAG_LAKE | FLAG_ROAD) || hf.waterAt(x, z) > 0.2 || hf.snowAt(x, z) > 0.5) continue;
+        hf.normalAt(x, z, n);
+        if (n.y < 0.7 || this._inClearing(x, z)) continue;
+        if (paths.clearance(x, z) < 2.5) continue;
+        // taller in the middle of an island, knee-high seedlings at its edge
+        const core = smoothstep(thresh, thresh + 0.2, cl);
+        const sc = (3 + 15 * core * (0.6 + r2 * 0.6)) * (1 - smoothstep(1800, 2150, y) * 0.5);
+        out.push(T_SPIRE, x, y - 0.3, z, sc, r3 * 6.283, 0, r2);
+      }
+    }
   }
 
   _genGrassCell(cx, cz) {
@@ -310,6 +384,16 @@ export class Vegetation {
       if (this.paths.clearance(x, z) < 0.25) continue;
       const flower = m > 0.35 && r3 > 0.86 ? 1 : 0;
       out.push(x, hf.heightAt(x, z) - 0.05, z, (0.45 + r2 * 0.6) * (0.7 + m * 0.5), r3 * 6.283, r3, flower);
+    }
+    // sedges and rushes crowding the waterline
+    const sh = this.gshore?.get(k);
+    if (sh) {
+      for (let i = 0; i < sh.length; i += 2) {
+        for (let j = 0; j < 3; j++) {
+          const x = sh[i] + (rnd() - 0.5) * 3, z = sh[i + 1] + (rnd() - 0.5) * 3;
+          out.push(x, hf.heightAt(x, z) - 0.05, z, 0.7 + rnd() * 0.5, rnd() * 6.283, rnd() * 0.5, 0);
+        }
+      }
     }
     c = Float32Array.from(out);
     if (this.gcache.size > 5000) this.gcache.clear();

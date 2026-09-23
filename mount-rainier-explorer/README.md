@@ -54,6 +54,15 @@ Gamepads and touch screens (virtual joystick) also work.
 - 90+ named waterfalls with animated sheets and mist, fire lookouts (Tolmie, Fremont, Gobblers Knob, Shriner, High Rock) whose windows glow at night, and OSM buildings (Paradise Inn, Longmire, Sunrise).
 - 45 curated destinations with descriptions, discovery tracking, and a ranger on the radio with a line about each one.
 
+**Matched to the real place**
+- Subalpine meadows are a continuous carpet of huckleberry, heather and mountain ash in broad crimson, magenta, orange, gold and green drifts. Near shrubs, mid-distance mounds and far terrain all share one colour function, so the hand-off is seamless.
+- Dense subalpine fir "tree islands" on a 4 m placement grid, as at Paradise and Spray Park.
+- Named waterfalls are set pieces: a gorge carved into the terrain, stepped columnar-basalt ledges with moss, thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
+- Paved trails (the Skyline loop) are pale asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
+- Lakes have shelving shores, boulders and sedges at the waterline. You arrive on a low shore with open water toward the mountain.
+- The sky is a September-afternoon blue, with sunlit cumulus building around the summit and over the Cascades. The high cone is dark reddish andesite against the glaciers.
+- By default you start at the Myrtle Falls viewpoint at 3:30 PM in autumn.
+
 **Look (after Firewatch)**
 - Canvas-painted foliage textures: conifers built from drooping branch cards with soft canopy shading, painted impostors in the distance, windblown grass, fireweed and lupine, and huckleberry and vine maple that turn crimson in autumn.
 - A sky with a teal-to-tangerine gradient, posterized clouds and god rays. Height fog blends into the horizon, and a baked terrain shadow lets the mountain cast shadows for kilometres at sunset.

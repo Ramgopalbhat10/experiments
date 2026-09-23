@@ -46,7 +46,7 @@ export function branchTexture() {
         const s = k / steps;
         const px = x + (ex - x) * s, py = stem(x) + (ey - stem(x)) * s;
         const top = side < 0;                                 // upper side catches light
-        const v = Math.floor((top ? 185 : 120) + r() * 70 - s * 25);
+        const v = Math.floor((top ? 170 : 95) + r() * 70 + s * 30);
         g.strokeStyle = `rgb(${v},${v},${v})`;
         g.lineWidth = 3 + r() * 2;
         for (const nd of [-1, 1]) {

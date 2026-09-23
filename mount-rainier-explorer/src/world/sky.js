@@ -51,10 +51,10 @@ export class Sky {
             vec2 drift = vec2(uTime * 0.003, uTime * 0.001);
             float n = fbm5(vec2(cp.x * 0.9, cp.y * 2.2) + drift) * 0.75 + fbm3(cp * 0.4 + 5.0) * 0.4;
             float band = smoothstep(-0.02, 0.1, d.y) * (1.0 - smoothstep(0.25, 0.65, d.y));
-            float shape = smoothstep(0.585, 0.6, n * band + (1.0 - band) * 0.2);
+            float shape = smoothstep(0.56, 0.66, n * band + (1.0 - band) * 0.2);
             vec2 sun2 = normalize(uSunDir.xz + 1e-4);
             float n2 = fbm5(vec2(cp.x * 0.9, cp.y * 2.2) + drift - sun2 * 0.06) * 0.75 + fbm3((cp - sun2 * 0.06) * 0.4 + 5.0) * 0.4;
-            float rim = shape * (1.0 - smoothstep(0.585, 0.6, n2 * band + (1.0 - band) * 0.2));
+            float rim = shape * (1.0 - smoothstep(0.56, 0.66, n2 * band + (1.0 - band) * 0.2));
             float toSun = pow(max(dot(d, uSunDir), 0.0), 2.0);
             vec3 shade = mix(uZenith * 0.75 + uHorizon * 0.25, uHorizon * 0.9, 0.35 + 0.3 * toSun);
             vec3 lit = mix(uHorizon * 1.2, uSunColor * 1.6 + uHorizon * 0.4, 0.4 + 0.6 * toSun);

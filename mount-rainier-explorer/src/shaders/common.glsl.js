@@ -122,3 +122,32 @@ float heightBilinear(vec2 w) {
   return h;
 }
 `;
+
+// Subalpine meadow mosaic, matched to late-September Paradise: huckleberry
+// crimson and magenta, mountain-ash orange, cured gold grass, and green heather
+// in drifts. Shared by the shrub carpet (near) and terrain (far) so they agree.
+// Requires NOISE_GLSL. Colours are linear.
+export const MEADOW_GLSL = /* glsl */ `
+vec3 meadowPatch(vec2 p, float season) {
+  float a = fbm3(p * 0.012 + vec2(3.7, 1.3));
+  float b = fbm3(p * 0.04 + 7.3);
+  float c = vnoise(p * 0.5 + 3.1);
+  if (season < 0.5) {
+    vec3 g = mix(vec3(0.07, 0.17, 0.035), vec3(0.17, 0.27, 0.05), b);
+    return g * (0.8 + 0.4 * c);
+  }
+  vec3 green = vec3(0.06, 0.13, 0.035);
+  vec3 olive = vec3(0.22, 0.22, 0.06);
+  vec3 gold = vec3(0.55, 0.33, 0.06);
+  vec3 orange = vec3(0.6, 0.16, 0.04);
+  vec3 crimson = vec3(0.44, 0.03, 0.035);
+  vec3 magenta = vec3(0.46, 0.05, 0.11);
+  float t = clamp(a * 1.4 - 0.22 + (b - 0.5) * 1.1, 0.0, 1.0);
+  vec3 col = t < 0.18 ? mix(green, olive, t / 0.18)
+           : t < 0.4 ? mix(olive, gold, (t - 0.18) / 0.22)
+           : t < 0.58 ? mix(gold, orange, (t - 0.4) / 0.18)
+           : t < 0.8 ? mix(orange, crimson, (t - 0.58) / 0.22)
+           : mix(crimson, magenta, (t - 0.8) / 0.2);
+  return col * (0.88 + 0.24 * c);
+}
+`;

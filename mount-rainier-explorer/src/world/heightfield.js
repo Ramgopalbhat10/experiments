@@ -90,12 +90,12 @@ export class Heightfield {
     this._buildTextures();
   }
 
-  _buildNormals() {
+  _buildNormals(z0 = 0, z1 = this.res - 1, x0 = 0, x1 = this.res - 1) {
     const R = this.res, h = this.heights, c = this.cell;
-    const nrm = (this.normals = new Uint8Array(R * R * 4));
-    for (let z = 0; z < R; z++) {
+    const nrm = this.normals || (this.normals = new Uint8Array(R * R * 4));
+    for (let z = z0; z <= z1; z++) {
       const zu = Math.max(z - 1, 0) * R, zd = Math.min(z + 1, R - 1) * R, zr = z * R;
-      for (let x = 0; x < R; x++) {
+      for (let x = x0; x <= x1; x++) {
         const xl = Math.max(x - 1, 0), xr = Math.min(x + 1, R - 1);
         const dx = (h[zr + xr] - h[zr + xl]) / (2 * c);
         const dz = (h[zd + x] - h[zu + x]) / (2 * c);
@@ -157,6 +157,25 @@ export class Heightfield {
     nt.anisotropy = 4;
     nt.needsUpdate = true;
     this.normalTex = nt;
+  }
+
+  /**
+   * Edit terrain inside a world-space box: fn(x, z, h) -> new height.
+   * Updates the CPU copy, the GPU height texture and the normals.
+   */
+  carve(minX, minZ, maxX, maxZ, fn) {
+    const R = this.res, c = this.cell;
+    const i0 = clamp(Math.floor((minX + this.half) / c), 0, R - 1), i1 = clamp(Math.ceil((maxX + this.half) / c), 0, R - 1);
+    const j0 = clamp(Math.floor((minZ + this.half) / c), 0, R - 1), j1 = clamp(Math.ceil((maxZ + this.half) / c), 0, R - 1);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const x = (i + 0.5) * c - this.half, z = (j + 0.5) * c - this.half;
+        this.heights[j * R + i] = fn(x, z, this.heights[j * R + i]);
+      }
+    }
+    this._buildNormals(Math.max(0, j0 - 1), Math.min(R - 1, j1 + 1), Math.max(0, i0 - 1), Math.min(R - 1, i1 + 1));
+    this.heightTex.needsUpdate = true;
+    this.normalTex.needsUpdate = true;
   }
 
   inside(x, z, margin = 0) {
