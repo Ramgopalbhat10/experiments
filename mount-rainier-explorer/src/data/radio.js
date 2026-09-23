@@ -1,0 +1,43 @@
+// Ranger radio chatter, Firewatch style. Fictional voices, real park facts.
+
+export const PLACE_LINES = {
+  paradise: ['Longmire to hiker, you made it up to Paradise? In the winter of 1971–72 this meadow got 1,122 inches of snow. Still a world record for a single season.'],
+  myrtle: ['Myrtle Falls, nice. Stand on the bridge and line the falls up with the summit. That photo is on half the postcards in the gift shop.'],
+  altavista: ['Alta Vista is my favourite place for alpenglow. Stick around past sunset and watch the mountain go pink.'],
+  glaciervista: ['Down below you is the Nisqually Glacier. It has pulled back over a mile since the first surveys, but it still moves every single day.'],
+  panorama: ['Panorama Point! On a clear day you can see Adams, St. Helens and Hood from there. Tell me how many you count.'],
+  reflection: ['Best reflections are early morning, before the wind wakes up. Quiet water, upside-down Rainier.'],
+  narada: ['Narada Falls, 176 feet of Paradise River. Watch your step on the viewpoint trail, the spray freezes in the shoulder seasons.'],
+  'camp-muir': ['Camp Muir, 10,188 feet. John Muir camped near here on his 1888 climb. Most summit teams start before midnight from that hut.'],
+  christine: ['Christine Falls. That stone bridge over it went up in the late 1920s. Engineers back then really cared about the view.'],
+  comet: ['Comet Falls is one of the tallest in the park. Named for its tail of spray, if you were wondering.'],
+  longmire: ['Longmire, the old headquarters. James Longmire ran a mineral springs resort there in the 1880s.'],
+  mirror: ['Mirror Lakes, good call. Hardly anyone makes it out there. Enjoy the quiet.'],
+  gobblers: ['Hiker, that is a real fire lookout on Gobblers Knob. Imagine a whole summer up there with nothing but a radio and the mountain.'],
+  highrock: ['High Rock. Careful near the edge, it is a long way down on the north side. Best view of Rainier in the whole forest, if you ask me.'],
+  boxcanyon: ['Box Canyon. The Muddy Fork cut that slot through solid rock. Glacier water is strong stuff.'],
+  patriarchs: ['The Grove of the Patriarchs. Some of those trees were already old when the first Europeans reached this coast. Stay on the boardwalk, their roots are shallow.'],
+  silver: ['Silver Falls. Stay behind the railings, people get swept off those rocks every few years.'],
+  sunrise: ['Sunrise, 6,400 feet, the highest point you can drive to in the park. The big glacier in front of you is the Emmons, largest by area in the lower 48.'],
+  fremont: ['Mount Fremont Lookout. Keep an eye out for mountain goats on the ridges below you.'],
+  frozen: ['Frozen Lake is the water supply for Sunrise. No swimming, please.'],
+  burroughs: ['Second Burroughs. Up there it is basically arctic tundra. Tread lightly, those plants take decades to grow back.'],
+  tipsoo: ['Tipsoo Lake in the fall, lucky you. The huckleberry turns that whole basin red.'],
+  tolmie: ['Tolmie Peak! Eunice Lake below, Rainier behind it. Honestly, the best view in the park. Do not tell the Paradise crew I said that.'],
+  spray: ['Spray Falls, over 300 feet. On a sunny afternoon you will get rainbows.'],
+  spraypark: ['Spray Park is marmot country. They whistle when they see you coming. Pretty sure they gossip.'],
+  carbon: ['The Carbon Glacier snout is lower than any other glacier in the contiguous United States. The rumbling you hear is rock falling off the ice.'],
+  summit: ['You are on Columbia Crest. 14,410 feet. There are steam caves in the crater under your boots. Rainier is still an active volcano.'],
+  littletahoma: ['Little Tahoma, the third highest peak in Washington. It is what is left of the old east flank of Rainier.'],
+};
+
+export const GENERIC_LINES = [
+  'Weather can turn fast on the mountain. Keep a layer in your pack.',
+  'Reminder: the Wonderland Trail goes all the way around the mountain. 93 miles, around 22,000 feet of climbing.',
+  'If a marmot looks at your lunch, it is planning something. Keep your food packed.',
+  'You hear that rumble? Rockfall off one of the glaciers. Happens all day in the warm season.',
+  'Heads up, black bears are fattening up on huckleberries this time of year. Make some noise on blind corners.',
+  'If you camp tonight, keep your fire small and drown it before you sleep.',
+  'Clear skies tonight. If you stay up, look for the Milky Way over the mountain.',
+  'Elk are bugling down in the valleys this month. Weirdest sound you will ever hear.',
+];

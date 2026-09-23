@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Rainier Explorer</title>
+  <meta name="description" content="Hike a stylised, real-terrain Mount Rainier National Park in the browser, inspired by Firewatch." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- intro / loading -->
+  <div id="intro">
+    <svg class="ridges" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3b3a6b" />
+          <stop offset="0.45" stop-color="#c8627a" />
+          <stop offset="0.8" stop-color="#f6a55a" />
+          <stop offset="1" stop-color="#ffd59a" />
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#sky)" />
+      <circle cx="1180" cy="560" r="70" fill="#ffe6b3" opacity="0.9" />
+      <path d="M0 640 L380 620 L610 380 L690 300 L745 262 L790 290 L860 330 L1010 470 L1250 560 L1600 590 L1600 900 L0 900 Z" fill="#8c5d86" />
+      <path d="M690 300 L745 262 L790 290 L760 300 L735 318 L712 305 Z" fill="#f4e4ec" />
+      <path d="M0 700 L200 650 L330 690 L520 610 L700 680 L900 630 L1100 690 L1300 640 L1600 700 L1600 900 L0 900 Z" fill="#5e3f6b" />
+      <path d="M0 780 L120 740 L180 760 L260 720 L360 770 L520 740 L640 780 L820 735 L980 790 L1140 750 L1300 790 L1460 745 L1600 780 L1600 900 L0 900 Z" fill="#3a2a4a" />
+      <g fill="#1f1826">
+        <path d="M0 900 L0 820 L60 800 L140 830 L260 810 L420 840 L600 815 L760 845 L940 815 L1120 845 L1300 810 L1460 835 L1600 815 L1600 900 Z" />
+        <path d="M90 830 l18 -90 l18 90 z M130 830 l14 -70 l14 70 z M1360 830 l20 -110 l20 110 z M1410 830 l14 -70 l14 70 z M1480 830 l16 -86 l16 86 z" />
+      </g>
+    </svg>
+    <div class="intro-card">
+      <div class="kicker">Mount Rainier National Park · Washington</div>
+      <h1>RAINIER</h1>
+      <p class="sub">A third-person walk across 1,600 km² of real terrain: glaciers, alpine lakes, waterfalls, fire lookouts and fall colour.</p>
+      <div id="loading">
+        <div class="bar"><div id="load-bar"></div></div>
+        <div id="load-label">Loading…</div>
+        <button id="start-btn" class="btn primary big">Start hiking</button>
+      </div>
+      <div class="keys">
+        <span><b>WASD</b> walk</span><span><b>Shift</b> run</span><span><b>Mouse</b> look</span>
+        <span><b>V</b> first person</span><span><b>1-8</b> gear</span><span><b>C</b> camp</span><span><b>G</b> stars</span>
+        <span><b>M</b> map</span><span><b>J</b> places</span><span><b>F</b> fast travel</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="compass"><div id="compass-strip"></div><div class="compass-needle"></div></div>
+    <div id="loc">
+      <div id="loc-name">Paradise</div>
+      <div id="loc-elev">—</div>
+      <div id="loc-trail"></div>
+      <div id="loc-time"></div>
+    </div>
+    <div id="toast"><div class="t-kicker"></div><div class="t-main"></div><div class="t-sub"></div></div>
+    <div id="hint">Click to look around · M for the map · J for places to explore</div>
+    <div id="energy" title="Energy: hiking burns it, food and sleep restore it"><span>Energy</span><div id="energy-bar"><div id="energy-fill"></div></div></div>
+    <div id="crosshair"></div>
+    <div id="viewfinder"><i></i><i></i><i></i><i></i><span>● REC 24</span></div>
+    <div id="rangefinder"></div>
+    <div id="prompt"></div>
+    <div id="mini-toast"></div>
+    <div id="cook-progress"><div></div></div>
+    <div id="subtitle"></div>
+    <div id="star-labels"></div>
+    <div id="hotbar"></div>
+    <div id="buttons">
+      <button id="btn-view" class="icon-btn" title="First / third person (V)">
+        <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z M12 15a3 3 0 100-6 3 3 0 000 6z" /></svg><span>View</span>
+      </button>
+      <button id="btn-camp" class="icon-btn" title="Make camp (C) / camp menu (E)">
+        <svg viewBox="0 0 24 24"><path d="M3 20L12 4l9 16z M12 4v16 M9 20l3-6 3 6" /></svg><span>Camp</span>
+      </button>
+      <button id="btn-stars" class="icon-btn" title="Stargaze (G)">
+        <svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.6L20 9l-4.5 3.8L17 19l-5-3.2L7 19l1.5-6.2L4 9l5.8-.4z" /></svg><span>Stars</span>
+      </button>
+      <button id="btn-map" class="icon-btn" title="Map (M)">
+        <svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" /></svg><span>Map</span>
+      </button>
+      <button id="btn-places" class="icon-btn" title="Places (J)">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z M12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" /></svg><span>Places</span>
+      </button>
+      <button id="btn-fast" class="icon-btn" title="Fast travel speed (F)">
+        <svg viewBox="0 0 24 24"><path d="M4 12h9 M9 7l5 5-5 5 M14 7l5 5-5 5" /></svg><span>Fast</span>
+      </button>
+      <button id="btn-photo" class="icon-btn" title="Take a photo (P)">
+        <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z M12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" /></svg><span>Photo</span>
+      </button>
+      <button id="btn-settings" class="icon-btn" title="Settings (O)">
+        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z M19 12l2-1-1-3-2 .2-1.3-1.3.2-2-3-1-1 2h-1.8l-1-2-3 1 .2 2L6 7.2 4 7 3 10l2 1v2l-2 1 1 3 2-.2 1.3 1.3-.2 2 3 1 1-2h1.8l1 2 3-1-.2-2 1.3-1.3 2 .2 1-3-2-1z" /></svg><span>Settings</span>
+      </button>
+      <button id="btn-help" class="icon-btn" title="Help (H)">
+        <svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18z M9.5 9a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 4 M12 17v.5" /></svg><span>Help</span>
+      </button>
+    </div>
+    <div id="photos"></div>
+    <div id="stats"></div>
+    <div id="joy"><div id="joy-knob"></div></div>
+    <button id="btn-jump" class="touch-btn">Jump</button>
+    <button id="btn-run" class="touch-btn">Run</button>
+  </div>
+
+  <!-- paper map -->
+  <div id="map">
+    <div class="map-frame">
+      <canvas id="map-canvas"></canvas>
+      <div class="map-title">MOUNT RAINIER <small>National Park · 100 m contours</small></div>
+      <div class="map-tools">
+        <button class="btn" id="map-zoom-in">+</button>
+        <button class="btn" id="map-zoom-out">−</button>
+        <button class="btn" id="map-center">Me</button>
+        <button class="btn" id="map-close">Close</button>
+      </div>
+      <div class="map-legend">
+        <span><i class="lg trail"></i>Trail</span><span><i class="lg road"></i>Road</span>
+        <span><i class="lg lake"></i>Lake</span><span><i class="lg ice"></i>Glacier</span>
+        <span><i class="lg found"></i>Discovered</span>
+      </div>
+      <div id="map-card"></div>
+    </div>
+  </div>
+
+  <!-- panels -->
+  <div class="panel" id="panel-places">
+    <div class="panel-head"><h2>Places to explore</h2><span id="places-count"></span><button class="close" aria-label="Close">×</button></div>
+    <div id="places-list"></div>
+  </div>
+
+  <div class="panel" id="panel-settings">
+    <div class="panel-head"><h2>Settings</h2><button class="close" aria-label="Close">×</button></div>
+    <label>Time of day <input id="set-time" type="range" min="0" max="23.99" step="0.05" /></label>
+    <label>Time flow
+      <select id="set-flow">
+        <option value="0">Paused</option>
+        <option value="1">Real-time ×60 (1 min / s)</option>
+        <option value="10">Fast (10 min / s)</option>
+        <option value="60">Time-lapse (1 h / s)</option>
+      </select>
+    </label>
+    <label>Season <select id="set-season"></select></label>
+    <label>Graphics
+      <select id="set-quality">
+        <option value="low">Low (laptops, phones)</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+    </label>
+    <label>Volume <input id="set-volume" type="range" min="0" max="1" step="0.05" value="0.7" /></label>
+    <p class="fine">[ and ] nudge the clock, T toggles time-lapse, U hides the HUD.</p>
+  </div>
+
+  <div class="panel" id="panel-help">
+    <div class="panel-head"><h2>Field notes</h2><button class="close" aria-label="Close">×</button></div>
+    <div class="help-grid">
+      <b>W A S D / arrows</b><span>Walk (Shift to run, Space to jump)</span>
+      <b>Mouse</b><span>Look around (click to lock the pointer)</span>
+      <b>V</b><span>Switch first / third person</span>
+      <b>1 – 8 / wheel</b><span>Gear: hands, map, compass, radio, camera, binoculars, flashlight, trekking poles</span>
+      <b>Left click</b><span>Use what's in your hands</span>
+      <b>Right mouse</b><span>Look through the binoculars (rangefinder shows distance)</span>
+      <b>C / E</b><span>Make camp / open the camp menu: fire, cooking, sleep</span>
+      <b>G</b><span>Lie back and stargaze (X toggles constellations)</span>
+      <b>K / N</b><span>Radio music on/off / next track</span>
+      <b>L</b><span>Flashlight</span>
+      <b>F</b><span>Fast-travel speed</span>
+      <b>M / J</b><span>Paper map (click a place to travel) / places journal</span>
+      <b>P</b><span>Take a photo (click it to download)</span>
+      <b>[ ] / T</b><span>Change time of day / time-lapse</span>
+      <b>U</b><span>Hide HUD</span>
+    </div>
+    <p class="fine">Terrain: USGS 3DEP elevation via AWS Terrain Tiles. Land cover derived from Sentinel-2 cloudless 2016 by EOX (CC BY 4.0, modified Copernicus Sentinel data). Trails, lakes, glaciers, waterfalls and buildings © OpenStreetMap contributors (ODbL). Look inspired by Firewatch; everything here is procedural.</p>
+  </div>
+
+  <div class="panel" id="camp-menu">
+    <div class="panel-head"><h2>Camp</h2><button class="close" aria-label="Close">×</button></div>
+    <div id="camp-body"></div>
+  </div>
+
+  <div id="fade"><div id="fade-text"></div></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
