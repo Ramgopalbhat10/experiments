@@ -6,13 +6,18 @@ import * as THREE from 'three';
  * vignette and fine grain. The scene renders into an MSAA HDR target first.
  */
 export class Post {
-  constructor(renderer) {
+  constructor(renderer, { ao = true } = {}) {
     this.renderer = renderer;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     this.rt = new THREE.WebGLRenderTarget(size.x, size.y, {
       type: THREE.HalfFloatType,
       samples: 4,
     });
+    this.rt.depthTexture = new THREE.DepthTexture(size.x, size.y, THREE.FloatType);
+    this.ao = ao;
+    const aoOpts = { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+    this.aoRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 2), Math.ceil(size.y / 2), aoOpts);
+    this.aoBlurRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 2), Math.ceil(size.y / 2), aoOpts);
     this.bloomRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 4), Math.ceil(size.y / 4), { type: THREE.HalfFloatType });
     this.raysRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 4), Math.ceil(size.y / 4), { type: THREE.HalfFloatType });
     this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -62,6 +67,100 @@ export class Post {
         }`,
       depthTest: false, depthWrite: false,
     });
+    // --- ambient occlusion (depth only, half resolution) ---------------------
+    const DEPTH = /* glsl */ `
+      uniform sampler2D tDepth;
+      uniform float uNear, uFar, uLog;
+      uniform vec2 uProj; // projectionMatrix[0][0], [1][1]
+      float viewZ(float d) {
+        if (uLog > 0.5) return exp2(d * log2(uFar + 1.0)) - 1.0;
+        return (uFar * uNear / (uFar - uNear)) / (d + uNear / (uFar - uNear));
+      }
+      vec3 viewPos(vec2 uv) {
+        float z = viewZ(texture2D(tDepth, uv).r);
+        vec2 ndc = uv * 2.0 - 1.0;
+        return vec3(ndc.x * z / uProj.x, ndc.y * z / uProj.y, -z);
+      }`;
+    const depthUniforms = () => ({
+      tDepth: { value: this.rt.depthTexture },
+      uNear: { value: 0.3 }, uFar: { value: 1000 }, uLog: { value: 0 }, uProj: { value: new THREE.Vector2(1, 1) },
+    });
+    this.aoMat = new THREE.ShaderMaterial({
+      uniforms: { ...depthUniforms(), uTexel: { value: new THREE.Vector2() }, uRadius: { value: 1.6 }, uIntensity: { value: 1.6 }, uPxScale: { value: 1 } },
+      vertexShader: vs,
+      fragmentShader: /* glsl */ `
+        ${DEPTH}
+        uniform vec2 uTexel; uniform float uRadius, uIntensity, uPxScale;
+        varying vec2 vUv;
+        void main() {
+          vec3 P = viewPos(vUv);
+          float z = -P.z;
+          if (z > 260.0) { gl_FragColor = vec4(1.0); return; }
+          // normal from the flatter of the two neighbour differences on each axis
+          vec3 l = viewPos(vUv - vec2(uTexel.x, 0.0)), r = viewPos(vUv + vec2(uTexel.x, 0.0));
+          vec3 d = viewPos(vUv - vec2(0.0, uTexel.y)), u = viewPos(vUv + vec2(0.0, uTexel.y));
+          vec3 dx = abs(r.z - P.z) < abs(P.z - l.z) ? r - P : P - l;
+          vec3 dy = abs(u.z - P.z) < abs(P.z - d.z) ? u - P : P - d;
+          vec3 N = normalize(cross(dx, dy));
+          float R = uRadius * (1.0 + z * 0.012);
+          float px = clamp(R * uPxScale / z, 3.0, 90.0);
+          float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+          float ao = 0.0;
+          const int S = 12;
+          for (int i = 0; i < S; i++) {
+            float t = (float(i) + 0.5) / float(S);
+            float a = (float(i) * 2.39996 + ign * 6.2832);
+            vec2 off = vec2(cos(a), sin(a)) * px * sqrt(t) * uTexel;
+            vec3 v = viewPos(vUv + off) - P;
+            float vv = dot(v, v);
+            float vn = dot(v, N);
+            float fall = 1.0 - smoothstep(0.4 * R * R, R * R, vv);
+            ao += max(0.0, vn - 0.03 * R) / (vv + 0.02 * R * R) * R * fall;
+          }
+          ao = clamp(1.0 - uIntensity * ao / float(S), 0.0, 1.0);
+          ao = mix(ao, 1.0, smoothstep(140.0, 260.0, z));
+          gl_FragColor = vec4(vec3(ao), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    this.aoBlur = new THREE.ShaderMaterial({
+      uniforms: { ...depthUniforms(), tAO: { value: null }, uTexel: { value: new THREE.Vector2() } },
+      vertexShader: vs,
+      fragmentShader: /* glsl */ `
+        ${DEPTH}
+        uniform sampler2D tAO; uniform vec2 uTexel;
+        varying vec2 vUv;
+        void main() {
+          float z0 = viewZ(texture2D(tDepth, vUv).r);
+          float s = 0.0, w = 0.0;
+          for (int y = -2; y <= 1; y++) for (int x = -2; x <= 1; x++) {
+            vec2 uv = vUv + (vec2(x, y) + 0.5) * uTexel;
+            float z = viewZ(texture2D(tDepth, uv).r);
+            float k = 1.0 / (1.0 + abs(z - z0) / (0.02 * z0 + 0.05) * 4.0);
+            s += texture2D(tAO, uv).r * k;
+            w += k;
+          }
+          gl_FragColor = vec4(vec3(s / w), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    // multiplies the resolved AO into the HDR scene before the overlay is drawn
+    this.aoApply = new THREE.ShaderMaterial({
+      uniforms: { tAO: { value: this.aoBlurRT.texture }, uStrength: { value: 1 } },
+      vertexShader: vs,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D tAO; uniform float uStrength; varying vec2 vUv;
+        void main() {
+          float ao = texture2D(tAO, vUv).r;
+          // cool, slightly blue occlusion like Firewatch's painted contact shadows
+          vec3 tint = mix(vec3(0.62, 0.66, 0.78), vec3(1.0), ao);
+          gl_FragColor = vec4(mix(vec3(1.0), tint * ao, uStrength), 1.0);
+        }`,
+      depthTest: false, depthWrite: false, transparent: true,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor,
+    });
+
     this.grade = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: this.rt.texture },
@@ -76,7 +175,7 @@ export class Post {
         uWarm: { value: new THREE.Color('#ffd9a8') },
         uCool: { value: new THREE.Color('#3f6a78') },
         uSplit: { value: 0.12 },
-        uSat: { value: 1.2 },
+        uSat: { value: 1.1 },
         uVignette: { value: 0.35 },
         uGrain: { value: 0.035 },
       },
@@ -120,6 +219,8 @@ export class Post {
 
   setSize(w, h) {
     this.rt.setSize(w, h);
+    this.aoRT.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
+    this.aoBlurRT.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
     this.bloomRT.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
     this.raysRT.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
   }
@@ -133,6 +234,7 @@ export class Post {
     const r = this.renderer;
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
+    if (this.ao) this._ambientOcclusion(camera);
     if (opts.overlay) {
       const ac = r.autoClear;
       r.autoClear = false;
@@ -164,5 +266,32 @@ export class Post {
     this.grade.uniforms.uAspect.value = aspect;
     r.setRenderTarget(null);
     r.render(this.scene, this.quadCam);
+  }
+
+  _ambientOcclusion(camera) {
+    const r = this.renderer;
+    const reversed = r.state?.buffers?.depth?.getReversed?.() || false;
+    for (const m of [this.aoMat, this.aoBlur]) {
+      const u = m.uniforms;
+      u.uNear.value = camera.near;
+      u.uFar.value = camera.far;
+      u.uLog.value = reversed ? 0 : 1;
+      u.uProj.value.set(camera.projectionMatrix.elements[0], camera.projectionMatrix.elements[5]);
+      u.uTexel.value.set(1 / this.aoRT.width, 1 / this.aoRT.height);
+    }
+    this.aoMat.uniforms.uPxScale.value = camera.projectionMatrix.elements[5] * this.aoRT.height * 0.5;
+    this.quad.material = this.aoMat;
+    r.setRenderTarget(this.aoRT); // resolves the MSAA colour and depth
+    r.render(this.scene, this.quadCam);
+    this.quad.material = this.aoBlur;
+    this.aoBlur.uniforms.tAO.value = this.aoRT.texture;
+    r.setRenderTarget(this.aoBlurRT);
+    r.render(this.scene, this.quadCam);
+    this.quad.material = this.aoApply;
+    r.setRenderTarget(this.rt);
+    const ac = r.autoClear;
+    r.autoClear = false;
+    r.render(this.scene, this.quadCam);
+    r.autoClear = ac;
   }
 }

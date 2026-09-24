@@ -22,6 +22,7 @@ Any static file server works. Options go in the URL:
 | `season` | `?season=summer` | `summer`, `autumn` (default) or `winter` |
 | `q` | `?q=high` | Graphics: `low`, `medium`, `high` |
 | `stats` | `?stats` | Show fps / draw calls |
+| `ao` | `?ao=0` | Turn ambient occlusion off |
 
 ## Controls
 
@@ -55,10 +56,12 @@ Gamepads and touch screens (virtual joystick) also work.
 - 45 curated destinations with descriptions, discovery tracking, and a ranger on the radio with a line about each one.
 
 **Matched to the real place**
-- Subalpine meadows are a continuous carpet of huckleberry, heather and mountain ash in broad crimson, magenta, orange, gold and green drifts. Near shrubs, mid-distance mounds and far terrain all share one colour function, so the hand-off is seamless.
-- Dense subalpine fir "tree islands" on a 4 m placement grid, as at Paradise and Spray Park.
-- Named waterfalls are set pieces: a gorge carved into the terrain, stepped columnar-basalt ledges with moss, thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
-- Paved trails (the Skyline loop) are pale asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
+- Fall colour follows the real ecology. Huckleberry, heather and mountain ash grow thickest along the trails through the subalpine band (about 1,350–1,950 m), with grassy openings between them. Lower down the meadows turn vine-maple gold, and higher up they give way to cured grass, pumice and rubble, as at Sunrise. Near shrubs, mid-distance mounds and far terrain share one colour function, so the hand-off is seamless.
+- Distant peaks read as brown and grey andesite, with talus streaked down the fall line, rust staining, and individual stones close up. Far meadows are muted to rust and olive rather than saturated patches.
+- Dense subalpine fir and mountain hemlock "tree islands" on a 4 m placement grid, plus lone firs standing in the meadows, as at Paradise and Spray Park. Conifers use three LODs: full branch cards, a lighter mid-distance mesh, and painted impostors.
+- Named waterfalls are set pieces: a gorge carved into the terrain, a craggy face of broken andesite ledges (wet and dark where the water runs, mossy on the ledges), thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
+- Paved trails (the Skyline loop) are weathered asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
+- OSM buildings have stone foundations, shingle courses, framed window rows that glow at night, and shingled roofs.
 - Lakes have shelving shores, boulders and sedges at the waterline. You arrive on a low shore with open water toward the mountain.
 - The sky is a September-afternoon blue, with sunlit cumulus building around the summit and over the Cascades. The high cone is dark reddish andesite against the glaciers.
 - By default you start at the Myrtle Falls viewpoint at 3:30 PM in autumn.
@@ -66,7 +69,8 @@ Gamepads and touch screens (virtual joystick) also work.
 **Look (after Firewatch)**
 - Canvas-painted foliage textures: conifers built from drooping branch cards with soft canopy shading, painted impostors in the distance, windblown grass, fireweed and lupine, and huckleberry and vine maple that turn crimson in autumn.
 - A sky with a teal-to-tangerine gradient, posterized clouds and god rays. Height fog blends into the horizon, and a baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
-- Faceted boulders and cliffs, snags, fallen logs, glacier crevasses and debris-covered snouts.
+- Faceted boulders and cliffs with a shared weathered-rock shader (3D-noise strata, lichen, cracks, moss on up-facing facets), snags, fallen logs, glacier crevasses and debris-covered snouts.
+- Screen-space ambient occlusion (depth only, half resolution, medium and high quality) grounds shrubs, trees and rocks. Conifers are self-shadowed inside the crown.
 - Real night sky: bright-star catalogue and constellations rotated by local sidereal time for the in-game date, plus a Milky Way along the true galactic plane.
 
 **Play**

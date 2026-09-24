@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { lambert } from './materials.js';
 import { mulberry32, hash2, smoothstep, clamp } from '../core/noise.js';
+import { ROCK_GLSL } from '../shaders/common.glsl.js';
 
 /*
  * Waterfall set pieces. The 20 m elevation grid smears a 20–100 m cliff into a
@@ -15,17 +16,32 @@ import { mulberry32, hash2, smoothstep, clamp } from '../core/noise.js';
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const _e = new THREE.Euler();
 
-function columnGeometry() {
-  const g = new THREE.CylinderGeometry(1, 1, 1, 6, 1).translate(0, -0.5, 0).toNonIndexed();
-  const n = g.attributes.normal, c = new Float32Array(g.attributes.position.count * 3);
-  for (let i = 0; i < n.count; i++) {
-    const top = n.getY(i) > 0.5;
-    const v = top ? 1 : 0.72;
-    c[i * 3] = v; c[i * 3 + 1] = v; c[i * 3 + 2] = v;
+/**
+ * A broken andesite ledge block: a noisy, faceted lump whose flat-ish top sits
+ * at y = 0 and whose body hangs down to y = -1. Overlapping dozens of these at
+ * random turns gives a craggy fall face instead of a grid of columns.
+ */
+function ledgeGeometry(seed) {
+  const rnd = mulberry32(seed);
+  const g = new THREE.IcosahedronGeometry(1, 1);
+  const p = g.attributes.position;
+  const seen = new Map();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const k = `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
+    let s = seen.get(k);
+    if (s === undefined) seen.set(k, (s = [0.78 + rnd() * 0.4, (rnd() - 0.5) * 0.12]));
+    // squash the top into a tilted, uneven ledge; keep the sides blocky
+    let ny = y > 0.45 ? 0.45 + (y - 0.45) * 0.25 + s[1] : y;
+    ny = (ny - 0.56) / 1.56;
+    p.setXYZ(i, x * s[0] * (1 + Math.max(0, y) * 0.1), ny, z * s[0]);
   }
-  g.setAttribute('color', new THREE.BufferAttribute(c, 3));
-  g.deleteAttribute('uv');
-  return g;
+  const ng = g.index ? g.toNonIndexed() : g;
+  ng.computeVertexNormals();
+  ng.deleteAttribute('uv');
+  const c = new Float32Array(ng.attributes.position.count * 3).fill(1);
+  ng.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  return ng;
 }
 
 export class Cascades {
@@ -36,14 +52,15 @@ export class Cascades {
     this.group = new THREE.Group();
     this.group.name = 'cascades';
     this.items = [];
-    this.colGeo = columnGeometry();
+    this.ledgeGeos = [ledgeGeometry(3), ledgeGeometry(17), ledgeGeometry(58)];
     this.rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, {
       key: 'basalt',
       colorVertex: `
         #ifdef USE_INSTANCING_COLOR
           vColor.rgb = color.rgb * instanceColor.rgb;
         #endif`,
-      colorFragment: 'diffuseColor.rgb *= 0.8 + 0.4 * vnoise(vWorldPos.xz * 2.3 + vWorldPos.y * 1.7);',
+      fragmentPars: ROCK_GLSL,
+      colorFragment: 'diffuseColor.rgb = rockSurface(diffuseColor.rgb, vWorldPos, 0.9, 0.0);',
     });
     this.waterMat = lambert(atmo, { color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }, {
       key: 'cascade',
@@ -136,7 +153,7 @@ export class Cascades {
       return Math.max(t, ground + 0.15);
     };
     const cols = [];
-    const spacing = 1.45;
+    const spacing = 2.1;
     const na = Math.ceil((S + 9) / spacing), nc = Math.ceil((W + 14) / spacing);
     for (let i = 0; i < na; i++) {
       for (let j = 0; j < nc; j++) {
@@ -147,24 +164,31 @@ export class Cascades {
         const top = faceTop(a, c) + (rnd() - 0.5) * 0.35;
         const ground = hf.heightAt(lx + dx * a + px * c, lz + dz * a + pz * c);
         if (top < ground - 0.2) continue;
-        const r = 0.72 + rnd() * 0.25;
-        cols.push([lx + dx * a + px * c, top, lz + dz * a + pz * c, r, Math.max(3, top - ground + 4), rnd()]);
+        const r = 0.95 + rnd() * 0.7;
+        const wet = a > -2 && a < S + 2 ? 1 - smoothstep(W * 0.18, W * 0.34, Math.abs(c)) : 0;
+        cols.push([lx + dx * a + px * c, top, lz + dz * a + pz * c, r, Math.max(3, top - ground + 4), rnd(), wet * 0.7]);
       }
     }
-    const im = new THREE.InstancedMesh(this.colGeo, this.rockMat, cols.length);
-    const moss = new THREE.Color('#566042'), mossB = new THREE.Color('#6a7148'), rock = new THREE.Color('#4a4b50'), rockB = new THREE.Color('#58544f');
+    // three block shapes, each block turned and tilted at random
+    const rock = new THREE.Color('#4f4d4c'), rockB = new THREE.Color('#5d5750'), wetC = new THREE.Color('#2e3032');
     const tint = new THREE.Color();
-    cols.forEach(([x, y, z, r, len, k], i) => {
-      _q.setFromEuler(_e.set((k - 0.5) * 0.12, k * 6.28, (0.5 - k) * 0.1));
-      _m.compose(_p.set(x, y, z), _q, _s.set(r, len, r));
-      im.setMatrixAt(i, _m);
-      if (k < 0.18) tint.copy(k < 0.07 ? mossB : moss);
-      else tint.copy(k > 0.8 ? rockB : rock);
-      im.setColorAt(i, tint);
+    const meshes = this.ledgeGeos.map((geo, gi) => {
+      const list = cols.filter((c) => Math.floor(c[5] * 3) % 3 === gi);
+      const im = new THREE.InstancedMesh(geo, this.rockMat, Math.max(1, list.length));
+      im.count = list.length;
+      list.forEach(([x, y, z, r, len, k, wet], i) => {
+        _q.setFromEuler(_e.set((k - 0.5) * 0.3, k * 37.0, (0.5 - fract(k * 7.1)) * 0.3));
+        const w = r * (1.2 + fract(k * 13.3) * 0.6);
+        _m.compose(_p.set(x, y, z), _q, _s.set(w, len, w * (0.8 + fract(k * 5.3) * 0.4)));
+        im.setMatrixAt(i, _m);
+        tint.copy(k > 0.6 ? rockB : rock).multiplyScalar(0.85 + fract(k * 91.7) * 0.3).lerp(wetC, wet);
+        im.setColorAt(i, tint);
+      });
+      im.castShadow = im.receiveShadow = true;
+      im.computeBoundingSphere();
+      this.group.add(im);
+      return im;
     });
-    im.castShadow = im.receiveShadow = true;
-    im.computeBoundingSphere();
-    this.group.add(im);
 
     // 3. strands of water down the ledges
     const strands = clamp(Math.round(W / 5), 2, 6);
@@ -210,7 +234,7 @@ export class Cascades {
     this._bridge(trace, lx, lz, dx, dz, W, h0);
 
     this.paths.exclude?.push({ x: lx + dx * S * 0.5, z: lz + dz * S * 0.5, r: S * 0.5 + pr + 4 });
-    const item = { name: fall.name, x: lx, z: lz, objects: [im, water, pool], bottom: [pool.position.x, pool.position.y + 0.5, pool.position.z] };
+    const item = { name: fall.name, x: lx, z: lz, objects: [...meshes, water, pool], bottom: [pool.position.x, pool.position.y + 0.5, pool.position.z] };
     this.items.push(item);
     return item;
   }
@@ -304,6 +328,8 @@ export class Cascades {
     }
   }
 }
+
+function fract(v) { return v - Math.floor(v); }
 
 function segHit(ax, az, bx, bz, cx, cz, ex, ez) {
   const d = (bx - ax) * (ez - cz) - (bz - az) * (ex - cx);

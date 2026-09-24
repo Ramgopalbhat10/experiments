@@ -4,13 +4,13 @@ import { clamp, smoothstep } from '../core/noise.js';
 // Palettes keyed by sun elevation (degrees). Colours are authored in sRGB and
 // lean on Firewatch's graded skies: teal days, tangerine golden hours, violet dusks.
 const KEYS = [
-  { el: -18, zenith: '#070b1c', horizon: '#18203d', ground: '#0c1020', sun: '#6d7fb8', sunI: 0.30, hemiSky: '#27335a', hemiGround: '#141522', hemiI: 1.16, fog: 0.00007, tint: '#9aa6d8', stars: 1 },
+  { el: -18, zenith: '#070b1c', horizon: '#18203d', ground: '#0c1020', sun: '#7a8cc4', sunI: 0.42, hemiSky: '#324476', hemiGround: '#161a2a', hemiI: 1.5, fog: 0.00007, tint: '#9aa6d8', stars: 1 },
   { el: -8, zenith: '#1c2350', horizon: '#6b4a6e', ground: '#262036', sun: '#8a7cc0', sunI: 0.21, hemiSky: '#4c4a7a', hemiGround: '#231d2e', hemiI: 1.26, fog: 0.00008, tint: '#c7a8c9', stars: 0.6 },
   { el: -2, zenith: '#2a3f6e', horizon: '#f0845a', ground: '#3b2a3c', sun: '#ff8a55', sunI: 0.77, hemiSky: '#7a6a9c', hemiGround: '#3a2832', hemiI: 1.58, fog: 0.00009, tint: '#ffd2b8', stars: 0.15 },
   { el: 4, zenith: '#3f6f9e', horizon: '#ffa24f', ground: '#6b4a4a', sun: '#ffb070', sunI: 2.21, hemiSky: '#8fa0c0', hemiGround: '#5b3e32', hemiI: 1.78, fog: 0.00008, tint: '#ffe0c4', stars: 0 },
-  { el: 12, zenith: '#3a7fc6', horizon: '#ffd08a', ground: '#7d6a5c', sun: '#ffd09a', sunI: 2.55, hemiSky: '#9fc0d8', hemiGround: '#6a5a44', hemiI: 1.89, fog: 0.00007, tint: '#fff0e0', stars: 0 },
-  { el: 28, zenith: '#2474d2', horizon: '#b4d6ee', ground: '#8aa0a8', sun: '#fff0d8', sunI: 2.80, hemiSky: '#a8cde6', hemiGround: '#70694f', hemiI: 1.99, fog: 0.000055, tint: '#ffffff', stars: 0 },
-  { el: 60, zenith: '#1f6bcf', horizon: '#a9d0ee', ground: '#8aa0a8', sun: '#fff7ea', sunI: 2.98, hemiSky: '#a2cbe8', hemiGround: '#6e6a52', hemiI: 2.10, fog: 0.00005, tint: '#ffffff', stars: 0 },
+  { el: 12, zenith: '#3a7fc6', horizon: '#ffd08a', ground: '#7d6a5c', sun: '#ffd09a', sunI: 2.85, hemiSky: '#9fc0d8', hemiGround: '#6a5a44', hemiI: 1.89, fog: 0.00007, tint: '#fff0e0', stars: 0 },
+  { el: 28, zenith: '#2474d2', horizon: '#b4d6ee', ground: '#8aa0a8', sun: '#fff0d8', sunI: 3.15, hemiSky: '#a8cde6', hemiGround: '#70694f', hemiI: 1.99, fog: 0.000055, tint: '#ffffff', stars: 0 },
+  { el: 60, zenith: '#1f6bcf', horizon: '#a9d0ee', ground: '#8aa0a8', sun: '#fff7ea', sunI: 3.3, hemiSky: '#a2cbe8', hemiGround: '#6e6a52', hemiI: 2.10, fog: 0.00005, tint: '#ffffff', stars: 0 },
 ];
 for (const k of KEYS) {
   for (const f of ['zenith', 'horizon', 'ground', 'sun', 'hemiSky', 'hemiGround', 'tint']) k[f] = new THREE.Color(k[f]);

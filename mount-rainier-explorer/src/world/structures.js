@@ -74,6 +74,51 @@ export class Structures {
     this.lookouts = [];
     this.glassGlow = { value: 0 };
     const mat = lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, { key: 'struct' });
+    // OSM buildings: stone foundation, cedar shingle courses, framed window rows
+    // (warm at night) and shingled roofs, all painted in the shader
+    const houseMat = lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, {
+      key: 'house',
+      uniforms: { uGlow: this.glassGlow },
+      vertexPars: 'attribute vec3 aB; varying vec3 vB;',
+      vertexBegin: 'vB = aB;',
+      fragmentPars: 'uniform float uGlow; varying vec3 vB; float vWin;',
+      colorFragment: `
+        vWin = 0.0;
+        float camD = length(vWorldPos - cameraPosition);
+        float det = 1.0 - smoothstep(150.0, 900.0, camD);
+        if (vB.x < 0.5) {
+          float u = vB.y, v = vB.z;
+          if (v < 0.9) {
+            // river-rock foundation
+            vec2 q = vec2(u * 1.6, v * 2.6);
+            vec2 f = fract(q + vec2(step(1.0, mod(floor(q.y), 2.0)) * 0.5, 0.0));
+            float mortar = smoothstep(0.08, 0.0, min(min(f.x, 1.0 - f.x) * 0.6, min(f.y, 1.0 - f.y)));
+            vec3 stone = vec3(0.16, 0.15, 0.14) * (0.75 + 0.5 * hash12(floor(q + vec2(step(1.0, mod(floor(q.y), 2.0)) * 0.5, 0.0))));
+            diffuseColor.rgb = mix(stone, vec3(0.08, 0.075, 0.07), mortar * det);
+          } else {
+            // shingle courses
+            float course = fract(v / 0.32);
+            float shade = 0.82 + 0.18 * smoothstep(0.0, 0.9, course) + (hash12(vec2(floor(u / 0.25), floor(v / 0.32))) - 0.5) * 0.2;
+            diffuseColor.rgb *= mix(1.0, shade, det);
+            // window rows, one per storey
+            vec2 w = vec2(fract(u / 3.0), fract((v - 0.9) / 3.2));
+            float inWin = step(0.34, w.x) * step(w.x, 0.66) * step(0.22, w.y) * step(w.y, 0.68) * step(1.3, v);
+            float frame = inWin * (1.0 - step(0.37, w.x) * step(w.x, 0.63) * step(0.25, w.y) * step(w.y, 0.65));
+            float mull = inWin * step(abs(w.x - 0.5), 0.008);
+            vec3 glass = mix(vec3(0.03, 0.045, 0.06), vec3(0.09, 0.12, 0.15), w.y);
+            diffuseColor.rgb = mix(diffuseColor.rgb, glass, inWin * det);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.46, 0.38), max(frame, mull) * det);
+            vWin = inWin * (1.0 - max(frame, mull)) * det * step(0.35, hash12(floor(vec2(u / 3.0, (v - 0.9) / 3.2)) + 3.7));
+          }
+        } else {
+          // roof shingles running down the slope
+          float r = fract(vB.z / 0.4);
+          float tab = hash12(vec2(floor(vB.y / 0.35 + step(0.5, fract(vB.z / 0.8)) * 0.5), floor(vB.z / 0.4)));
+          diffuseColor.rgb *= mix(1.0, (0.78 + 0.22 * smoothstep(0.0, 0.8, r)) * (0.9 + 0.2 * tab), det);
+        }
+      `,
+      lightsEnd: 'reflectedLight.indirectDiffuse += vec3(1.0, 0.62, 0.3) * uGlow * vWin * 1.6;',
+    });
     const glowMat = lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, {
       key: 'lookout',
       uniforms: { uGlow: this.glassGlow },
@@ -101,7 +146,7 @@ export class Structures {
       this.polys.push(pts);
     }
     if (parts.length) {
-      const m = new THREE.Mesh(mergeGeometries(parts), mat);
+      const m = new THREE.Mesh(mergeGeometries(parts), houseMat);
       m.castShadow = m.receiveShadow = true;
       this.group.add(m);
     }
@@ -162,31 +207,38 @@ export class Structures {
     const base = minH - 1.0;
     const top = maxH + levels * 3.2;
     const roofH = Math.min(9, ext * 0.45);
-    const wallCol = new THREE.Color(rnd() > 0.35 ? '#6a4b33' : '#8b8378').multiplyScalar(0.85 + rnd() * 0.3);
+    const wallCol = new THREE.Color(rnd() > 0.35 ? '#7a5a3e' : '#8f887c').multiplyScalar(0.85 + rnd() * 0.3);
     const roofCol = new THREE.Color(['#3d5a3e', '#4a3228', '#3a3f45', '#6b2e22'][Math.floor(rnd() * 4)]);
-    const pos = [], col = [];
-    const push = (x, y, z, c) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); };
+    const pos = [], col = [], bb = [];
+    const push = (x, y, z, c, k, u, v) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); bb.push(k, u, v); };
     const n = pts.length;
     const inset = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 0.25, cz + (p.y - cz) * 0.25));
     const eave = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 1.08, cz + (p.y - cz) * 1.08));
+    const g0 = maxH; // shingles start just above the highest ground
+    let run = 0;
     for (let i = 0; i < n; i++) {
       const a = pts[i], c = pts[(i + 1) % n];
-      // wall quad (CCW footprint -> outward faces)
-      push(a.x, base, a.y, wallCol); push(c.x, base, c.y, wallCol); push(c.x, top, c.y, wallCol);
-      push(a.x, base, a.y, wallCol); push(c.x, top, c.y, wallCol); push(a.x, top, a.y, wallCol);
-      // roof slope from eave to inset ridge
+      const L = Math.hypot(c.x - a.x, c.y - a.y);
+      // wall quad (CCW footprint -> outward faces); u runs around the building, v up from the ground
+      push(a.x, base, a.y, wallCol, 0, run, base - g0); push(c.x, base, c.y, wallCol, 0, run + L, base - g0); push(c.x, top, c.y, wallCol, 0, run + L, top - g0);
+      push(a.x, base, a.y, wallCol, 0, run, base - g0); push(c.x, top, c.y, wallCol, 0, run + L, top - g0); push(a.x, top, a.y, wallCol, 0, run, top - g0);
+      // roof slope from eave to inset ridge; v runs up the slope
       const ea = eave[i], ec = eave[(i + 1) % n], ia = inset[i], ic = inset[(i + 1) % n];
-      push(ea.x, top - 0.3, ea.y, roofCol); push(ec.x, top - 0.3, ec.y, roofCol); push(ic.x, top + roofH, ic.y, roofCol);
-      push(ea.x, top - 0.3, ea.y, roofCol); push(ic.x, top + roofH, ic.y, roofCol); push(ia.x, top + roofH, ia.y, roofCol);
+      const slope = Math.hypot(Math.hypot(ia.x - ea.x, ia.y - ea.y), roofH + 0.3);
+      const Le = Math.hypot(ec.x - ea.x, ec.y - ea.y);
+      push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ec.x, top - 0.3, ec.y, roofCol, 1, Le, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope);
+      push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope); push(ia.x, top + roofH, ia.y, roofCol, 1, 0, slope);
+      run += L;
     }
     const tris = THREE.ShapeUtils.triangulateShape(inset, []);
     for (const t of tris) {
       const A = inset[t[0]], B = inset[t[1]], Cc = inset[t[2]];
-      push(A.x, top + roofH, A.y, roofCol); push(Cc.x, top + roofH, Cc.y, roofCol); push(B.x, top + roofH, B.y, roofCol);
+      push(A.x, top + roofH, A.y, roofCol, 1, A.x, A.y); push(Cc.x, top + roofH, Cc.y, roofCol, 1, Cc.x, Cc.y); push(B.x, top + roofH, B.y, roofCol, 1, B.x, B.y);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setAttribute('aB', new THREE.Float32BufferAttribute(bb, 3));
     g.computeVertexNormals();
     return g;
   }

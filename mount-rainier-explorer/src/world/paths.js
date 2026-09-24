@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lambert } from './materials.js';
+import { ROCK_GLSL } from '../shaders/common.glsl.js';
 import { boulderGeometry } from './foliage.js';
 import { mulberry32, hash2 } from '../core/noise.js';
 
@@ -26,7 +27,7 @@ export class PathNetwork {
       for (const f of list) {
         if (f.p.length < 4) continue;
         const paved = type === 'trail' && /asphalt|paved|concrete/.test(f.s || '');
-        this.lines.push({ type, name: f.n || '', kind: f.k || 0, paved, pts: Float32Array.from(f.p), w: paved ? 2.6 : widthOf(f) });
+        this.lines.push({ type, name: f.n || '', kind: f.k || 0, paved, pts: Float32Array.from(f.p), w: paved ? 2.1 : widthOf(f) });
       }
     };
     add(features.trails, 'trail', (f) => TRAIL_W[f.k] ?? 1.5);
@@ -65,6 +66,80 @@ export class PathNetwork {
     this.queue = [];
     this.exclude = [];   // zones where stream ribbons are replaced by set pieces
     this._makeMaterials();
+    this._bakeProximity();
+  }
+
+  /**
+   * A coarse "how close to a trail" field over the whole park (1 near a trail,
+   * fading out over ~250 m). The autumn meadow colour follows the trails, since
+   * they are laid through the showiest subalpine meadows.
+   */
+  _bakeProximity(size = 1024) {
+    const hf = this.hf, half = hf.half, texel = hf.size / size;
+    const f = new Float32Array(size * size);
+    const R = 260;
+    for (const ln of this.lines) {
+      if (ln.type === 'stream') continue;
+      const wgt = ln.type === 'trail' ? 1 : 0.55;
+      const p = ln.pts;
+      for (let s = 0; s < p.length / 2 - 1; s++) {
+        const x0 = p[s * 2], z0 = p[s * 2 + 1], x1 = p[s * 2 + 2], z1 = p[s * 2 + 3];
+        const i0 = Math.max(0, Math.floor((Math.min(x0, x1) - R + half) / texel));
+        const i1 = Math.min(size - 1, Math.ceil((Math.max(x0, x1) + R + half) / texel));
+        const j0 = Math.max(0, Math.floor((Math.min(z0, z1) - R + half) / texel));
+        const j1 = Math.min(size - 1, Math.ceil((Math.max(z0, z1) + R + half) / texel));
+        for (let j = j0; j <= j1; j++) {
+          const z = (j + 0.5) * texel - half;
+          for (let i = i0; i <= i1; i++) {
+            const x = (i + 0.5) * texel - half;
+            const d = segDist(x, z, x0, z0, x1, z1);
+            if (d >= R) continue;
+            const t = Math.min(1, Math.max(0, (R - d) / (R - 30)));
+            const v = t * t * (3 - 2 * t) * wgt;
+            const o = j * size + i;
+            if (v > f[o]) f[o] = v;
+          }
+        }
+      }
+    }
+    const u8 = new Uint8Array(size * size);
+    for (let i = 0; i < f.length; i++) u8[i] = Math.round(f[i] * 255);
+    this.prox = f;
+    this.proxSize = size;
+    const tex = new THREE.DataTexture(u8, size, size, THREE.RedFormat, THREE.UnsignedByteType);
+    tex.minFilter = tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    this.trailTex = tex;
+  }
+
+  /** 0..1: how close (x, z) is to a trail, from the coarse proximity field. */
+  trailNear(x, z) {
+    const n = this.proxSize, hf = this.hf;
+    const i = Math.floor(((x + hf.half) / hf.size) * n), j = Math.floor(((z + hf.half) / hf.size) * n);
+    if (i < 0 || j < 0 || i >= n || j >= n) return 0;
+    return this.prox[j * n + i];
+  }
+
+  /** Distance to the nearest trail centre-line, searching neighbouring grid cells too. */
+  trailDist(x, z, maxD = 40) {
+    let bd = maxD;
+    const gx = Math.floor(x / GRID), gz = Math.floor(z / GRID);
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx && Math.abs(x - (gx + (dx > 0 ? 1 : 0)) * GRID) > maxD) continue;
+        if (dz && Math.abs(z - (gz + (dz > 0 ? 1 : 0)) * GRID) > maxD) continue;
+        const a = this.grid.get(key(gx + dx, gz + dz));
+        if (!a) continue;
+        for (let i = 0; i < a.length; i += 2) {
+          const ln = this.lines[a[i]];
+          if (ln.type === 'stream') continue;
+          const p = ln.pts, s = a[i + 1] * 2;
+          const d = segDist(x, z, p[s], p[s + 1], p[s + 2], p[s + 3]) - ln.w / 2;
+          if (d < bd) bd = d;
+        }
+      }
+    }
+    return Math.max(0, bd);
   }
 
   _makeMaterials() {
@@ -86,13 +161,13 @@ export class PathNetwork {
         float grit = vnoise(vec2(vRib.y * 6.0, vRib.x * 14.0));
         if (vKind > 2.5) {
           // the paved Paradise trails: pale, sun-bleached asphalt with worn edges
-          diffuseColor.rgb = mix(vec3(0.22, 0.215, 0.205), vec3(0.3, 0.29, 0.275), n * 0.6 + grit * 0.4);
+          diffuseColor.rgb = mix(vec3(0.07, 0.064, 0.056), vec3(0.1, 0.09, 0.078), n * 0.6 + grit * 0.4);
           diffuseColor.rgb *= 1.0 - smoothstep(0.12, 0.0, edge) * 0.35;
           diffuseColor.a = smoothstep(0.0, 0.03, edge);
         } else {
           // packed tread down the middle, loose soil and pebbles at the margins
-          vec3 tread = mix(vec3(0.2, 0.13, 0.08), vec3(0.3, 0.21, 0.13), n);
-          vec3 margin = mix(vec3(0.12, 0.08, 0.05), vec3(0.24, 0.2, 0.16), grit);
+          vec3 tread = mix(vec3(0.13, 0.09, 0.055), vec3(0.2, 0.14, 0.09), n);
+          vec3 margin = mix(vec3(0.08, 0.055, 0.035), vec3(0.16, 0.13, 0.1), grit);
           diffuseColor.rgb = mix(margin, tread, smoothstep(0.1, 0.35, edge));
           diffuseColor.rgb *= 0.85 + 0.3 * step(0.8, grit);
           diffuseColor.a = smoothstep(0.0, 0.22 + 0.15 * n, edge) * 0.95;
@@ -106,10 +181,13 @@ export class PathNetwork {
         #ifdef USE_INSTANCING_COLOR
           vColor.rgb = color.rgb * instanceColor.rgb;
         #endif`,
+      fragmentPars: ROCK_GLSL,
+      colorFragment: 'diffuseColor.rgb = rockSurface(diffuseColor.rgb, vWorldPos, 0.35, 0.0);',
     });
     this.stoneGeo = boulderGeometry(33);
     this.postMat = lambert(this.atmo, { color: new THREE.Color('#6a5a48') }, { key: 'post' });
-    this.ropeMat = new THREE.LineBasicMaterial({ color: new THREE.Color('#8c7a5c') });
+    this.ropeBase = new THREE.Color('#6e5f48');
+    this.ropeMat = new THREE.LineBasicMaterial({ color: this.ropeBase.clone() });
     this.roadMat = lambert(this.atmo, { color: 0xffffff, transparent: true, depthWrite: false }, {
       ...common,
       key: 'road',
@@ -121,7 +199,7 @@ export class PathNetwork {
         float edge = min(vRib.x, 1.0 - vRib.x);
         float n = vnoise(vRib * vec2(6.0, 0.5));
         vec3 asphalt = mix(vec3(0.05, 0.05, 0.055), vec3(0.07, 0.07, 0.075), n);
-        vec3 gravel = mix(vec3(0.20, 0.17, 0.14), vec3(0.26, 0.22, 0.18), n);
+        vec3 gravel = mix(vec3(0.085, 0.078, 0.07), vec3(0.12, 0.108, 0.094), n);
         vec3 c = vKind > 1.5 ? asphalt : gravel;
         float paint = 1.0 - smoothstep(60.0, 250.0, length(vWorldPos - cameraPosition));
         if (vKind > 1.5 && paint > 0.0) {
@@ -143,14 +221,14 @@ export class PathNetwork {
       colorFragment: /* glsl */ `
         float edge = min(vRib.x, 1.0 - vRib.x);
         float flow = vnoise(vec2(vRib.x * 6.0, vRib.y * 0.35 - uTime * 1.6));
-        float foam = smoothstep(0.62, 0.8, flow);
-        vec3 deep = vec3(0.03, 0.09, 0.10);
-        vec3 glacial = vec3(0.12, 0.2, 0.2);
-        vec3 c = mix(deep, glacial, 0.5 + 0.5 * vnoise(vec2(vRib.y * 0.02, 0.0)));
-        c = mix(c, vec3(0.55, 0.6, 0.6), foam * 0.5);
-        c += pow(max(dot(normalize(cameraPosition - vWorldPos), reflect(-uSunDir, vec3(0.0, 1.0, 0.0))), 0.0), 60.0) * uSunColor * 0.3;
+        float foam = smoothstep(0.66, 0.85, flow) * smoothstep(0.05, 0.3, edge);
+        // clear mountain water over dark stones, a little sky sheen, some riffles
+        vec3 bed = mix(vec3(0.008, 0.012, 0.011), vec3(0.025, 0.028, 0.024), vnoise(vec2(vRib.x * 9.0, vRib.y * 1.3)));
+        vec3 c = mix(bed, vec3(0.02, 0.04, 0.045), smoothstep(0.0, 0.45, edge));
+        c = mix(c, vec3(0.3, 0.33, 0.33), foam * 0.4);
+        c += pow(max(dot(normalize(cameraPosition - vWorldPos), reflect(-uSunDir, vec3(0.0, 1.0, 0.0))), 0.0), 60.0) * uSunColor * 0.25;
         diffuseColor.rgb = c;
-        diffuseColor.a = smoothstep(0.0, 0.3, edge) * 0.9;
+        diffuseColor.a = smoothstep(0.0, 0.35, edge) * 0.8;
       `,
     });
   }
@@ -177,6 +255,8 @@ export class PathNetwork {
   }
 
   update(focus, radius = 2) {
+    // unlit lines: follow the daylight by hand so ropes don't glow at night
+    this.ropeMat.color.copy(this.ropeBase).multiplyScalar(1 - 0.92 * this.atmo.uniforms.uNight.value);
     const cx = Math.floor(focus.x / CHUNK), cz = Math.floor(focus.z / CHUNK);
     for (let dz = -radius; dz <= radius; dz++) {
       for (let dx = -radius; dx <= radius; dx++) {

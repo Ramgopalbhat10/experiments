@@ -29,9 +29,9 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 
 const QUALITY = {
-  low: { dpr: 0.8, terrainN: 96, shadow: 0, reflection: false, bake: 512, paths: 1 },
-  medium: { dpr: 1.25, terrainN: 128, shadow: 1024, reflection: true, bake: 1024, paths: 2 },
-  high: { dpr: 2, terrainN: 160, shadow: 2048, reflection: true, bake: 1024, paths: 2 },
+  low: { dpr: 1, terrainN: 96, shadow: 0, reflection: false, bake: 512, paths: 1, ao: false },
+  medium: { dpr: 1.25, terrainN: 128, shadow: 1024, reflection: true, bake: 1024, paths: 2, ao: true },
+  high: { dpr: 2, terrainN: 160, shadow: 2048, reflection: true, bake: 1024, paths: 2, ao: true },
 };
 
 function setProgress(p, label) {
@@ -123,6 +123,7 @@ async function boot() {
   scene.add(paths.group);
   const vegetation = new Vegetation(hf, paths, atmo, quality, renderer);
   terrain.treeFar.value = vegetation.farRadius;
+  terrain.shared.uTrail.value = paths.trailTex;
   scene.add(vegetation.group);
   const meadow = new MeadowCarpet(hf, paths, atmo, quality);
   scene.add(meadow.group);
@@ -312,6 +313,7 @@ async function boot() {
     renderer.setSize(innerWidth, innerHeight);
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     post.setSize(s.x, s.y);
+    post.ao = Q.ao && params.get('ao') !== '0';
     renderer.shadowMap.enabled = Q.shadow > 0;
     sun.castShadow = Q.shadow > 0;
     if (Q.shadow) setShadowSize(Q.shadow);
@@ -322,6 +324,7 @@ async function boot() {
       scene.remove(terrain.group);
       terrain = new Terrain(hf, atmo, { N: Q.terrainN });
       terrain.treeFar.value = vegetation.farRadius;
+      terrain.shared.uTrail.value = paths.trailTex;
       scene.add(terrain.group);
     }
     scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
@@ -378,7 +381,7 @@ async function boot() {
     if (e.code === 'Escape') { map.toggle(false); hud.togglePanel(null); game.closeCampMenu(); game.stopStargazing(); }
   });
 
-  const post = new Post(renderer);
+  const post = new Post(renderer, { ao: QUALITY[quality].ao && params.get('ao') !== '0' });
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
@@ -551,7 +554,7 @@ async function boot() {
     }
   }
   tick();
-  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls };
+  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post };
 }
 
 boot().catch((e) => {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lambert } from './materials.js';
+import { ROCK_GLSL } from '../shaders/common.glsl.js';
 import { hash2, mulberry32, fbm, smoothstep, clamp } from '../core/noise.js';
 import { FLAG_LAKE, FLAG_ROAD } from './heightfield.js';
 import {
@@ -97,7 +98,10 @@ export class Vegetation {
     const bark = lambert(atmo, { vertexColors: true }, { key: 'bark', vertexPars: 'attribute float aFoliage;' });
     const needles = foliageMat(tex.branch, 'needles');
     const leaves = foliageMat(tex.leaf, 'leaves', 0.02, 1.6);
-    const rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, { key: 'rock', vertexPars: 'attribute float aFoliage;', colorVertex: tinted });
+    const rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, {
+      key: 'rock', vertexPars: 'attribute float aFoliage;', colorVertex: tinted,
+      fragmentPars: ROCK_GLSL, colorFragment: 'diffuseColor.rgb = rockSurface(diffuseColor.rgb, vWorldPos, 0.55, 0.0);',
+    });
     const grassMat = lambert(atmo, { map: tex.grass, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide }, {
       key: 'grass', vertexPars: 'attribute float aFoliage;', colorVertex: tinted, normalFragment: keepNormal, colorFragment: keepAlpha,
       vertexBegin: `
@@ -156,10 +160,15 @@ export class Vegetation {
     const spire = coniferGeometry({ whorls: 26, radius: 0.15, cards: 6, droop: 0.5, seed: 71, crownBase: 0.02, taper: 0.9 });
     const decid = broadleafGeometry({ clumps: 24, seed: 5 });
     const conMats = [bark, needles], leafMats = [bark, leaves];
+    // mid-distance LOD: the same silhouettes with a third of the branch cards
+    const firMid = coniferGeometry({ whorls: 9, radius: 0.25, cards: 4, droop: 0.45, seed: 11 });
+    const spireMid = coniferGeometry({ whorls: 11, radius: 0.16, cards: 4, droop: 0.5, seed: 71, crownBase: 0.02, taper: 0.9 });
     this.pools = {
       firNear: mk(firA, q.nearCap, conMats),
       firNear2: mk(firB, q.nearCap, conMats),
       spireNear: mk(spire, q.nearCap * 2, conMats),
+      firMid: mk(firMid, q.nearCap * 2, conMats),
+      spireMid: mk(spireMid, q.nearCap * 3, conMats),
       decid: mk(decid, q.nearCap / 2, leafMats),
       firFar: imp(firA, [capBark, capNeedle], 0.54, q.farCap),
       spireFar: imp(spire, [capBark, capNeedle], 0.36, q.farCap),
@@ -179,9 +188,9 @@ export class Vegetation {
 
   setQuality(q) {
     const presets = {
-      low: { far: 700, near: 160, nearCap: 2500, farCap: 16000, shrubCap: 5000, rockCap: 2000, grassCap: 9000, grassR: 30, gDensity: 0.6, density: 0.65 },
-      medium: { far: 1100, near: 240, nearCap: 5000, farCap: 30000, shrubCap: 9000, rockCap: 3000, grassCap: 24000, grassR: 45, gDensity: 0.85, density: 0.85 },
-      high: { far: 1500, near: 340, nearCap: 9000, farCap: 50000, shrubCap: 14000, rockCap: 4000, grassCap: 45000, grassR: 65, gDensity: 1, density: 1 },
+      low: { far: 700, near: 160, lod0: 45, nearCap: 2500, farCap: 16000, shrubCap: 5000, rockCap: 2000, grassCap: 9000, grassR: 30, gDensity: 0.6, density: 0.65 },
+      medium: { far: 1100, near: 240, lod0: 70, nearCap: 5000, farCap: 30000, shrubCap: 9000, rockCap: 3000, grassCap: 24000, grassR: 45, gDensity: 0.85, density: 0.85 },
+      high: { far: 1500, near: 340, lod0: 110, nearCap: 9000, farCap: 50000, shrubCap: 14000, rockCap: 4000, grassCap: 45000, grassR: 65, gDensity: 1, density: 1 },
     };
     // pools are sized for the quality chosen at start; later changes only shrink radii
     this.q = { ...(presets[q] || presets.medium), ...(this.q ? { nearCap: this.q.nearCap, farCap: this.q.farCap, shrubCap: this.q.shrubCap, rockCap: this.q.rockCap, grassCap: this.q.grassCap } : {}) };
@@ -262,7 +271,7 @@ export class Vegetation {
         let p = Math.pow(f, 0.8) * 0.95;
         // subalpine parkland: spire-shaped firs in tight clumps within meadows
         const park = m * smoothstep(1250, 1450, y) * (1 - smoothstep(1900, 2150, y)) * smoothstep(0.52, 0.66, clump);
-        p = Math.max(p, park * 0.25);
+        p = Math.max(p, park * 0.4);
         p *= 1 - smoothstep(0.35, 0.6, s);
         if (n.y < 0.62) p *= 0.35;
         p *= this.q.density;
@@ -333,31 +342,36 @@ export class Vegetation {
     const hf = this.hf, paths = this.paths;
     const x0 = cx * CELL, z0 = cz * CELL;
     const yc = hf.heightAt(x0 + CELL / 2, z0 + CELL / 2);
-    if (yc < 1150 || yc > 2250) return;
+    if (yc < 1050 || yc > 2250) return;
     const n = new THREE.Vector3();
     const D = 24, step = CELL / D;
     for (let i = 0; i < D; i++) {
       for (let j = 0; j < D; j++) {
         const x = x0 + (i + rnd()) * step, z = z0 + (j + rnd()) * step;
         const r1 = rnd(), r2 = rnd(), r3 = rnd();
-        if (r1 > 0.55 * this.q.density) continue;
+        if (r1 > 0.9 * this.q.density) continue;
         // clump field: sharp-edged islands, larger & denser downhill
         const cl = fbm(x * 0.018 + 3.1, z * 0.018 - 1.7, 2) * 0.75 + fbm(x * 0.06, z * 0.06, 2) * 0.35;
-        if (cl < 0.5) continue;
+        const lone = r2 < 0.035;   // the odd solitary fir standing out in the meadow
+        if (cl < 0.44 && !lone) continue;
         const y = hf.heightAt(x, z);
-        const band = smoothstep(1250, 1450, y) * (1 - smoothstep(1950, 2200, y));
+        const band = smoothstep(1150, 1350, y) * (1 - smoothstep(1950, 2200, y));
+        if (band <= 0) continue;
         const m = hf.meadowAt(x, z), f = hf.forestAt(x, z);
-        const thresh = 0.6 - (1 - smoothstep(1500, 1900, y)) * 0.06 - f * 0.1;
-        const p = band * smoothstep(thresh, thresh + 0.05, cl) * Math.min(1, m + f) * 0.55 * this.q.density;
+        const thresh = 0.55 - (1 - smoothstep(1500, 1900, y)) * 0.07 - f * 0.1;
+        let p = band * smoothstep(thresh, thresh + 0.05, cl) * Math.min(1, m + f + 0.15) * 0.9 * this.q.density;
+        if (lone) p = Math.max(p, band * Math.min(1, m * 1.5) * 0.5);
         if (r1 > p) continue;
         if (hf.flagsAt(x, z) & (FLAG_LAKE | FLAG_ROAD) || hf.waterAt(x, z) > 0.2 || hf.snowAt(x, z) > 0.5) continue;
         hf.normalAt(x, z, n);
-        if (n.y < 0.7 || this._inClearing(x, z)) continue;
+        if (n.y < 0.68 || this._inClearing(x, z)) continue;
         if (paths.clearance(x, z) < 2.5) continue;
         // taller in the middle of an island, knee-high seedlings at its edge
-        const core = smoothstep(thresh, thresh + 0.2, cl);
-        const sc = (3 + 15 * core * (0.6 + r2 * 0.6)) * (1 - smoothstep(1800, 2150, y) * 0.5);
-        out.push(T_SPIRE, x, y - 0.3, z, sc, r3 * 6.283, 0, r2);
+        const core = lone ? 0.7 : smoothstep(thresh, thresh + 0.2, cl);
+        const sc = (3 + 17 * core * (0.6 + r3 * 0.6)) * (1 - smoothstep(1800, 2150, y) * 0.5);
+        // mountain hemlock (broader, drooping) mixes in with the fir spires below ~1,700 m
+        const type = y < 1700 && r3 < 0.3 ? T_FIR : T_SPIRE;
+        out.push(type, x, y - 0.3, z, type === T_FIR ? sc * 0.8 : sc, r3 * 6.283, 1, r2);
       }
     }
   }
@@ -470,16 +484,16 @@ export class Vegetation {
           if (dist > R) continue;
           const fade = smoothstep(R, R * 0.82, dist);
           s *= 0.35 + 0.65 * fade;
-          const near = dist < q.near;
+          const near = dist < q.near, full = dist < q.lod0;
           if (dist < 60) colliders.push(x, z, clamp(s * 0.012, 0.2, 0.7));
           if (t === T_FIR) {
             col.copy(this._pick(y < 1000 ? PAL.douglas : PAL.hemlock, rr)).multiplyScalar(0.85 + rr * 0.3);
             if (winter) col.lerp(C('#dde4ec'), 0.35);
-            put(near ? (rr > 0.5 ? P.firNear : P.firNear2) : P.firFar, x, y, z, s, s, rot, col);
+            put(full ? (rr > 0.5 ? P.firNear : P.firNear2) : near ? P.firMid : P.firFar, x, y, z, s, s, rot, col);
           } else if (t === T_SPIRE) {
             col.copy(this._pick(PAL.subalpine, rr)).multiplyScalar(0.85 + rr * 0.3);
             if (winter) col.lerp(C('#e6ecf2'), 0.45);
-            put(near ? P.spireNear : P.spireFar, x, y, z, s * 0.9, s, rot, col);
+            put(full ? P.spireNear : near ? P.spireMid : P.spireFar, x, y, z, s * 0.9, s, rot, col);
           } else if (t === T_DECID) {
             col.copy(this._pick(PAL.decid[season], rr));
             put(near ? P.decid : P.decidFar, x, y, z, s, s, rot, col);
@@ -490,7 +504,7 @@ export class Vegetation {
         }
       }
     }
-    const all = [P.firNear, P.firNear2, P.spireNear, P.decid, P.firFar, P.spireFar, P.decidFar, P.snag, P.log, ...P.shrub, ...P.rock];
+    const all = [P.firNear, P.firNear2, P.spireNear, P.firMid, P.spireMid, P.decid, P.firFar, P.spireFar, P.decidFar, P.snag, P.log, ...P.shrub, ...P.rock];
     for (const mesh of all) {
       mesh.count = counts.get(mesh) || 0;
       mesh.instanceMatrix.needsUpdate = true;

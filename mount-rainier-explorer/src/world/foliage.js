@@ -214,6 +214,19 @@ export function coniferGeometry({ whorls = 13, crownBase = 0.12, radius = 0.25, 
   }
   // cards are drawn from the base (u = 0) out to the tip; rotate uv so u runs along the branch
   const foliage = finish(P, N, U, F);
+  // self-shadowing: needles near the trunk and on the lower, shaded whorls are
+  // darker, so the crown reads as a solid volume rather than a pile of cards
+  {
+    const c = foliage.attributes.color.array;
+    for (let i = 0; i < P.length / 3; i++) {
+      const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+      const t = Math.min(1, Math.max(0, (y - crownBase) / (1 - crownBase)));
+      const rMax = radius * Math.pow(1 - t * 0.92, taper) + 0.03;
+      const out = Math.min(1, Math.hypot(x, z) / rMax);
+      const k = (0.5 + 0.55 * out * out) * (0.78 + 0.3 * t);
+      c[i * 3] = k; c[i * 3 + 1] = k; c[i * 3 + 2] = k * 0.97;
+    }
+  }
   const bark = barkGeometry(trunkR, trunkR * 0.25, 0.95);
   return mergeGeometries([bark, foliage], true);
 }

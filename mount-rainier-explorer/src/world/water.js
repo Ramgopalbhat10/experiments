@@ -126,6 +126,9 @@ export class Lakes {
             vec4 c = uTexMat * vec4(wp + vec3(N.x, 0.0, N.z) * 2.0, 1.0);
             refl = mix(refl, texture2D(uRefl, c.xy / c.w).rgb, useRefl);
           }
+          // without a planar reflection, fake the dark forested shore mirrored just below the horizon
+          float treeline = (1.0 - smoothstep(0.015, 0.11 + 0.04 * vnoise(vec2(atan(R.x, R.z) * 30.0, 0.0)), R.y)) * (1.0 - useRefl);
+          refl = mix(refl, vec3(0.025, 0.045, 0.04) * (uAmbient + uLightColor * 0.3), treeline * 0.85);
           float sh = terrainShadowAt(wp);
           vec3 deep = vec3(0.012, 0.05, 0.06);
           vec3 shallow = vec3(0.06, 0.16, 0.13);

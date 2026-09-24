@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { lambert } from './materials.js';
 import { MEADOW_GLSL } from '../shaders/common.glsl.js';
-import { hash2, mulberry32, smoothstep } from '../core/noise.js';
+import { hash2, mulberry32, smoothstep, fbm } from '../core/noise.js';
 import { FLAG_LAKE, FLAG_ROAD } from './heightfield.js';
 
 /*
@@ -22,21 +22,21 @@ function huckleberryTexture() {
   // twiggy stems
   g.strokeStyle = 'rgb(60,40,35)';
   g.lineWidth = 2;
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 6; i++) {
     g.beginPath();
-    g.moveTo(128 + (r() - 0.5) * 60, 256);
-    g.quadraticCurveTo(128 + (r() - 0.5) * 160, 140, 128 + (r() - 0.5) * 220, 30 + r() * 60);
+    g.moveTo(128 + (r() - 0.5) * 120, 128 + (r() - 0.5) * 120);
+    g.lineTo(128 + (r() - 0.5) * 220, 128 + (r() - 0.5) * 220);
     g.stroke();
   }
-  // hundreds of small oval leaves, lit from above
-  for (let i = 0; i < 900; i++) {
-    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 118;
-    const x = 128 + Math.cos(a) * d, y = 140 + Math.sin(a) * d * 0.8;
-    const top = 1 - (y - 20) / 236;
-    const v = Math.floor(110 + top * 110 + (r() - 0.5) * 60);
+  // a few hundred oval leaves in a ragged round clump, lighter on the upper side
+  for (let i = 0; i < 520; i++) {
+    const a = r() * Math.PI * 2, d = Math.pow(r(), 0.6) * 120;
+    const x = 128 + Math.cos(a) * d, y = 128 + Math.sin(a) * d;
+    const top = 1 - y / 256;
+    const v = Math.floor(120 + top * 90 + (r() - 0.5) * 70);
     g.fillStyle = `rgb(${v},${v},${v})`;
     g.beginPath();
-    g.ellipse(x, y, 4 + r() * 4, 2.5 + r() * 2, r() * Math.PI, 0, Math.PI * 2);
+    g.ellipse(x, y, 6 + r() * 6, 3.5 + r() * 2.5, r() * Math.PI, 0, Math.PI * 2);
     g.fill();
   }
   const t = new THREE.CanvasTexture(c);
@@ -45,30 +45,35 @@ function huckleberryTexture() {
   return t;
 }
 
-/** An irregular, low clump of leafy sprigs (huckleberry / heather), unit size. */
+/**
+ * A low, dome-shaped huckleberry bush: ~34 small leafy cards laid over a dome,
+ * each facing outward, the top ones lying almost flat so the bush is covered
+ * from above too. Unit radius ~0.55, height ~0.6.
+ */
 function shrubGeometry() {
   const P = [], N = [], U = [], V = [];
   const r = mulberry32(77);
-  const card = (o, a, b, vary) => {
-    const v = [o, [o[0] + a[0], o[1] + a[1], o[2] + a[2]], [o[0] + a[0] + b[0], o[1] + a[1] + b[1], o[2] + a[2] + b[2]], [o[0] + b[0], o[1] + b[1], o[2] + b[2]]];
-    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
-    for (const i of [0, 1, 2, 0, 2, 3]) {
-      const p = v[i];
-      P.push(...p);
-      const l = Math.hypot(p[0], p[1] * 0.6 + 0.5, p[2]) || 1;
-      N.push(p[0] / l, (p[1] * 0.6 + 0.5) / l, p[2] / l);
-      U.push(...uv[i]);
-      V.push(vary);
-    }
-  };
-  // a dozen sprigs of different sizes leaning out from the centre
-  for (let i = 0; i < 12; i++) {
-    const a = r() * Math.PI * 2, d = r() * 0.35;
-    const dx = Math.cos(a), dz = Math.sin(a);
-    const w = 0.45 + r() * 0.55, h = 0.35 + r() * 0.65;
-    const lean = 0.2 + r() * 0.5;
-    const ox = dx * d, oz = dz * d;
-    card([ox - dz * w / 2, 0, oz + dx * w / 2], [dz * w, 0, -dx * w], [dx * lean * h, h, dz * lean * h], r());
+  const push = (p, n, uv, vary) => { P.push(...p); N.push(...n); U.push(...uv); V.push(vary); };
+  for (let i = 0; i < 34; i++) {
+    // point on the dome
+    const az = r() * Math.PI * 2, el = Math.acos(1 - r() * 0.95);
+    const nx = Math.sin(el) * Math.cos(az), ny = Math.cos(el), nz = Math.sin(el) * Math.sin(az);
+    const cx = nx * 0.5, cy = ny * 0.5 + 0.05, cz = nz * 0.5;
+    const size = 0.26 + r() * 0.2;
+    // card basis: tangent around the dome and a "bitangent" leaning outward+up
+    let tx = -Math.sin(az), tz = Math.cos(az);
+    const roll = (r() - 0.5) * 1.4;
+    const bx0 = nx * ny, by0 = -(nx * nx + nz * nz), bz0 = nz * ny; // down the dome
+    const cr = Math.cos(roll), sr = Math.sin(roll);
+    const ax = tx * cr + bx0 * sr, ay = by0 * sr, az2 = tz * cr + bz0 * sr;
+    const bx = -tx * sr + bx0 * cr, by = by0 * cr, bz = -tz * sr + bz0 * cr;
+    const vary = r();
+    const corner = (u, v) => [cx + (ax * (u - 0.5) + bx * (v - 0.5)) * size, Math.max(0, cy + (ay * (u - 0.5) + by * (v - 0.5)) * size), cz + (az2 * (u - 0.5) + bz * (v - 0.5)) * size];
+    const nrm = [nx, ny * 0.8 + 0.3, nz];
+    const l = Math.hypot(...nrm);
+    const n = nrm.map((c) => c / l);
+    const q = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    for (const k of [0, 1, 2, 0, 2, 3]) push(corner(q[k][0], q[k][1]), n, q[k], vary);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
@@ -116,8 +121,8 @@ export class MeadowCarpet {
       #ifdef USE_INSTANCING
         vec2 ip = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
         // neighbouring sprigs sample the mosaic a few metres apart, so one clump mixes reds, golds and greens
-        vColor.rgb = meadowPatch(ip + vec2(aVary * 9.0 - 4.5, fract(aVary * 7.3) * 9.0 - 4.5), uSeason) * (0.8 + 0.4 * fract(aVary * 13.7 + hash12(ip)));
-        vShade = 0.55 + 0.45 * clamp(position.y * 1.4, 0.0, 1.0);
+        vColor.rgb = meadowPatchH(ip + vec2(aVary * 9.0 - 4.5, fract(aVary * 7.3) * 9.0 - 4.5), instanceMatrix[3][1], uSeason) * (0.8 + 0.4 * fract(aVary * 13.7 + hash12(ip)));
+        vShade = 0.5 + 0.5 * clamp(position.y * 1.6, 0.0, 1.0);
       #endif`;
     const sway = `
       #ifdef USE_INSTANCING
@@ -150,15 +155,17 @@ export class MeadowCarpet {
       this.group.add(m);
       return m;
     };
-    this.near = mk(shrubGeometry(), near, this.q.nearCap, true);
+    // knee-high shrubs: contact darkening comes from the AO pass; their own
+    // shadow-map shadows only speckle the whole meadow dark
+    this.near = mk(shrubGeometry(), near, this.q.nearCap, false);
     this.mid = mk(moundGeometry(), mid, this.q.midCap, false);
   }
 
   setQuality(q) {
     const P = {
-      low: { nearR: 35, midR: 140, nearCap: 5000, midCap: 6000, step: 1.7 },
-      medium: { nearR: 55, midR: 220, nearCap: 12000, midCap: 14000, step: 1.35 },
-      high: { nearR: 75, midR: 300, nearCap: 22000, midCap: 26000, step: 1.2 },
+      low: { nearR: 35, midR: 140, nearCap: 6000, midCap: 6000, step: 1.4 },
+      medium: { nearR: 55, midR: 220, nearCap: 18000, midCap: 14000, step: 1.1 },
+      high: { nearR: 75, midR: 300, nearCap: 32000, midCap: 26000, step: 0.95 },
     };
     this.q = { ...(P[q] || P.medium), ...(this.q ? { nearCap: this.q.nearCap, midCap: this.q.midCap } : {}) };
     this.cacheN?.clear();
@@ -171,18 +178,31 @@ export class MeadowCarpet {
     this.lastM.set(1e9, 0, 1e9);
   }
 
-  /** Density of shrub cover at a point (0..1). */
-  _cover(x, z, n) {
+  /**
+   * Density of shrub cover at a point (0..1) and how close it is to a trail.
+   * Huckleberry and mountain ash crowd the trail margins through the
+   * subalpine band; away from the paths, and above ~1,950 m, they thin out.
+   */
+  _cover(x, z, n, out) {
     const hf = this.hf;
+    out.near = 0;
     if (!hf.inside(x, z, 60)) return 0;
-    const m = hf.meadowAt(x, z);
-    if (m < 0.12) return 0;
     if (hf.flagsAt(x, z) & (FLAG_LAKE | FLAG_ROAD) || hf.waterAt(x, z) > 0.2) return 0;
-    const f = hf.forestAt(x, z), s = hf.snowAt(x, z);
-    hf.normalAt(x, z, n);
-    if (n.y < 0.72) return 0;
     const y = hf.heightAt(x, z);
-    return smoothstep(0.12, 0.5, m) * (1 - f * 0.7) * (1 - smoothstep(0.3, 0.55, s)) * (1 - smoothstep(2100, 2350, y));
+    const band = smoothstep(1180, 1380, y) * (1 - smoothstep(1900, 2060, y));
+    if (band <= 0) return 0;
+    const f = hf.forestAt(x, z), s = hf.snowAt(x, z);
+    const near = 1 - smoothstep(3, 38, this.paths.trailDist(x, z, 40));
+    out.near = near;
+    const m = Math.max(hf.meadowAt(x, z), near * 0.75 * (1 - f));
+    if (m < 0.12) return 0;
+    hf.normalAt(x, z, n);
+    if (n.y < 0.7) return 0;
+    const along = Math.max(near, this.paths.trailNear(x, z) * 0.45);
+    // grassy openings and drier, sparser cover up high break up the carpet
+    const open = smoothstep(0.34, 0.48, fbm(x * 0.016 + 7.3, z * 0.016 - 2.9, 2) + near * 0.05);
+    const dry = 1 - smoothstep(1780, 1980, y) * 0.6;
+    return smoothstep(0.12, 0.45, m) * (1 - f * 0.7) * (1 - smoothstep(0.3, 0.55, s)) * band * (0.35 + 0.65 * along) * open * dry;
   }
 
   _cell(cache, size, step, cx, cz) {
@@ -191,16 +211,17 @@ export class MeadowCarpet {
     if (c) return c;
     const rnd = mulberry32(hash2(cx * 11 + size, cz * 5 + 3));
     const out = [];
-    const n = new THREE.Vector3();
+    const n = new THREE.Vector3(), info = { near: 0 };
     const D = Math.round(size / step);
     for (let i = 0; i < D; i++) {
       for (let j = 0; j < D; j++) {
         const x = cx * size + (i + rnd()) * step, z = cz * size + (j + rnd()) * step;
         const r1 = rnd(), r2 = rnd();
-        const p = Math.min(1, this._cover(x, z, n) * 1.35);
+        const p = Math.min(1, this._cover(x, z, n, info) * 1.5);
         if (r1 > p) continue;
-        if (this.paths.clearance(x, z) < 0.5) continue;
-        out.push(x, this.hf.heightAt(x, z) - 0.08, z, 0.7 + r2 * 0.6, r1 * 40);
+        if (this.paths.trailDist(x, z, 2) < 0.8 + r2 * 0.5 || this.paths.clearance(x, z) < 0.8) continue;
+        // lush and knee-high along the trail, lower and patchier further out
+        out.push(x, this.hf.heightAt(x, z) - 0.08, z, (0.65 + r2 * 0.55) * (1 + info.near * 0.35), r1 * 40);
       }
     }
     c = Float32Array.from(out);
@@ -245,7 +266,7 @@ export class MeadowCarpet {
     const q = this.q;
     if (Math.hypot(focus.x - this.lastN.x, focus.z - this.lastN.z) > 5) {
       this.lastN.copy(focus);
-      this._fill(this.near, this.cacheN, NEAR_CELL, q.step, focus, 0, q.nearR, 1.5, 0.6);
+      this._fill(this.near, this.cacheN, NEAR_CELL, q.step, focus, 0, q.nearR, 1.55, 0.95);
     }
     if (Math.hypot(focus.x - this.lastM.x, focus.z - this.lastM.z) > 18) {
       this.lastM.copy(focus);

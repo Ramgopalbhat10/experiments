@@ -15,6 +15,17 @@ float vnoise(vec2 p) {
   return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), u.x),
              mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), u.x), u.y);
 }
+float hash13(vec3 p3) {
+  p3 = fract(p3 * 0.1031);
+  p3 += dot(p3, p3.zyx + 31.32);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise3(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash13(i), hash13(i + vec3(1, 0, 0)), f.x), mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), f.x), mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 float fbm3(vec2 p) {
   float s = 0.0, a = 0.5;
   for (int i = 0; i < 3; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; }
@@ -140,14 +151,59 @@ vec3 meadowPatch(vec2 p, float season) {
   vec3 olive = vec3(0.22, 0.22, 0.06);
   vec3 gold = vec3(0.55, 0.33, 0.06);
   vec3 orange = vec3(0.6, 0.16, 0.04);
-  vec3 crimson = vec3(0.44, 0.03, 0.035);
-  vec3 magenta = vec3(0.46, 0.05, 0.11);
-  float t = clamp(a * 1.4 - 0.22 + (b - 0.5) * 1.1, 0.0, 1.0);
-  vec3 col = t < 0.18 ? mix(green, olive, t / 0.18)
-           : t < 0.4 ? mix(olive, gold, (t - 0.18) / 0.22)
-           : t < 0.58 ? mix(gold, orange, (t - 0.4) / 0.18)
-           : t < 0.8 ? mix(orange, crimson, (t - 0.58) / 0.22)
-           : mix(crimson, magenta, (t - 0.8) / 0.2);
+  vec3 crimson = vec3(0.38, 0.05, 0.035);
+  vec3 magenta = vec3(0.26, 0.03, 0.035); // deep wine-red huckleberry
+  // Paradise in late September: mostly huckleberry red, drifts of gold and
+  // orange, the odd patch of still-green heather
+  float t = clamp(a * 1.35 - 0.04 + (b - 0.5) * 1.4, 0.0, 1.0);
+  vec3 col = t < 0.1 ? mix(green, olive, t / 0.1)
+           : t < 0.24 ? mix(olive, gold, (t - 0.1) / 0.14)
+           : t < 0.38 ? mix(gold, orange, (t - 0.24) / 0.14)
+           : t < 0.54 ? mix(orange, crimson, (t - 0.38) / 0.16)
+           : mix(crimson, magenta, (t - 0.54) / 0.46);
   return col * (0.88 + 0.24 * c);
+}
+// The same mosaic shifted by altitude: greener and more golden (vine maple,
+// bracken) below ~1,350 m; cured tan grass, heather and pumice above ~1,850 m,
+// as at Sunrise and on the upper Skyline Trail.
+vec3 meadowPatchH(vec2 p, float h, float season) {
+  vec3 col = meadowPatch(p, season);
+  if (season < 0.5) return col;
+  float hi = smoothstep(1800.0, 2000.0, h + (vnoise(p * 0.01) - 0.5) * 160.0);
+  float lo = 1.0 - smoothstep(1250.0, 1400.0, h);
+  float grass = vnoise(p * 0.05 + 9.1);
+  vec3 tan = mix(vec3(0.32, 0.2, 0.08), vec3(0.2, 0.19, 0.08), grass);
+  col = mix(col, mix(tan, col, 0.35), hi * 0.75);
+  col = mix(col, mix(vec3(0.36, 0.26, 0.05), vec3(0.14, 0.2, 0.05), grass), lo * 0.6);
+  return col;
+}
+`;
+
+// Weathered andesite for boulders, ledges and edge stones: strata, lichen
+// spots and moss on the up-facing facets. Uses the flat facet normal from
+// screen-space derivatives, so it works on any faceted mesh. Needs NOISE_GLSL.
+export const ROCK_GLSL = /* glsl */ `
+vec3 rockSurface(vec3 base, vec3 wp, float mossAmt, float wet) {
+  vec3 fn = normalize(cross(dFdx(wp), dFdy(wp)));
+  if (dot(fn, cameraPosition - wp) < 0.0) fn = -fn; // visible faces point at the camera
+  float up = fn.y;
+  float n = vnoise3(wp * 0.55);
+  float fine = vnoise3(wp * 3.1 + 7.0);
+  // gentle flow banding, broken up so it never reads as contour lines
+  float strata = 0.92 + 0.08 * sin(wp.y * 1.6 + n * 5.0);
+  vec3 c = base * strata * (0.78 + 0.44 * n) * (0.9 + 0.2 * fine);
+  // warm iron staining in places
+  c = mix(c, c * vec3(1.25, 0.95, 0.75), smoothstep(0.6, 0.8, vnoise3(wp * 0.21 + 3.0)) * 0.6);
+  // pale lichen rosettes
+  float lichen = smoothstep(0.76, 0.82, vnoise3(wp * 3.7 + 11.0)) * smoothstep(0.35, 0.6, vnoise3(wp * 0.4 + 1.0));
+  c = mix(c, vec3(0.3, 0.32, 0.25), lichen * 0.25);
+  // dark cracks
+  c *= 1.0 - 0.35 * smoothstep(0.08, 0.0, abs(vnoise3(wp * 0.9 + 5.0) - 0.5)) * (1.0 - smoothstep(0.6, 0.9, up));
+  // moss on ledges and tops
+  float moss = smoothstep(0.4, 0.85, up) * smoothstep(0.3, 0.6, vnoise3(wp * 0.7 + 3.7) + mossAmt * 0.25) * mossAmt;
+  c = mix(c, mix(vec3(0.045, 0.065, 0.025), vec3(0.09, 0.105, 0.04), fine), clamp(moss, 0.0, 1.0));
+  // wet rock by falling water is darker and slightly blue
+  c = mix(c, c * vec3(0.45, 0.5, 0.56), wet);
+  return c;
 }
 `;

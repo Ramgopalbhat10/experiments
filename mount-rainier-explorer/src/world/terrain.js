@@ -43,6 +43,7 @@ function gridGeometry(N) {
 const TERRAIN_FRAG = /* glsl */ `
 uniform sampler2D uCover;
 uniform sampler2D uNormalTex;
+uniform sampler2D uTrail;
 uniform vec2 uHFf;
 uniform vec4 uHole;
 uniform float uSeason;
@@ -50,22 +51,73 @@ uniform float uSnowline;
 uniform float uTreeFar;
 
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
+float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 ${MEADOW_GLSL}
 
-vec3 meadowColor(vec2 p, float n1, float n2, float h, float detail) {
-  // the same mosaic the shrub carpet uses, a touch darker for the gaps between shrubs
-  vec3 c = meadowPatch(p, uSeason) * 0.72;
-  // close up, the ground between shrubs is dark soil, heather and last year's leaves
-  vec3 soilCol = mix(srgb(vec3(0.2, 0.16, 0.1)), srgb(vec3(0.17, 0.19, 0.1)), vnoise(p * 0.7));
-  c = mix(soilCol * 0.9 + c * 0.25, c, smoothstep(40.0, 200.0, length(vWorldPos - cameraPosition)));
+// 2D cellular noise: x = distance to nearest feature, y = its random id
+vec2 cells(vec2 p) {
+  vec2 ci = floor(p);
+  float bd = 9.0, id = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = ci + vec2(float(i), float(j));
+    vec2 o = vec2(hash12(c), hash12(c + 17.3));
+    float d = length(p - c - o);
+    if (d < bd) { bd = d; id = hash12(c * 1.37 + 5.1); }
+  }
+  return vec2(bd, id);
+}
+
+// Subalpine meadow: the autumn mosaic, strongest along the trails (the
+// Paradise meadows the paths wind through) and muted with distance so far
+// slopes read as rust and olive rather than a heat map.
+vec3 meadowColor(vec2 p, float h, float detail, float camDist, float fall) {
+  vec3 mosaic = meadowPatchH(p, h, uSeason) * 0.72;
+  vec3 muted = uSeason < 0.5 ? srgb(vec3(0.32, 0.36, 0.17)) : srgb(vec3(0.36, 0.27, 0.15));
+  float far = smoothstep(900.0, 6000.0, camDist);
+  mosaic = mix(mosaic, muted * (0.85 + 0.3 * vnoise(p * 0.02)), far * 0.6);
+  mosaic = mix(vec3(luma(mosaic)), mosaic, 1.0 - 0.35 * far);
+  // outside the fall band: cured grass, heather and bare pumice soil
+  vec3 tundra = mix(srgb(vec3(0.40, 0.35, 0.23)), srgb(vec3(0.30, 0.31, 0.19)), vnoise(p * 0.05));
+  vec3 c = mix(tundra * 0.85, mosaic, fall);
+  // close up, the ground between shrubs is cured grass, green heather and soil
+  float gv = vnoise(p * 0.7), gv2 = vnoise(p * 0.11 + 2.0);
+  vec3 soilCol = mix(srgb(vec3(0.44, 0.36, 0.2)), srgb(vec3(0.3, 0.33, 0.16)), gv2);
+  soilCol = mix(soilCol, srgb(vec3(0.3, 0.24, 0.16)), smoothstep(0.6, 0.8, gv) * 0.6);
+  if (uSeason < 0.5) soilCol = mix(srgb(vec3(0.24, 0.34, 0.12)), srgb(vec3(0.32, 0.38, 0.14)), gv2);
+  c = mix(soilCol * 0.75 + c * 0.3, c, smoothstep(30.0, 160.0, camDist));
   if (uSeason < 0.5) {
-    float fl = smoothstep(0.66, 0.82, vnoise(p * 0.09)) * detail;
+    float fl = smoothstep(0.66, 0.82, vnoise(p * 0.09)) * detail * fall;
     vec3 flower = mix(srgb(vec3(0.85, 0.28, 0.5)), srgb(vec3(0.5, 0.42, 0.85)), step(0.5, vnoise(p * 0.02 + 4.0)));
     c = mix(c, flower, fl * 0.5);
   }
   // speckle: individual shrubs and shadows between them
-  c *= 0.78 + 0.44 * vnoise(p * 1.3) * detail + 0.22 * (1.0 - detail);
+  c *= 0.82 + 0.36 * vnoise(p * 1.3) * detail + 0.18 * (1.0 - detail);
+  return c;
+}
+
+// Talus and rubble: grey-brown andesite blocks, streaked down the fall line
+vec3 talusColor(vec3 wp, vec3 n, float h, float detail) {
+  vec2 dir = normalize(n.xz + 1e-4);
+  vec2 perp = vec2(-dir.y, dir.x);
+  // fall-line streaks are a distance cue; up close they would read as planks
+  float gully = mix(0.5 + 0.3 * (vnoise(wp.xz * 0.08) - 0.5), fbm3(vec2(dot(wp.xz, perp) * 0.035, dot(wp.xz, dir) * 0.004)),
+                    smoothstep(40.0, 250.0, length(wp - cameraPosition)));
+  vec3 a = srgb(vec3(0.50, 0.45, 0.39)), b = srgb(vec3(0.38, 0.32, 0.27)), rust = srgb(vec3(0.47, 0.33, 0.24));
+  vec3 c = mix(a, b, smoothstep(0.3, 0.7, gully));
+  c = mix(c, rust, smoothstep(0.55, 0.8, fbm3(wp.xz * 0.002 + h * 0.004)) * 0.6);
+  c *= 0.78 + 0.4 * gully;
+  if (detail > 0.01) {
+    // individual stones near the camera
+    vec2 st = cells(wp.xz * 1.6);
+    vec2 big = cells(wp.xz * 0.35 + 3.3);
+    float stone = 0.75 + 0.5 * st.y;
+    float gap = 1.0 - 0.4 * smoothstep(0.5, 0.8, st.x);   // cracks toward the cell edges
+    float boulder = smoothstep(0.55, 0.2, big.x) * step(0.6, big.y);
+    vec3 near = c * stone * gap;
+    near = mix(near, c * (0.9 + 0.35 * big.y) * (1.1 - big.x * 0.6), boulder);
+    c = mix(c, near, detail);
+  }
   return c;
 }
 
@@ -73,51 +125,68 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   vec2 uv = (wp.xz + uHFf.x) / (2.0 * uHFf.x);
   vec4 cov = texture2D(uCover, uv);
   float glacier = texture2D(uNormalTex, uv).a;
+  float trail = texture2D(uTrail, uv).r;
   float slope = 1.0 - n.y;
   float h = wp.y;
-  float detail = 1.0 - smoothstep(300.0, 2500.0, camDist);
+  float detail = 1.0 - smoothstep(120.0, 700.0, camDist);
   float n1 = fbm3(wp.xz * 0.004);
   float n2 = vnoise(wp.xz * 0.03);
-  float n3 = mix(0.5, vnoise(wp.xz * 0.35), detail);
+  float n3 = mix(0.5, vnoise(wp.xz * 0.35), 1.0 - smoothstep(300.0, 2500.0, camDist));
+  float hj = h + (n1 - 0.5) * 220.0;
 
-  // Volcanic rock: andesite greys with rusty oxidised bands
   // Rainier's andesite: grey-brown low down, dark rust and purple-brown on the cone
-  vec3 rock = mix(srgb(vec3(0.42, 0.37, 0.33)), srgb(vec3(0.55, 0.43, 0.35)), smoothstep(0.35, 0.75, fbm3(vec2(wp.x * 0.002, h * 0.02))));
+  vec3 rock = mix(srgb(vec3(0.42, 0.37, 0.33)), srgb(vec3(0.53, 0.43, 0.35)), smoothstep(0.35, 0.75, fbm3(vec2(wp.x * 0.002, h * 0.02))));
   vec3 cone = mix(srgb(vec3(0.30, 0.22, 0.20)), srgb(vec3(0.46, 0.28, 0.22)), smoothstep(0.3, 0.8, fbm3(vec2(wp.x * 0.003 + h * 0.01, wp.z * 0.003))));
   rock = mix(rock, cone, smoothstep(1900.0, 2500.0, h));
-  rock *= 0.85 + 0.3 * n3;
-  vec3 scree = mix(srgb(vec3(0.56, 0.52, 0.46)), srgb(vec3(0.46, 0.43, 0.40)), n2);
-  vec3 soil = srgb(vec3(0.38, 0.30, 0.21));
+  // horizontal lava-flow bands on cliffs
+  rock *= 0.82 + 0.3 * n3 + 0.07 * sin(h * 0.09 + fbm3(wp.xz * 0.01) * 9.0) * (1.0 - smoothstep(800.0, 4000.0, camDist));
+  vec3 talus = talusColor(wp, n, h, detail);
+  vec3 soil = srgb(vec3(0.36, 0.28, 0.19));
 
-  vec3 meadow = meadowColor(wp.xz, n1, n2, h, detail);
+  // autumn colour lives in the subalpine band, on gentle ground, near the trails
+  float band = smoothstep(1250.0, 1420.0, hj) * (1.0 - smoothstep(1820.0, 1980.0, hj));
+  float fall = band * (1.0 - smoothstep(0.28, 0.5, slope)) * mix(0.3, 1.0, smoothstep(0.05, 0.6, trail));
+  // lowland openings (avalanche chutes, clearings): vine maple gold and bracken
+  float low = 1.0 - smoothstep(1100.0, 1350.0, hj);
+  vec3 meadow = meadowColor(wp.xz, h, detail, camDist, fall);
+  vec3 lowland = uSeason < 0.5 ? srgb(vec3(0.2, 0.3, 0.1)) : mix(srgb(vec3(0.42, 0.34, 0.12)), srgb(vec3(0.3, 0.3, 0.12)), n2);
+  meadow = mix(meadow, lowland * (0.85 + 0.3 * n3), low * 0.8);
+
   vec3 canopy = mix(srgb(vec3(0.075, 0.17, 0.12)), srgb(vec3(0.12, 0.22, 0.13)), n1);
-  canopy = mix(canopy, srgb(vec3(0.16, 0.24, 0.14)), smoothstep(1300.0, 1800.0, h) * 0.6);
+  canopy = mix(canopy, srgb(vec3(0.14, 0.22, 0.13)), smoothstep(1300.0, 1800.0, h) * 0.6);
   vec3 floorCol = mix(srgb(vec3(0.25, 0.2, 0.13)), srgb(vec3(0.19, 0.22, 0.12)), n2) * (0.8 + 0.4 * n3);
   vec3 forest = mix(floorCol, canopy, smoothstep(uTreeFar * 0.55, uTreeFar * 0.95, camDist));
 
-  float veg = smoothstep(0.08, 0.55, cov.g);
+  // vegetation cover thins out with altitude however green the satellite says it is
+  float alpine = smoothstep(1900.0, 2250.0, hj);
+  float veg = smoothstep(0.08, 0.55, cov.g) * (1.0 - alpine * 0.75);
   float fst = smoothstep(0.12, 0.5, cov.r);
-  vec3 c = mix(scree, soil, smoothstep(1800.0, 1200.0, h));
-  c = mix(c, rock, smoothstep(0.25, 0.5, slope + (n1 - 0.5) * 0.2));
-  c = mix(c, meadow, veg * (1.0 - smoothstep(0.45, 0.65, slope)));
+  vec3 c = mix(talus, soil, smoothstep(1700.0, 1150.0, h) * 0.7);
+  c = mix(c, rock, smoothstep(0.42, 0.65, slope + (n1 - 0.5) * 0.25));
+  c = mix(c, meadow, veg * (1.0 - smoothstep(0.42, 0.62, slope)));
   c = mix(c, forest, fst);
-  c = mix(c, rock, smoothstep(0.55, 0.75, slope) * (1.0 - fst * 0.6));
+  c = mix(c, rock, smoothstep(0.58, 0.78, slope) * (1.0 - fst * 0.6));
 
   // River gravel bars (braided glacial rivers are wide and grey)
-  float riv = smoothstep(0.55, 0.85, cov.a);
-  c = mix(c, srgb(vec3(0.30, 0.27, 0.2)), smoothstep(0.15, 0.4, cov.a) * (1.0 - riv) * 0.7);
-  c = mix(c, mix(srgb(vec3(0.58, 0.57, 0.53)), srgb(vec3(0.45, 0.47, 0.46)), n2), riv * 0.85);
+  // (only on flat valley floors: in a canyon the river runs over rock)
+  float valley = 1.0 - smoothstep(0.12, 0.3, slope);
+  float riv = smoothstep(0.55, 0.85, cov.a) * valley;
+  c = mix(c, srgb(vec3(0.30, 0.27, 0.2)), smoothstep(0.15, 0.4, cov.a) * (1.0 - riv) * 0.6 * valley);
+  vec3 gravel = mix(srgb(vec3(0.5, 0.48, 0.44)), srgb(vec3(0.4, 0.41, 0.4)), n2) * (0.85 + 0.3 * n3);
+  c = mix(c, gravel, riv * 0.85);
 
   // Snow & ice
   vec3 snowCol = srgb(vec3(0.93, 0.95, 0.99));
   float seasonal = smoothstep(uSnowline - 120.0 + (n1 - 0.5) * 400.0, uSnowline + 150.0, h);
-  float snow = max(cov.b, seasonal);
+  // satellite snow patches survive the summer only up high (perennial snowfields)
+  float perennial = uSeason < 0.5 ? smoothstep(1500.0, 1750.0, hj) : smoothstep(1780.0, 2050.0, hj);
+  float snow = max(smoothstep(0.3, 0.75, cov.b + (n2 - 0.5) * 0.35) * perennial, seasonal);
   if (uSeason > 1.5) snow = max(snow, smoothstep(0.45, 0.25, slope) * smoothstep(uSnowline - 200.0, uSnowline + 200.0, h));
   snow *= 1.0 - smoothstep(0.62, 0.85, slope) * 0.8;
   // Glaciers: blue-white ice with crevasse bands across the flow, and the
   // debris-covered lower tongues (Carbon, Emmons, Nisqually snouts).
   vec2 flow = normalize(n.xz + 1e-4);
-  float crev = smoothstep(0.82, 0.97, sin(dot(wp.xz, flow) * 0.25 + fbm3(wp.xz * 0.01) * 8.0)) * detail;
+  float crev = smoothstep(0.82, 0.97, sin(dot(wp.xz, flow) * 0.25 + fbm3(wp.xz * 0.01) * 8.0)) * (1.0 - smoothstep(300.0, 2500.0, camDist));
   vec3 ice = mix(snowCol, srgb(vec3(0.55, 0.72, 0.85)), 0.25 + 0.5 * crev);
   float debris = smoothstep(1900.0, 1500.0, h) * smoothstep(0.35, 0.6, n1 + 0.2);
   ice = mix(ice, srgb(vec3(0.36, 0.34, 0.33)), debris * 0.85);
@@ -149,6 +218,7 @@ export class Terrain {
       uHalfN: { value: N / 2 },
       uMorphR: { value: Math.floor(N * 0.12) },
       uTreeFar: this.treeFar,
+      uTrail: { value: null },
     };
     this.shared = shared;
     for (let i = 0; i < levels; i++) {
