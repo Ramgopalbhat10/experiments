@@ -43,7 +43,7 @@ const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 async function boot() {
   const mobile = matchMedia('(pointer: coarse)').matches;
-  let quality = params.get('q') || (mobile ? 'low' : 'medium');
+  let quality = params.get('q') || (params.has('trailer') ? 'high' : mobile ? 'low' : 'medium');
   if (!QUALITY[quality]) quality = 'medium';
 
   setProgress(0.02, 'Reading the map…');
@@ -303,8 +303,11 @@ async function boot() {
   // --- audio, HUD, map ----------------------------------------------------
   const audio = new Ambience();
   const startAudio = () => audio.start();
-  addEventListener('pointerdown', startAudio, { once: true });
-  addEventListener('keydown', startAudio, { once: true });
+  if (!params.has('trailer')) {
+    // the trailer plays its own score instead of the live ambience
+    addEventListener('pointerdown', startAudio, { once: true });
+    addEventListener('keydown', startAudio, { once: true });
+  }
 
   const applyQuality = (q) => {
     quality = q;
@@ -436,6 +439,7 @@ async function boot() {
   // own; an external driver calls __cine.step(dt) once per video frame and
   // may override the camera (cine.cam) and the streaming focus (cine.focus).
   const cineMode = params.has('cine');
+  const trailerMode = params.has('trailer') && !cineMode;
   const cine = { cam: null, focus: null };
   const cineCam = () => {
     const c = cine.cam;
@@ -447,9 +451,14 @@ async function boot() {
     camera.updateMatrixWorld();
   };
 
-  function tick(fixedDt) {
-    if (!cineMode) requestAnimationFrame(tick);
-    const dt = cineMode ? fixedDt : Math.min(clock.getDelta(), 0.05);
+  let trailer = null;
+  function tick() {
+    requestAnimationFrame(tick);
+    frameStep(Math.min(clock.getDelta(), 0.05));
+  }
+
+  function frameStep(dt) {
+    trailer?.update();
     renderer.info.reset();
     t += dt;
     atmo.update(dt);
@@ -471,8 +480,8 @@ async function boot() {
     const panelOpen = map.open || hud.panel || $('camp-menu').classList.contains('open');
     controller.enabled = !panelOpen && $('intro').classList.contains('gone');
     controller.update(dt, t);
-    if (cineMode) cineCam();
-    const focus = (cineMode && cine.focus) || controller.pos;
+    if (cineMode || trailerMode) cineCam();
+    const focus = ((cineMode || trailerMode) && cine.focus) || controller.pos;
     lightTarget.set(Math.round(focus.x), Math.round(focus.y), Math.round(focus.z));
     sun.target.position.copy(lightTarget);
     sun.position.copy(lightTarget).addScaledVector(L, 400);
@@ -570,14 +579,24 @@ async function boot() {
       }
     }
   }
+  Object.assign(cine, { step: (dt) => frameStep(dt), THREE, setQuality: applyQuality });
   if (cineMode) {
-    window.__cine = Object.assign(cine, {
-      step: (dt) => tick(dt),
-      THREE,
-      setQuality: applyQuality,
-    });
-    tick(1 / 30);
-  } else tick();
+    window.__cine = cine;
+    frameStep(1 / 30);
+  } else {
+    if (trailerMode) {
+      const { Trailer } = await import('./trailer/trailer.js');
+      trailer = new Trailer({
+        R: { travel, PLACES, controller, hf, paths, lakes, atmo, game, camp, stars, clouds, structures, camera, vegetation, meadow },
+        C: cine,
+        assets: ASSETS,
+        audioCtx: () => audio.ctx,
+        onExit: () => { location.search = ''; },
+      });
+      window.__trailer = trailer;
+    }
+    tick();
+  }
   window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds };
 }
 

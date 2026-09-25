@@ -130,6 +130,8 @@ export class Camp {
 
     // embers & smoke: GPU-animated points
     const mkParticles = (n, frag, size, speed, spread, rise) => {
+      // GLSL needs float literals: 1 must be written 1.0000
+      [size, speed, spread, rise] = [size, speed, spread, rise].map((v) => Number(v).toFixed(4));
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
       const seeds = new Float32Array(n);

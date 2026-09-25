@@ -225,7 +225,7 @@ export class MeadowCarpet {
       }
     }
     c = Float32Array.from(out);
-    if (cache.size > 6000) cache.clear();
+    if (cache.size > (this.cacheLimit || 6000)) cache.clear();
     cache.set(k, c);
     return c;
   }

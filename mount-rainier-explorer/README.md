@@ -79,6 +79,25 @@ Gamepads and touch screens (virtual joystick) also work.
 - Camp anywhere flat: dome tent, stone fire ring with flames, embers, smoke and flickering light, plus a stove with a steaming pot.
 - The radio plays procedural fingerpicked guitar in five tracks (Karplus–Strong strings, no audio files). There's also procedural wind, water, birdsong, marmots and footsteps.
 
+## Launch trailer
+
+Open `?trailer` (or click **Watch the trailer** on the title screen) and press **Play trailer**. The game goes fullscreen, pre-loads every location for a few seconds, and then plays a one-minute launch trailer live:
+
+- 14 scripted camera moves (Paradise, Myrtle Falls, the Skyline Trail, Glacier Vista, Sunrise, Eunice and Louise lakes, Fremont Lookout at sunset, first-person gameplay, camp, stars and a Reflection Lakes finale)
+- titles and location labels
+- an original score, with every cut on the beat
+
+**To record it:** start your screen recorder (QuickTime: *File › New Screen Recording*; OBS: *Display Capture* at 60 fps), then press Play trailer. `?trailer` runs on high quality by default, and `?trailer&q=medium` suits slower laptops. Press Esc to stop.
+
+On a machine without a GPU, [`tools/trailer`](tools/trailer) renders the same shot list offline, frame by frame, through the game's `?cine` mode:
+
+```sh
+cd tools/trailer
+python3 score.py                                   # 60 s score -> score.wav
+node render.js frames 1600 900 24 all              # frames/<shot>/NNNN.png (slow without a GPU)
+python3 compose.py frames rainier_trailer.mp4      # titles, edit, H.264 + AAC at 1080p
+```
+
 ## Project layout
 
 ```
@@ -91,9 +110,11 @@ src/gameplay/         game (gear, energy, radio, camp menu), camp, viewmodel (ha
 src/ui/               HUD, paper map
 src/data/             places, radio lines
 src/audio.js          ambience + radio music
-src/post.js           HDR grade, bloom, god rays, binocular mask
+src/post.js           HDR grade, SSAO, bloom, god rays, binocular mask
+src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
-assets/               terrain.png, landcover.png, features.json
+tools/trailer/        offline trailer render, score synthesis, edit/encode
+assets/               terrain.png, landcover.png, features.json, trailer-score.mp3
 ```
 
 ## Rebuilding the data

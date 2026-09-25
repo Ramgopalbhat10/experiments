@@ -329,7 +329,7 @@ export class Vegetation {
       }
     }
     c = Float32Array.from(out);
-    if (this.cache.size > 4000) this.cache.clear();
+    if (this.cache.size > (this.cacheLimit || 4000)) this.cache.clear();
     this.cache.set(k, c);
     return c;
   }
@@ -410,7 +410,7 @@ export class Vegetation {
       }
     }
     c = Float32Array.from(out);
-    if (this.gcache.size > 5000) this.gcache.clear();
+    if (this.gcache.size > (this.cacheLimit || 5000)) this.gcache.clear();
     this.gcache.set(k, c);
     return c;
   }
