@@ -439,7 +439,7 @@ async function boot() {
   // own; an external driver calls __cine.step(dt) once per video frame and
   // may override the camera (cine.cam) and the streaming focus (cine.focus).
   const cineMode = params.has('cine');
-  const trailerMode = params.has('trailer') && !cineMode;
+  let trailerMode = params.has('trailer') && !cineMode;
   const cine = { cam: null, focus: null };
   const cineCam = () => {
     const c = cine.cam;
@@ -584,17 +584,27 @@ async function boot() {
     window.__cine = cine;
     frameStep(1 / 30);
   } else {
-    if (trailerMode) {
+    const makeTrailer = async (hookStart) => {
       const { Trailer } = await import('./trailer/trailer.js');
       trailer = new Trailer({
         R: { travel, PLACES, controller, hf, paths, lakes, atmo, game, camp, stars, clouds, structures, camera, vegetation, meadow },
         C: cine,
         assets: ASSETS,
-        audioCtx: () => audio.ctx,
-        onExit: () => { location.search = ''; },
+        hookStart,
+        muteGame: () => audio.setVolume(0),
+        onExit: () => { if (params.has('trailer')) location.search = ''; else location.reload(); },
       });
       window.__trailer = trailer;
-    }
+      return trailer;
+    };
+    if (trailerMode) await makeTrailer(true);
+    // "Watch the trailer" on the title screen starts it in place (no navigation,
+    // so it also works inside an embedded page)
+    $('trailer-link').onclick = async (e) => {
+      e.preventDefault();
+      trailerMode = true;
+      (trailer || (await makeTrailer(false))).play();
+    };
     tick();
   }
   window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds };

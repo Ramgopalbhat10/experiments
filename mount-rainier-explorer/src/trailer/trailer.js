@@ -10,10 +10,11 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const fade = (t, t0, t1, fi = 0.45, fo = 0.45) => (t < t0 || t > t1 ? 0 : clamp01(Math.min((t - t0) / fi, (t1 - t) / fo)));
 
 export class Trailer {
-  constructor({ R, C, assets, onExit }) {
+  constructor({ R, C, assets, onExit, hookStart = true, muteGame }) {
     this.R = R;
     this.C = C;
     this.onExit = onExit;
+    this.muteGame = muteGame;
     this.shots = makeShots(R, C);
     this.starts = [0];
     for (const s of this.shots) this.starts.push(this.starts[this.starts.length - 1] + s.dur);
@@ -24,9 +25,11 @@ export class Trailer {
     this.audioData = fetch(`${assets}/trailer-score.mp3`).then((r) => r.arrayBuffer()).catch(() => null);
     this._dom();
     document.body.classList.add('trailer-mode');
-    const btn = document.getElementById('start-btn');
-    btn.textContent = 'Play trailer';
-    btn.onclick = () => this.play();
+    if (hookStart) {
+      const btn = document.getElementById('start-btn');
+      btn.textContent = 'Play trailer';
+      btn.onclick = () => this.play();
+    }
     addEventListener('keydown', (e) => { if (e.code === 'Escape' && this.state !== 'idle') this.onExit(); });
   }
 
@@ -55,6 +58,7 @@ export class Trailer {
   }
 
   async play() {
+    this.muteGame?.();
     document.getElementById('intro').classList.add('gone');
     this.root.classList.add('on');
     this.end.classList.remove('done');
