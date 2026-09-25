@@ -138,7 +138,7 @@ export class Camp {
       for (let i = 0; i < n; i++) seeds[i] = Math.random();
       geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
       const m = new THREE.ShaderMaterial({
-        uniforms: { uTime: A.uniforms.uTime, uOn: { value: 0 } },
+        uniforms: { uTime: A.uniforms.uTime, uOn: { value: 0 }, uAmbient: A.uniforms.uAmbient },
         vertexShader: `
           #include <common>
           #include <logdepthbuf_pars_vertex>
@@ -157,7 +157,12 @@ export class Camp {
         fragmentShader: `
           #include <common>
           #include <logdepthbuf_pars_fragment>
+          uniform vec3 uAmbient;
           varying float vT;
+          // smoke and steam are lit by the sky (dark at night) and glow warm just above the fire
+          vec3 litSmoke(vec3 base) {
+            return base * clamp(uAmbient * 0.55, 0.0, 1.0) + vec3(1.0, 0.45, 0.15) * 0.35 * pow(1.0 - vT, 4.0);
+          }
           void main() {
             #include <logdepthbuf_fragment>
             float d = length(gl_PointCoord - 0.5);
@@ -172,8 +177,8 @@ export class Camp {
       return pts;
     };
     this.embers = mkParticles(40, '/*ember*/ gl_FragColor = vec4(vec3(1.0, 0.5, 0.15) * 3.0, smoothstep(0.5, 0.1, d) * (1.0 - vT));', 60.0, 0.35, 0.5, 3.5);
-    this.smoke = mkParticles(30, 'gl_FragColor = vec4(vec3(0.55, 0.55, 0.58), smoothstep(0.5, 0.0, d) * (1.0 - vT) * 0.22);', 900.0, 0.08, 1.2, 7.0);
-    this.steam = mkParticles(16, 'gl_FragColor = vec4(vec3(0.95), smoothstep(0.5, 0.0, d) * (1.0 - vT) * 0.35);', 250.0, 0.25, 0.12, 0.9);
+    this.smoke = mkParticles(30, 'gl_FragColor = vec4(litSmoke(vec3(0.55, 0.55, 0.58)), smoothstep(0.5, 0.0, d) * (1.0 - vT) * 0.18);', 900.0, 0.08, 1.2, 7.0);
+    this.steam = mkParticles(16, 'gl_FragColor = vec4(litSmoke(vec3(0.95)), smoothstep(0.5, 0.0, d) * (1.0 - vT) * 0.3);', 250.0, 0.25, 0.12, 0.9);
     this.embers.position.y = 0.2;
     g.add(this.embers, this.smoke);
 
