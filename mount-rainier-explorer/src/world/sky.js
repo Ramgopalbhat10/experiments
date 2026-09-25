@@ -40,9 +40,12 @@ export class Sky {
           if (uStars > 0.0 && d.y > -0.05) {
             float lat = dot(d, uGalPole);
             float band = exp(-lat * lat * 14.0) * (0.55 + 0.45 * max(dot(d, uGalCenter), 0.0));
-            float dust = smoothstep(0.35, 0.75, fbm5(vec2(atan(d.z, d.x) * 3.0, lat * 9.0)));
-            float clumps = fbm3(d.xz * 14.0 + d.y * 7.0);
-            vec3 mw = mix(vec3(0.10, 0.11, 0.18), vec3(0.2, 0.18, 0.16), clumps) * band * (0.5 + clumps) * (1.0 - 0.6 * dust * exp(-lat * lat * 60.0));
+            // galactic longitude, so the dust lanes run along the band (no seam overhead)
+            vec3 gE = normalize(cross(uGalPole, uGalCenter));
+            float lon = atan(dot(d, gE), dot(d, uGalCenter));
+            float dust = smoothstep(0.4, 0.75, fbm5(vec2(lon * 4.0, lat * 11.0)));
+            float clumps = vnoise3(d * 16.0) * 0.6 + vnoise3(d * 42.0 + 3.0) * 0.4;
+            vec3 mw = mix(vec3(0.10, 0.11, 0.18), vec3(0.22, 0.19, 0.16), clumps) * band * (0.45 + clumps) * (1.0 - 0.65 * dust * exp(-lat * lat * 60.0)) * 1.25;
             col += mw * uStars * smoothstep(-0.05, 0.2, d.y);
           }
           // Firewatch clouds: flat, posterised shapes with a lit rim toward the sun

@@ -432,9 +432,24 @@ async function boot() {
     audio.step(surf, speed);
   };
 
-  function tick() {
-    requestAnimationFrame(tick);
-    const dt = Math.min(clock.getDelta(), 0.05);
+  // ?cine: offline "film" mode for trailers. The loop no longer runs on its
+  // own; an external driver calls __cine.step(dt) once per video frame and
+  // may override the camera (cine.cam) and the streaming focus (cine.focus).
+  const cineMode = params.has('cine');
+  const cine = { cam: null, focus: null };
+  const cineCam = () => {
+    const c = cine.cam;
+    if (!c) return;
+    camera.position.set(c.pos[0], c.pos[1], c.pos[2]);
+    camera.up.set(Math.sin(c.roll || 0), Math.cos(c.roll || 0), 0);
+    camera.lookAt(c.look[0], c.look[1], c.look[2]);
+    if (c.fov && Math.abs(camera.fov - c.fov) > 1e-3) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+    camera.updateMatrixWorld();
+  };
+
+  function tick(fixedDt) {
+    if (!cineMode) requestAnimationFrame(tick);
+    const dt = cineMode ? fixedDt : Math.min(clock.getDelta(), 0.05);
     renderer.info.reset();
     t += dt;
     atmo.update(dt);
@@ -456,15 +471,17 @@ async function boot() {
     const panelOpen = map.open || hud.panel || $('camp-menu').classList.contains('open');
     controller.enabled = !panelOpen && $('intro').classList.contains('gone');
     controller.update(dt, t);
-    lightTarget.set(Math.round(controller.pos.x), Math.round(controller.pos.y), Math.round(controller.pos.z));
+    if (cineMode) cineCam();
+    const focus = (cineMode && cine.focus) || controller.pos;
+    lightTarget.set(Math.round(focus.x), Math.round(focus.y), Math.round(focus.z));
     sun.target.position.copy(lightTarget);
     sun.position.copy(lightTarget).addScaledVector(L, 400);
 
     terrain.update(camera.position);
     bake.update();
-    vegetation.update(controller.pos);
-    meadow.update(controller.pos);
-    paths.update(controller.pos, QUALITY[quality].paths);
+    vegetation.update(focus);
+    meadow.update(focus);
+    paths.update(focus, QUALITY[quality].paths);
     falls.update(camera, dt);
     structures.update(atmo);
     stars.update(camera);
@@ -553,8 +570,15 @@ async function boot() {
       }
     }
   }
-  tick();
-  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post };
+  if (cineMode) {
+    window.__cine = Object.assign(cine, {
+      step: (dt) => tick(dt),
+      THREE,
+      setQuality: applyQuality,
+    });
+    tick(1 / 30);
+  } else tick();
+  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds };
 }
 
 boot().catch((e) => {

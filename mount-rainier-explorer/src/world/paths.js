@@ -275,8 +275,12 @@ export class PathNetwork {
       if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) > radius) continue;
       this.chunks.set(k, this._buildChunk(k));
     }
+    // edge stones, posts and ropes are sub-pixel beyond the neighbouring chunks
+    const fx = focus.x / CHUNK - 0.5, fz = focus.z / CHUNK - 0.5;
     for (const [k, grp] of this.chunks) {
       const [x, z] = k.split(',').map(Number);
+      const near = Math.max(Math.abs(x - fx), Math.abs(z - fz)) < 1.3;
+      for (const o of grp.children) if (o.userData.detail) o.visible = near;
       if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) > radius + 1) {
         grp.traverse((o) => o.geometry && o.geometry.dispose());
         this.group.remove(grp);
@@ -343,6 +347,7 @@ export class PathNetwork {
       }
       im.castShadow = im.receiveShadow = true;
       im.computeBoundingSphere();
+      im.userData.detail = true;
       grp.add(im);
     }
     if (edges.posts.length) {
@@ -355,10 +360,13 @@ export class PathNetwork {
       }
       im.castShadow = true;
       im.computeBoundingSphere();
+      im.userData.detail = true;
       grp.add(im);
       const rg = new THREE.BufferGeometry();
       rg.setAttribute('position', new THREE.Float32BufferAttribute(edges.rope, 3));
-      grp.add(new THREE.LineSegments(rg, this.ropeMat));
+      const rope = new THREE.LineSegments(rg, this.ropeMat);
+      rope.userData.detail = true;
+      grp.add(rope);
     }
     this.group.add(grp);
     return grp;
