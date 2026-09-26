@@ -252,3 +252,25 @@ body.viewfinder #viewfinder { display: block; }
 .tr-actions { margin-top: 3vw; display: flex; gap: 14px; opacity: 0; transition: opacity 0.6s; pointer-events: none; }
 .tr-end.done .tr-actions { opacity: 1; pointer-events: auto; }
 .tr-end.done { cursor: default; }
+
+/* --- ranger radio (Jev) ------------------------------------------------------- */
+#radio-cmd { position: fixed; left: 50%; bottom: 118px; transform: translate(-50%, 12px); width: min(620px, calc(100vw - 32px)); z-index: 30;
+  background: rgba(30, 22, 18, 0.92); border: 1px solid rgba(243, 230, 200, 0.18); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+#radio-cmd.open { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.rc-head { display: flex; align-items: center; gap: 8px; font: 600 11px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: #cdb892; margin-bottom: 8px; }
+.rc-head i { width: 8px; height: 8px; border-radius: 50%; background: #7bd36a; box-shadow: 0 0 8px #7bd36a; }
+#radio-form { display: flex; gap: 8px; }
+#radio-input { flex: 1; min-width: 0; font: 15px var(--body); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(243, 230, 200, 0.25); background: rgba(0, 0, 0, 0.35); color: var(--paper); outline: none; }
+#radio-input:focus { border-color: var(--ember-2); }
+.radio-open #subtitle { opacity: 0 !important; }
+.rc-hint { margin-top: 8px; font-size: 11.5px; line-height: 1.5; opacity: 0.6; }
+#radio-status { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 29; font: 600 12px var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: #cdb892;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+#radio-status.show { opacity: 0.9; animation: radio-pulse 1s ease-in-out infinite; }
+@keyframes radio-pulse { 50% { opacity: 0.45; } }
+.panel input[type=password] { font: 14px var(--body); width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(43, 29, 20, 0.3); background: rgba(255, 255, 255, 0.55); color: var(--ink); letter-spacing: normal; text-transform: none; }
+.jev-row { display: flex; align-items: center; gap: 8px; margin: -6px 0 6px; flex-wrap: wrap; }
+.jev-row .btn { padding: 6px 12px; font-size: 12px; }
+#jev-status { font-size: 12px; opacity: 0.8; }
+#jev-status[data-ok="1"] { color: #3f7a3a; opacity: 1; }

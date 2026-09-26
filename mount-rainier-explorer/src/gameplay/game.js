@@ -286,6 +286,7 @@ export class Game {
   onDiscover(p) {
     if (this.saidPlace.has(p.id) || !PLACE_LINES[p.id]) return;
     this.saidPlace.add(p.id);
+    this.ranger?.onDiscover(p);
     setTimeout(() => this.subtitle('Ranger (radio)', PLACE_LINES[p.id][0]), 2500);
     this.chatterTimer = 150;
   }
@@ -333,7 +334,7 @@ export class Game {
     // radio chatter
     if (this.subTimer > 0) { this.subTimer -= dt; if (this.subTimer <= 0) $('subtitle').classList.remove('show'); }
     this.chatterTimer -= dt;
-    if (this.chatterTimer <= 0) {
+    if (this.chatterTimer <= 0 && !this.ranger?.jev.enabled) {
       this.chatterTimer = 150 + Math.random() * 150;
       this.subtitle('Ranger (radio)', GENERIC_LINES[Math.floor(Math.random() * GENERIC_LINES.length)]);
     }

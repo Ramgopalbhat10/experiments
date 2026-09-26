@@ -20,6 +20,8 @@ import { StarSky } from './world/stars.js';
 import { ViewModel } from './gameplay/viewmodel.js';
 import { Camp } from './gameplay/camp.js';
 import { Game } from './gameplay/game.js';
+import { Jev } from './gameplay/jev.js';
+import { Ranger } from './gameplay/ranger.js';
 import { HUD } from './ui/hud.js';
 import { PaperMap } from './ui/map.js';
 import { PLACES, REGIONS } from './data/places.js';
@@ -358,6 +360,15 @@ async function boot() {
     fireLight, flashLight, places: PLACES, features,
   });
 
+  // the ranger on the radio: Jev-powered when the player adds an OpenRouter key
+  const ranger = new Ranger({
+    jev: new Jev(), game, atmo, hf, paths, lakes, falls, places: PLACES, controller,
+    travel: (p) => travel(p),
+    setSeason: (s) => { atmo.setSeason(s); vegetation.setSeason(s); meadow.setSeason(s); bake.update(true); },
+    isAuto: () => !params.has('cine') && !document.body.classList.contains('trailer-mode'),
+  });
+  game.ranger = ranger;
+
   const toggleFast = () => {
     controller.fast = !controller.fast;
     hud.setFast(controller.fast);
@@ -496,6 +507,7 @@ async function boot() {
     stars.update(camera);
     sky.update(camera, stars);
     const view = game.update(dt, { camera, time: t });
+    ranger.update(dt);
 
     lakes.updateReflection(scene, camera, [vegetation.pools.grass, vegetation.pools.flower, meadow.near, clouds.mesh, hiker.root, falls.group, paths.group, camp.group], QUALITY[quality].reflection);
     // god rays when looking toward a low sun
@@ -607,7 +619,7 @@ async function boot() {
     };
     tick();
   }
-  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds };
+  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds, ranger };
 }
 
 boot().catch((e) => {

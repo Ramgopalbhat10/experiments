@@ -36,6 +36,7 @@ Any static file server works. Options go in the URL:
 | Right mouse | Look through binoculars; the rangefinder shows distance, elevation and what you're looking at |
 | **C** / **E** | Make camp / camp menu: light the fire, cook, sleep, stargaze, pack up |
 | **G** | Lie back and stargaze (**X** toggles constellation lines) |
+| **Enter** | Radio the ranger in plain words (needs a Jev key, see below) |
 | **K** / **N** | Radio music on/off / next track |
 | **L** | Flashlight |
 | **F** | Fast-travel walking speed |
@@ -79,6 +80,22 @@ Gamepads and touch screens (virtual joystick) also work.
 - Camp anywhere flat: dome tent, stone fire ring with flames, embers, smoke and flickering light, plus a stove with a steaming pot.
 - The radio plays procedural fingerpicked guitar in five tracks (Karplus–Strong strings, no audio files). There's also procedural wind, water, birdsong, marmots and footsteps.
 
+## Talk to the ranger (Jev)
+
+The ranger on the radio can be driven by [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev), TypeSafe's "System One" decision model, available through OpenRouter. Jev doesn't write text. It reads the game state plus typed questions and returns typed answers with probabilities in one fast call (typically 70–500 ms), so every word the ranger says is still hand-written.
+
+Open **Settings (O)**, paste your OpenRouter key under **Ranger AI · Jev key**, then press **Test**. The key is stored only in your browser (localStorage) and sent only to `openrouter.ai`. Once a key is set:
+
+- **Press Enter to radio the ranger in plain words.** For example: "take me somewhere with a lake at sunset", "where should I go for fall colour?" then "take me there", "skip to night", "switch to winter", "make camp", "hand me the binoculars", "what am I looking at?". One Jev call turns the message into:
+  - an intent: travel, recommend, time, season, camp, stargaze, gear, info or small talk
+  - a destination (one of the 45 places)
+  - a time of day, a season, a piece of gear, and a reply type
+
+  The game then acts on the answer. If Jev isn't confident, the ranger asks you to say again.
+- **The chatter reacts to what you're doing.** The game samples the state every 2 s and notes events such as a sunset, making camp, low energy or reaching snow. After an event, or during a long quiet stretch, one Jev call decides whether the ranger should speak at all. It also picks the best of 50 hand-written lines ([`src/data/ranger.js`](src/data/ranger.js)).
+
+A command call is about 3k input tokens (about $0.0001); a chatter call is about 1.2k. Output tokens are free. Without a key, the radio falls back to the stock lines and nothing is sent anywhere. The Decisions endpoint is alpha, so everything that knows its shape lives in [`src/gameplay/jev.js`](src/gameplay/jev.js).
+
 ## Launch trailer
 
 Open `?trailer` (or click **Watch the trailer** on the title screen) and press **Play trailer**. The game goes fullscreen, pre-loads every location for a few seconds, and then plays a one-minute launch trailer live:
@@ -106,9 +123,10 @@ src/main.js           boot, renderer, frame loop
 src/world/            heightfield, terrain (clipmap), atmosphere, sky, stars,
                       foliage + vegetation, paths, water, waterfalls, structures
 src/player/           character, controller (3rd/1st person, stargazing)
-src/gameplay/         game (gear, energy, radio, camp menu), camp, viewmodel (hands)
+src/gameplay/         game (gear, energy, radio, camp menu), camp, viewmodel (hands),
+                      ranger + jev (the Jev-powered radio)
 src/ui/               HUD, paper map
-src/data/             places, radio lines
+src/data/             places, radio lines, ranger line library
 src/audio.js          ambience + radio music
 src/post.js           HDR grade, SSAO, bloom, god rays, binocular mask
 src/trailer/          ?trailer: shot list, live player and title overlay
