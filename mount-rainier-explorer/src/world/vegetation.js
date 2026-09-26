@@ -238,8 +238,8 @@ export class Vegetation {
       douglas: sprayConiferGeometry(fir, { whorls: 28, crownBase: 0.3, radius: 0.14, perWhorl: 6, droop: 0.42, upturn: 0.22, trunkR: 0.012, seed: 11, profile: douglasProfile, width: 1.35, stubs: 9 }),
       hemlock: sprayConiferGeometry(fir, { whorls: 26, crownBase: 0.16, radius: 0.18, perWhorl: 6, droop: 0.62, upturn: 0.04, trunkR: 0.011, seed: 29, profile: (t) => Math.pow(1 - t, 0.9), width: 1.4, stubs: 5 }),
       spire: sprayConiferGeometry(fir, { whorls: 36, crownBase: 0.02, radius: 0.125, perWhorl: 6, droop: 0.5, upturn: 0.12, trunkR: 0.013, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 1.7, layers: 1 }),
-      douglasMid: sprayConiferGeometry(fir, { whorls: 13, crownBase: 0.3, radius: 0.145, perWhorl: 4, droop: 0.42, upturn: 0.22, seed: 11, profile: douglasProfile, width: 1.8, layers: 1 }),
-      spireMid: sprayConiferGeometry(fir, { whorls: 16, crownBase: 0.02, radius: 0.13, perWhorl: 4, droop: 0.5, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 2.0, layers: 1 }),
+      douglasMid: sprayConiferGeometry(fir, { whorls: 16, crownBase: 0.3, radius: 0.145, perWhorl: 5, droop: 0.42, upturn: 0.22, seed: 11, profile: douglasProfile, width: 1.8, layers: 1 }),
+      spireMid: sprayConiferGeometry(fir, { whorls: 24, crownBase: 0.02, radius: 0.135, perWhorl: 5, droop: 0.5, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 2.0, layers: 1 }),
     };
     const P = this.pools;
     const swap = (key, mesh) => {
@@ -365,9 +365,9 @@ export class Vegetation {
 
   setQuality(q) {
     const presets = {
-      low: { far: 700, near: 160, lod0: 45, nearCap: 2500, farCap: 16000, shrubCap: 5000, rockCap: 2000, grassCap: 9000, grassR: 30, gDensity: 0.6, density: 0.65 },
-      medium: { far: 1100, near: 240, lod0: 70, nearCap: 5000, farCap: 30000, shrubCap: 9000, rockCap: 3000, grassCap: 24000, grassR: 45, gDensity: 0.85, density: 0.85 },
-      high: { far: 1500, near: 340, lod0: 110, nearCap: 9000, farCap: 50000, shrubCap: 14000, rockCap: 4000, grassCap: 45000, grassR: 65, gDensity: 1, density: 1 },
+      low: { far: 700, near: 120, lod0: 45, nearCap: 2500, farCap: 16000, shrubCap: 5000, rockCap: 2000, grassCap: 9000, grassR: 30, gDensity: 0.6, density: 0.65 },
+      medium: { far: 1100, near: 170, lod0: 70, nearCap: 5000, farCap: 30000, shrubCap: 9000, rockCap: 3000, grassCap: 24000, grassR: 45, gDensity: 0.85, density: 0.85 },
+      high: { far: 1500, near: 220, lod0: 110, nearCap: 9000, farCap: 50000, shrubCap: 14000, rockCap: 4000, grassCap: 45000, grassR: 65, gDensity: 1, density: 1 },
     };
     // pools are sized for the quality chosen at start; later changes only shrink radii
     this.q = { ...(presets[q] || presets.medium), ...(this.q ? { nearCap: this.q.nearCap, farCap: this.q.farCap, shrubCap: this.q.shrubCap, rockCap: this.q.rockCap, grassCap: this.q.grassCap } : {}) };
