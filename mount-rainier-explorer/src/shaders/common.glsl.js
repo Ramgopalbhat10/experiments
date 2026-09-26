@@ -163,49 +163,103 @@ float heightBilinear(vec2 w) {
 }
 `;
 
-// Subalpine meadow mosaic, matched to late-September Paradise: huckleberry
-// crimson and magenta, mountain-ash orange, cured gold grass, and green heather
-// in drifts. Shared by the shrub carpet (near) and terrain (far) so they agree.
-// Requires NOISE_GLSL. Colours are linear.
+// Subalpine meadow mosaic, matched to late-September Paradise: shrub-sized
+// clumps of huckleberry (crimson to wine), mountain ash (orange, gold), cured
+// grass and still-green heather, packed shoulder to shoulder, in drifts whose
+// mix changes from slope to slope. Two scales of Voronoi clumps (~5 m drifts,
+// ~2 m bushes) with dark gaps between the bushes; `fw` is the pixel
+// footprint in metres, and the clumps fade to their regional average once
+// they are smaller than a pixel. meadow.js has a JS twin (mosaicClass) for
+// the shrub instances. Requires NOISE_GLSL. Colours are linear.
 export const MEADOW_GLSL = /* glsl */ `
-vec3 meadowPatch(vec2 p, float season) {
-  float a = fbm3(p * 0.012 + vec2(3.7, 1.3));
-  float b = fbm3(p * 0.04 + 7.3);
-  float c = vnoise(p * 0.5 + 3.1);
-  if (season < 0.5) {
-    vec3 g = mix(vec3(0.07, 0.17, 0.035), vec3(0.17, 0.27, 0.05), b);
-    return g * (0.8 + 0.4 * c);
+// x = distance to the nearest feature, y/z = two ids for it; e = the
+// second-nearest one (x: distance, y/z: ids), for soft edges between clumps
+vec3 mCell(vec2 p, out vec3 e) {
+  vec2 ci = floor(p);
+  float bd = 9.0, bd2 = 9.0; vec2 id = vec2(0.0), id2 = vec2(0.0);
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = ci + vec2(float(i), float(j));
+    vec2 o = vec2(hash12(c), hash12(c + 17.3)) * 0.8 + 0.1;
+    float d = length(p - c - o);
+    vec2 k = vec2(hash12(c * 1.37 + 5.1), hash12(c * 0.71 + 11.9));
+    if (d < bd) { bd2 = bd; id2 = id; bd = d; id = k; }
+    else if (d < bd2) { bd2 = d; id2 = k; }
   }
-  vec3 green = vec3(0.06, 0.13, 0.035);
-  vec3 olive = vec3(0.22, 0.22, 0.06);
-  vec3 gold = vec3(0.55, 0.33, 0.06);
-  vec3 orange = vec3(0.6, 0.16, 0.04);
-  vec3 crimson = vec3(0.38, 0.05, 0.035);
-  vec3 magenta = vec3(0.26, 0.03, 0.035); // deep wine-red huckleberry
-  // Paradise in late September: mostly huckleberry red, drifts of gold and
-  // orange, the odd patch of still-green heather
-  float t = clamp(a * 1.35 - 0.04 + (b - 0.5) * 1.4, 0.0, 1.0);
-  vec3 col = t < 0.1 ? mix(green, olive, t / 0.1)
-           : t < 0.24 ? mix(olive, gold, (t - 0.1) / 0.14)
-           : t < 0.38 ? mix(gold, orange, (t - 0.24) / 0.14)
-           : t < 0.54 ? mix(orange, crimson, (t - 0.38) / 0.16)
-           : mix(crimson, magenta, (t - 0.54) / 0.46);
-  return col * (0.88 + 0.24 * c);
+  e = vec3(bd2, id2);
+  return vec3(bd, id);
 }
+const vec3 M_WINE = vec3(0.2, 0.012, 0.02);
+const vec3 M_CRIMSON = vec3(0.42, 0.02, 0.025);
+const vec3 M_ORANGE = vec3(0.5, 0.12, 0.02);
+const vec3 M_GOLD = vec3(0.46, 0.28, 0.04);
+const vec3 M_TAN = vec3(0.3, 0.2, 0.085);
+const vec3 M_OLIVE = vec3(0.16, 0.16, 0.03);
+const vec3 M_GREEN = vec3(0.045, 0.085, 0.02);
+// shares of each plant: huckleberry dominates the reddest slopes
+float mRed(float reg) { return mix(0.38, 0.64, reg); }
+vec3 mPalette(float id, float id2, float reg, float season) {
+  if (season < 0.5) {
+    // summer: heather, huckleberry and sedge greens, lupine-blue and paintbrush flecks come from the terrain
+    return id < 0.5 ? mix(M_GREEN, vec3(0.1, 0.17, 0.03), id2) : mix(vec3(0.07, 0.14, 0.03), vec3(0.16, 0.2, 0.05), id2);
+  }
+  float wr = mRed(reg);
+  if (id < wr) return mix(M_WINE, M_CRIMSON, id2);
+  if (id < wr + 0.3) return mix(M_ORANGE, M_GOLD, id2);
+  if (id < wr + 0.34) return M_TAN;
+  return mix(M_GREEN, M_OLIVE, id2);
+}
+vec3 mAverage(float reg, float season) {
+  if (season < 0.5) return vec3(0.09, 0.15, 0.03);
+  float wr = mRed(reg), wg = 1.0 - wr - 0.34;
+  return (mix(M_WINE, M_CRIMSON, 0.5) * wr + mix(M_ORANGE, M_GOLD, 0.5) * 0.3 + M_TAN * 0.04 + mix(M_GREEN, M_OLIVE, 0.5) * wg);
+}
+float mRegion(vec2 p) { return smoothstep(0.28, 0.72, fbm3(p * 0.005 + vec2(3.7, 1.3))); }
+vec3 meadowPatchF(vec2 p, float season, float fw) {
+  float reg = mRegion(p);
+  vec3 avg = mAverage(reg, season) * 0.85;
+  float kBig = 1.0 - smoothstep(2.5, 7.0, fw);
+  float kSmall = 1.0 - smoothstep(0.45, 1.4, fw);
+  if (kBig <= 0.0) return avg * (0.9 + 0.2 * vnoise(p * 0.03));
+  // ragged, not polygonal, drift and clump outlines
+  vec2 w = vec2(fbm3(p * 0.07), fbm3(p * 0.07 + 7.7)) - 0.5;
+  vec2 q = p + (vec2(vnoise(p * 0.3), vnoise(p * 0.3 + 7.7)) - 0.5) * 2.2 * kSmall
+             + (vec2(vnoise(p * 1.3), vnoise(p * 1.3 + 3.3)) - 0.5) * 0.8 * kSmall;
+  vec3 e;
+  vec3 big = mCell((q + w * 9.0) / 5.5, e);
+  // drifts grade into each other over a metre or two
+  vec3 col = mix(mPalette(big.y, big.z, reg, season), mPalette(e.y, e.z, reg, season),
+                 0.5 * (1.0 - smoothstep(0.0, 0.3, e.x - big.x)));
+  float shade = 0.9;
+  if (kSmall > 0.0) {
+    vec3 e2;
+    vec3 sm = mCell(q / 1.9 + 3.1, e2);
+    // a third of the bushes in a drift are another plant
+    vec3 other = mPalette(sm.y, fract(sm.z * 3.3), reg, season);
+    col = mix(col, other, step(sm.z, 0.32) * kSmall * smoothstep(0.05, 0.25, e2.x - sm.x));
+    // each bush lit a little differently, shadowed hollows between them
+    float gap = 0.4 + 0.6 * smoothstep(0.78, 0.3, sm.x + (vnoise(p * 2.7) - 0.5) * 0.35);
+    shade = mix(0.9, (0.8 + 0.4 * fract(sm.z * 7.1)) * gap, kSmall);
+  }
+  // beyond the single bushes, clusters of them still dapple the slope
+  shade *= mix(0.75 + 0.5 * vnoise(p * 0.6), 1.0, kSmall);
+  return mix(avg, col * shade, kBig);
+}
+vec3 meadowPatch(vec2 p, float season) { return meadowPatchF(p, season, 0.0); }
 // The same mosaic shifted by altitude: greener and more golden (vine maple,
 // bracken) below ~1,350 m; cured tan grass, heather and pumice above ~1,850 m,
 // as at Sunrise and on the upper Skyline Trail.
-vec3 meadowPatchH(vec2 p, float h, float season) {
-  vec3 col = meadowPatch(p, season);
+vec3 meadowPatchHF(vec2 p, float h, float season, float fw) {
+  vec3 col = meadowPatchF(p, season, fw);
   if (season < 0.5) return col;
-  float hi = smoothstep(1800.0, 2000.0, h + (vnoise(p * 0.01) - 0.5) * 160.0);
+  float hi = smoothstep(1820.0, 2020.0, h + (vnoise(p * 0.01) - 0.5) * 160.0);
   float lo = 1.0 - smoothstep(1250.0, 1400.0, h);
   float grass = vnoise(p * 0.05 + 9.1);
-  vec3 tan = mix(vec3(0.32, 0.2, 0.08), vec3(0.2, 0.19, 0.08), grass);
-  col = mix(col, mix(tan, col, 0.35), hi * 0.75);
-  col = mix(col, mix(vec3(0.36, 0.26, 0.05), vec3(0.14, 0.2, 0.05), grass), lo * 0.6);
+  vec3 tan = mix(vec3(0.3, 0.19, 0.08), vec3(0.19, 0.18, 0.07), grass);
+  col = mix(col, mix(tan, col, 0.4), hi * 0.7);
+  col = mix(col, mix(vec3(0.36, 0.26, 0.05), vec3(0.14, 0.2, 0.05), grass), lo * 0.55);
   return col;
 }
+vec3 meadowPatchH(vec2 p, float h, float season) { return meadowPatchHF(p, h, season, 0.0); }
 `;
 
 // Weathered andesite for boulders, ledges and edge stones: strata, lichen

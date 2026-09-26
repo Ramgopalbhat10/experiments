@@ -220,7 +220,7 @@ export class Vegetation {
         diffuseColor.a *= 1.0 + lod * 0.3;
         // the sapling's olive needles toward the park's deep blue-green conifers
         float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-        diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.62) * vec3(0.74, 0.93, 0.86);
+        diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.62) * vec3(0.82, 1.0, 0.9);
       }`;
     const needles = lambert(atmo, {
       map: fir.map, normalMap: fir.normalMap, normalScale: new THREE.Vector2(0.9, 0.9),
@@ -232,14 +232,15 @@ export class Vegetation {
     needles.alphaToCoverage = true;
     const mats = [bark, needles];
     const capNeedle = new THREE.MeshLambertMaterial({ map: fir.map, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide });
-    capNeedle.color.setRGB(0.62, 0.8, 0.72);
+    // the needle material's tint, for the unlit impostor bake
+    capNeedle.color.setRGB(0.72, 0.92, 0.82);
     const douglasProfile = (t) => Math.pow(1 - t, 0.75) * (0.6 + 0.4 * Math.sin(Math.min(1, t * 2.5) * Math.PI / 2));
     const G = {
       douglas: sprayConiferGeometry(fir, { whorls: 28, crownBase: 0.3, radius: 0.14, perWhorl: 6, droop: 0.42, upturn: 0.22, trunkR: 0.012, seed: 11, profile: douglasProfile, width: 1.35, stubs: 9 }),
       hemlock: sprayConiferGeometry(fir, { whorls: 26, crownBase: 0.16, radius: 0.18, perWhorl: 6, droop: 0.62, upturn: 0.04, trunkR: 0.011, seed: 29, profile: (t) => Math.pow(1 - t, 0.9), width: 1.4, stubs: 5 }),
-      spire: sprayConiferGeometry(fir, { whorls: 36, crownBase: 0.02, radius: 0.125, perWhorl: 6, droop: 0.5, upturn: 0.12, trunkR: 0.013, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 1.7, layers: 1 }),
+      spire: sprayConiferGeometry(fir, { whorls: 36, crownBase: 0.02, radius: 0.15, perWhorl: 6, droop: 0.5, upturn: 0.12, trunkR: 0.013, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 1.7, layers: 1 }),
       douglasMid: sprayConiferGeometry(fir, { whorls: 16, crownBase: 0.3, radius: 0.145, perWhorl: 5, droop: 0.42, upturn: 0.22, seed: 11, profile: douglasProfile, width: 1.8, layers: 1 }),
-      spireMid: sprayConiferGeometry(fir, { whorls: 24, crownBase: 0.02, radius: 0.135, perWhorl: 5, droop: 0.5, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 2.0, layers: 1 }),
+      spireMid: sprayConiferGeometry(fir, { whorls: 24, crownBase: 0.02, radius: 0.16, perWhorl: 5, droop: 0.5, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 2.0, layers: 1 }),
     };
     const P = this.pools;
     const swap = (key, mesh) => {

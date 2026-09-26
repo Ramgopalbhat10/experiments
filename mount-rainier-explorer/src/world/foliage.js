@@ -441,18 +441,27 @@ export function logGeometry() {
  * Pre-render a tree into a texture for distant crossed-billboard impostors.
  */
 export function makeImpostor(renderer, geometry, materials, { width, height = 1 }) {
+  // never narrower than the crown itself, or the spires are clipped to spikes
+  const pos = geometry.attributes.position;
+  let rMax = 0;
+  for (let i = 0; i < pos.count; i++) rMax = Math.max(rMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
+  width = Math.max(width, rMax * 2 * 1.04);
   const rt = new THREE.WebGLRenderTarget(256, 512, { samples: 4 });
   rt.texture.generateMipmaps = true;
   rt.texture.minFilter = THREE.LinearMipmapLinearFilter;
   rt.texture.colorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
-  const mesh = new THREE.Mesh(geometry, materials);
+  // bake albedo only: the impostor material lights it in the scene like the
+  // near trees (with its rounded canopy normals), so baked light would double
+  const unlit = (m) => new THREE.MeshBasicMaterial({
+    map: m.map || null, color: m.color, vertexColors: m.vertexColors, alphaTest: m.alphaTest, side: m.side,
+  });
+  const mats = Array.isArray(materials) ? materials.map(unlit) : unlit(materials);
+  const mesh = new THREE.Mesh(geometry, mats);
   scene.add(mesh);
   const cam = new THREE.OrthographicCamera(-width / 2, width / 2, height, 0, 0.1, 10);
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
-  // bake side light into the impostor so it reads as a rounded crown
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.6), new THREE.DirectionalLight(0xffffff, 1.4));
   const prev = renderer.getRenderTarget();
   const prevClear = renderer.getClearAlpha();
   renderer.setRenderTarget(rt);
@@ -461,6 +470,7 @@ export function makeImpostor(renderer, geometry, materials, { width, height = 1 
   renderer.render(scene, cam);
   renderer.setRenderTarget(prev);
   renderer.setClearAlpha(prevClear);
+  for (const m of [mats].flat()) m.dispose();
 
   const P = [], N = [], U = [], F = [];
   for (const a of [0, Math.PI / 3, (2 * Math.PI) / 3]) {

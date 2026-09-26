@@ -18,7 +18,7 @@ for (const k of KEYS) {
 
 export const SEASONS = {
   summer: { label: 'Summer (wildflowers)', decl: 18, snowline: 2600, value: 0 },
-  autumn: { label: 'Autumn (fall colour)', decl: -2, snowline: 2350, value: 1 },
+  autumn: { label: 'Autumn (fall colour)', decl: -2, snowline: 2700, value: 1 },
   winter: { label: 'Winter', decl: -20, snowline: 800, value: 2 },
 };
 

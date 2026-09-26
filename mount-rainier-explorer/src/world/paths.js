@@ -5,6 +5,7 @@ import { boulderGeometry } from './foliage.js';
 import { mulberry32, hash2 } from '../core/noise.js';
 
 const CHUNK = 1024;
+const STONE_TILE = 256, STONE_R = 200;
 const GRID = 128;
 
 const TRAIL_W = [1.5, 3.2, 2.2];      // path, track, footway/steps
@@ -321,7 +322,11 @@ export class PathNetwork {
     for (const [k, grp] of this.chunks) {
       const [x, z] = k.split(',').map(Number);
       const near = Math.max(Math.abs(x - fx), Math.abs(z - fz)) < 1.3;
-      for (const o of grp.children) if (o.userData.detail) o.visible = near;
+      for (const o of grp.children) {
+        if (!o.userData.detail) continue;
+        const t = o.userData.tile;
+        o.visible = near && (!t || Math.hypot(t.x - focus.x, t.z - focus.z) < STONE_R + STONE_TILE * 0.71);
+      }
       if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) > radius + 1) {
         grp.traverse((o) => o.geometry && o.geometry.dispose());
         this.group.remove(grp);
@@ -375,14 +380,22 @@ export class PathNetwork {
     }
     // edge stones, posts and rope lines
     if (edges.stones.length && this.stoneParts) {
-      // one instanced mesh per rock shape, each stone picking a shape by its random
+      // one instanced mesh per rock shape and 256 m tile, each stone picking a
+      // shape by its random; tiles away from the hiker are switched off, since
+      // a hand-sized stone is sub-pixel a couple of hundred metres out
       const parts = this.stoneParts, n = edges.stones.length / 6;
-      const byPart = parts.map(() => []);
-      for (let i = 0; i < n; i++) byPart[Math.floor(edges.stones[i * 6 + 5] * 997) % parts.length].push(i);
+      const buckets = new Map();
+      for (let i = 0; i < n; i++) {
+        const pi = Math.floor(edges.stones[i * 6 + 5] * 997) % parts.length;
+        const key = `${pi},${Math.floor(edges.stones[i * 6] / STONE_TILE)},${Math.floor(edges.stones[i * 6 + 2] / STONE_TILE)}`;
+        let b = buckets.get(key);
+        if (!b) buckets.set(key, (b = []));
+        b.push(i);
+      }
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
-      parts.forEach((p, pi) => {
-        const list = byPart[pi];
-        if (!list.length) return;
+      for (const [key, list] of buckets) {
+        const [pi, tx, tz] = key.split(',').map(Number);
+        const p = parts[pi];
         const im = new THREE.InstancedMesh(p.lods[2] || p.lods[1], this.stoneMat, list.length);
         list.forEach((i, j) => {
           const o = i * 6, sc = edges.stones[o + 3];
@@ -398,8 +411,9 @@ export class PathNetwork {
         im.receiveShadow = true;
         im.computeBoundingSphere();
         im.userData.detail = true;
+        im.userData.tile = { x: (tx + 0.5) * STONE_TILE, z: (tz + 0.5) * STONE_TILE };
         grp.add(im);
-      });
+      }
     } else if (edges.stones.length) {
       const n = edges.stones.length / 6;
       const im = new THREE.InstancedMesh(this.stoneGeo, this.edgeMat, n);

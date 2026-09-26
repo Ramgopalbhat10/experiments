@@ -652,7 +652,7 @@ async function boot() {
     };
     tick();
   }
-  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds, ranger, props, cloudPuffs: params.get('puffs') === '1' };
+  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds, ranger, props, summit, cloudPuffs: params.get('puffs') === '1' };
 }
 
 boot().catch((e) => {

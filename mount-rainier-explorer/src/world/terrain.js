@@ -112,31 +112,27 @@ vec2 cells(vec2 p) {
   return vec2(bd, id);
 }
 
-// Subalpine meadow: the autumn mosaic, strongest along the trails (the
-// Paradise meadows the paths wind through) and muted with distance so far
-// slopes read as rust and olive rather than a heat map.
-vec3 meadowColor(vec2 p, float h, float detail, float camDist, float fall) {
-  vec3 mosaic = meadowPatchH(p, h, uSeason) * 0.72;
-  vec3 muted = uSeason < 0.5 ? srgb(vec3(0.32, 0.36, 0.17)) : srgb(vec3(0.36, 0.27, 0.15));
-  float far = smoothstep(900.0, 6000.0, camDist);
-  mosaic = mix(mosaic, muted * (0.85 + 0.3 * vnoise(p * 0.02)), far * 0.6);
-  mosaic = mix(vec3(luma(mosaic)), mosaic, 1.0 - 0.35 * far);
+// Subalpine meadow: the autumn mosaic across whole slopes of the subalpine
+// band, as at Paradise, fading to its regional average once the clumps are
+// smaller than a pixel. Far slopes stay red and gold, only a little muted by
+// the haze (the fog pass does the rest).
+vec3 meadowColor(vec2 p, float h, float detail, float camDist, float fall, float fw) {
+  vec3 mosaic = meadowPatchHF(p, h, uSeason, fw) * 0.8;
+  float far = smoothstep(1500.0, 9000.0, camDist);
+  mosaic = mix(vec3(luma(mosaic)), mosaic, 1.0 - 0.25 * far);
   // outside the fall band: cured grass, heather and bare pumice soil
   vec3 tundra = mix(srgb(vec3(0.40, 0.35, 0.23)), srgb(vec3(0.30, 0.31, 0.19)), vnoise(p * 0.05));
   vec3 c = mix(tundra * 0.85, mosaic, fall);
-  // close up, the ground between shrubs is cured grass, green heather and soil
-  float gv = vnoise(p * 0.7), gv2 = vnoise(p * 0.11 + 2.0);
-  vec3 soilCol = mix(srgb(vec3(0.44, 0.36, 0.2)), srgb(vec3(0.3, 0.33, 0.16)), gv2);
-  soilCol = mix(soilCol, srgb(vec3(0.3, 0.24, 0.16)), smoothstep(0.6, 0.8, gv) * 0.6);
-  if (uSeason < 0.5) soilCol = mix(srgb(vec3(0.24, 0.34, 0.12)), srgb(vec3(0.32, 0.38, 0.14)), gv2);
-  c = mix(soilCol * 0.75 + c * 0.3, c, smoothstep(30.0, 160.0, camDist));
   if (uSeason < 0.5) {
     float fl = smoothstep(0.66, 0.82, vnoise(p * 0.09)) * detail * fall;
     vec3 flower = mix(srgb(vec3(0.85, 0.28, 0.5)), srgb(vec3(0.5, 0.42, 0.85)), step(0.5, vnoise(p * 0.02 + 4.0)));
     c = mix(c, flower, fl * 0.5);
   }
-  // speckle: individual shrubs and shadows between them
-  c *= 0.82 + 0.36 * vnoise(p * 1.3) * detail + 0.18 * (1.0 - detail);
+  // near the hiker this is the ground between the shrubs: leaf litter in their shade
+  float under = (1.0 - smoothstep(40.0, 180.0, camDist)) * fall;
+  c = mix(c, mix(vec3(luma(c)), c, 0.7) * 0.72, under);
+  // speckle: leaves and twigs within a bush
+  c *= mix(1.0, 0.8 + 0.26 * vnoise(p * 3.1) + 0.16 * vnoise(p * 8.3), 1.0 - smoothstep(0.08, 0.35, fw));
   return c;
 }
 
@@ -187,12 +183,14 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   vec3 talus = talusColor(wp, n, h, detail);
   vec3 soil = srgb(vec3(0.36, 0.28, 0.19));
 
-  // autumn colour lives in the subalpine band, on gentle ground, near the trails
-  float band = smoothstep(1250.0, 1420.0, hj) * (1.0 - smoothstep(1820.0, 1980.0, hj));
-  float fall = band * (1.0 - smoothstep(0.28, 0.5, slope)) * mix(0.3, 1.0, smoothstep(0.05, 0.6, trail));
+  // autumn colour covers the subalpine band wherever shrubs can hold on
+  float band = smoothstep(1250.0, 1420.0, hj) * (1.0 - smoothstep(1860.0, 2020.0, hj));
+  float fall = band * (1.0 - smoothstep(0.4, 0.6, slope));
   // lowland openings (avalanche chutes, clearings): vine maple gold and bracken
   float low = 1.0 - smoothstep(1100.0, 1350.0, hj);
-  vec3 meadow = meadowColor(wp.xz, h, detail, camDist, fall);
+  // pixel footprint on the ground, for filtering the clump mosaic
+  float fwm = sqrt(length(dFdx(wp)) * length(dFdy(wp)));
+  vec3 meadow = meadowColor(wp.xz, h, detail, camDist, fall, fwm);
   vec3 lowland = uSeason < 0.5 ? srgb(vec3(0.2, 0.3, 0.1)) : mix(srgb(vec3(0.42, 0.34, 0.12)), srgb(vec3(0.3, 0.3, 0.12)), n2);
   meadow = mix(meadow, lowland * (0.85 + 0.3 * n3), low * 0.8);
 
@@ -205,6 +203,11 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float alpine = smoothstep(1900.0, 2250.0, hj);
   float veg = smoothstep(0.08, 0.55, cov.g) * (1.0 - alpine * 0.75);
   float fst = smoothstep(0.12, 0.5, cov.r);
+  // subalpine parkland (Paradise, Sunrise): the satellite's "forest" up here is
+  // clumps of fir in a sea of shrubs, so the ground between is meadow
+  float park = smoothstep(1420.0, 1580.0, hj) * (1.0 - alpine);
+  veg = max(veg, fst * park * 0.95);
+  fst *= 1.0 - park * 0.85;
 
   // scanned detail: each ground type is modulated by its own photo texture
   gNear = 1.0 - smoothstep(110.0, 240.0, camDist);
@@ -222,6 +225,8 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
     // the rock scans' own tints (a violet cast in the talus) stay out of Rainier's andesite
     dTalus.c = mix(vec3(dot(dTalus.c, vec3(0.3, 0.59, 0.11))), dTalus.c, 0.3);
     dCliff.c = mix(vec3(dot(dCliff.c, vec3(0.3, 0.59, 0.11))), dCliff.c, 0.35);
+    // the grass scan lends its texture, not its green, to the shrub mosaic
+    dMeadow.c = mix(vec3(dot(dMeadow.c, vec3(0.3, 0.59, 0.11))), dMeadow.c, uSeason < 0.5 ? 1.0 : 0.15);
   }
 #endif
   #define DET(col, d, k) (col * mix(vec3(1.0), d.c, gNear * k))
@@ -258,14 +263,17 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
 #ifdef USE_SAT
   if (uv.x > 0.0 && uv.y > 0.0 && uv.x < 1.0 && uv.y < 1.0) {
     vec3 s0 = texture2D(uSat, uv).rgb;
-    satRock = 1.0 - smoothstep(0.18, 0.42, dot(s0, vec3(0.2126, 0.7152, 0.0722)));
+    float sl0 = dot(s0, vec3(0.2126, 0.7152, 0.0722));
+    // dark rock, or warm brown rock (cleavers, moraine) short of snow-white;
+    // blue-grey shadowed snow stays snow
+    satRock = max(1.0 - smoothstep(0.3, 0.5, sl0), (1.0 - smoothstep(0.6, 0.82, sl0)) * smoothstep(0.0, 0.06, s0.r - s0.b));
   }
 #endif
   // Snow & ice
   vec3 snowCol = srgb(vec3(0.93, 0.95, 0.99));
   float seasonal = smoothstep(uSnowline - 120.0 + (n1 - 0.5) * 400.0, uSnowline + 150.0, h);
   // satellite snow patches survive the summer only up high (perennial snowfields)
-  float perennial = uSeason < 0.5 ? smoothstep(1500.0, 1750.0, hj) : smoothstep(1780.0, 2050.0, hj);
+  float perennial = uSeason < 0.5 ? smoothstep(1500.0, 1750.0, hj) : smoothstep(2000.0, 2300.0, hj);
   float snow = max(smoothstep(0.3, 0.75, cov.b + (n2 - 0.5) * 0.35) * perennial, seasonal);
   if (uSeason > 1.5) snow = max(snow, smoothstep(0.45, 0.25, slope) * smoothstep(uSnowline - 200.0, uSnowline + 200.0, h));
   snow *= 1.0 - smoothstep(0.62, 0.85, slope) * 0.8;
@@ -273,11 +281,31 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float bare = satRock * smoothstep(1500.0, 1900.0, h) * (uSeason > 1.5 ? 0.0 : 0.92);
   snow *= 1.0 - bare;
   glacier *= 1.0 - bare;
-  // Glaciers: blue-white ice with crevasse bands across the flow, and the
-  // debris-covered lower tongues (Carbon, Emmons, Nisqually snouts).
+  // Glaciers: late-season firn up high, bare grey-blue ice lower down, and
+  // crevasse fields wherever the ice steepens (icefalls, the Nisqually and
+  // Cowlitz headwalls) as long cracks across the flow, blue in their depths.
+  // Beyond the resolution of single cracks they average to a blue-grey tone.
   vec2 flow = normalize(n.xz + 1e-4);
-  float crev = smoothstep(0.82, 0.97, sin(dot(wp.xz, flow) * 0.25 + fbm3(wp.xz * 0.01) * 8.0)) * (1.0 - smoothstep(300.0, 2500.0, camDist));
-  vec3 ice = mix(snowCol, srgb(vec3(0.55, 0.72, 0.85)), 0.25 + 0.5 * crev);
+  float steep = smoothstep(0.035, 0.13, slope);
+  float field = steep * (0.35 + 0.65 * smoothstep(0.3, 0.6, fbm3(wp.xz * 0.003 + 4.1)));
+  float along = dot(wp.xz, flow), across = dot(wp.xz, vec2(-flow.y, flow.x));
+  // cracks across the flow, staggered en echelon: one per 16 x 36 m cell,
+  // each a slightly bowed slot a few metres wide
+  vec2 cc = vec2(along / 16.0, across / 36.0);
+  vec2 ci = floor(cc), cf = fract(cc);
+  float r1 = hash12(ci), r2 = hash12(ci + 3.7), r3 = hash12(ci + 9.1);
+  float du = abs(cf.x - (0.25 + 0.5 * r1) - sin(cf.y * 3.1416 + r2 * 6.0) * 0.12);
+  float len = 0.3 + 0.2 * r3;
+  float crack = (1.0 - smoothstep(0.04, 0.1, du)) * (1.0 - smoothstep(len - 0.12, len, abs(cf.y - 0.5))) * step(0.2, r3);
+  float crev = field * mix(0.22, crack, 1.0 - smoothstep(2.0, 9.0, fwm));
+  float lowIce = 1.0 - smoothstep(2100.0, 2700.0, hj);
+  vec3 firn = mix(snowCol, srgb(vec3(0.86, 0.88, 0.9)), 0.4 * (1.0 - smoothstep(3200.0, 3800.0, h)));
+  // wind and melt texture on the firn
+  firn *= 0.92 + 0.08 * fbm3(wp.xz * 0.01);
+  vec3 bareIce = mix(srgb(vec3(0.63, 0.69, 0.74)), srgb(vec3(0.52, 0.52, 0.5)), smoothstep(0.4, 0.7, n2) * 0.7);
+  field = max(field, glacier * lowIce * 0.4);
+  vec3 ice = mix(firn, bareIce, lowIce);
+  ice = mix(ice, srgb(vec3(0.24, 0.38, 0.52)), crev * 0.85);
   float debris = smoothstep(1900.0, 1500.0, h) * smoothstep(0.35, 0.6, n1 + 0.2);
   ice = mix(ice, srgb(vec3(0.36, 0.34, 0.33)), debris * 0.85);
   c = mix(c, DET(snowCol, dSnow, 0.6), snow);
@@ -292,13 +320,25 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
     float w = smoothstep(70.0, 420.0, camDist) * inside;
     if (w > 0.0) {
       vec3 sat = texture2D(uSat, uv).rgb * uSatGain;
+      // the imagery is 10 m a pixel: bare rock and scree get gullies and
+      // strata finer than that, streaked down the fall line
+      {
+        vec2 fd = normalize(n.xz + 1e-4);
+        float streak = fbm3(vec2(dot(wp.xz, vec2(-fd.y, fd.x)) * 0.06, dot(wp.xz, fd) * 0.012));
+        float rockish = (1.0 - a3) * (1.0 - fst) * (1.0 - max(snow, glacier));
+        sat *= mix(1.0, 0.7 + 0.6 * streak, rockish * 0.8 * (1.0 - smoothstep(1.0, 12.0, fwm)));
+      }
       float sl = dot(sat, vec3(0.2126, 0.7152, 0.0722));
       float cl = dot(c, vec3(0.2126, 0.7152, 0.0722));
       // the satellite saw summer: autumn meadows keep our reds and golds, shaded by its pattern
       float keepHue = a3 * (1.0 - fst) * (0.35 + 0.65 * fall) * step(0.5, uSeason) * step(uSeason, 1.5);
       vec3 target = mix(sat, c * clamp(sl / max(cl, 1e-3), 0.6, 1.6), keepHue);
       // snow is blown out in the imagery: keep ours (and winter's snow cover)
-      target = mix(target, c, max(snow, glacier * 0.85));
+      // (where the satellite saw grey, the ice is dirty or debris-covered: let it show)
+      target = mix(target, c, max(snow, glacier * 0.85) * mix(0.15, 1.0, smoothstep(0.5, 0.78, sl)));
+      // the imagery's early-summer snowbanks have melted out by September: our ground instead
+      float melted = smoothstep(0.5, 0.75, sl) * (1.0 - max(snow, glacier)) * (1.0 - smoothstep(2000.0, 2300.0, hj)) * step(0.5, uSeason) * step(uSeason, 1.5);
+      target = mix(target, c, melted);
       c = mix(c, target, w * uSatMix);
     }
   }
@@ -410,6 +450,8 @@ export class Terrain {
           vec2 tuv = (vWorldPos.xz + uHFf.x) / (2.0 * uHFf.x);
           vec3 tn = texture2D(uNormalTex, tuv).xyz * 2.0 - 1.0;
           tn.y = texture2D(uNormalTex, tuv).y;
+          // dither the 8-bit normals: on smooth snow their steps show as contour lines
+          tn.xz += (vec2(hash12(gl_FragCoord.xy), hash12(gl_FragCoord.yx + 7.1)) - 0.5) * (2.0 / 255.0);
           tn = normalize(tn);
           #ifdef USE_RELIEF
           {
