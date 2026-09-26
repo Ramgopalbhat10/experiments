@@ -3,7 +3,7 @@
 
     python3 tools/assets/bake/pack_cards.py
 
-Writes assets/tex/fir_cards_{c,n}.webp and assets/tex/leaf_cards_{c,n}.webp
+Writes assets/tex/{fir,grass,leaf}_cards_{c,n}.webp
 (colour with alpha, and card-space normals) plus assets/tex/cards.json with
 each card's rectangle in UV space and its real-world size in metres.
 
@@ -27,6 +27,9 @@ ATLASES = {
         ('fir_spray_0', 0, 0, 1024, 512), ('fir_spray_1', 1024, 0, 1024, 512),
         ('fir_spray_2', 0, 512, 1024, 512), ('fir_whorl_0', 1024, 512, 512, 512), ('fir_whorl_1', 1536, 512, 512, 512),
         ('fir_side_0', 0, 1024, 512, 1024), ('fir_side_1', 512, 1024, 512, 1024),
+    ]),
+    'grass_cards': ((1024, 1024), [
+        ('grass_0', 0, 0, 512, 512), ('grass_1', 512, 0, 512, 512), ('grass_2', 0, 512, 512, 512), ('grass_3', 512, 512, 512, 512),
     ]),
     'leaf_cards': ((1024, 1024), [
         ('leaf_top_0', 0, 0, 256, 256), ('leaf_top_1', 256, 0, 256, 256), ('leaf_top_2', 512, 0, 256, 256), ('leaf_top_3', 768, 0, 256, 256),

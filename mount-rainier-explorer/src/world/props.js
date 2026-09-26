@@ -130,7 +130,7 @@ export async function loadProps(assets, atmo, { anisotropy = 8 } = {}) {
 /**
  * Foliage card atlases baked from the scans (tools/assets/bake): fir branch
  * sprays, whorls and young-tree silhouettes from the fir sapling's real
- * needles, and leafy clumps from shrub_04. rects[i] = { card, uv: [u, v, w, h], size: [w, h] metres }.
+ * needles, leafy clumps from shrub_04 and bunchgrass from grass_medium_02. rects[i] = { card, uv: [u, v, w, h], size: [w, h] metres }.
  */
 export async function loadCards(assets, { anisotropy = 8 } = {}) {
   const rects = await (await fetch(`${assets}/tex/cards.json`)).json();
@@ -145,6 +145,6 @@ export async function loadCards(assets, { anisotropy = 8 } = {}) {
     const by = (prefix) => list.filter((r) => r.card.startsWith(prefix));
     return { map, normalMap, rects: list, by, size: map.image.width };
   };
-  const [fir, leaf] = await Promise.all([atlas('fir_cards'), atlas('leaf_cards')]);
-  return { fir, leaf };
+  const [fir, leaf, grass] = await Promise.all([atlas('fir_cards'), atlas('leaf_cards'), atlas('grass_cards')]);
+  return { fir, leaf, grass };
 }

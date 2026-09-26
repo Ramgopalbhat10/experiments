@@ -374,15 +374,16 @@ export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, tr
   return mergeGeometries([barkGeometry(trunkR, trunkR * 0.5, trunkH, 6, [0.36, 0.34, 0.3]), foliage], true);
 }
 
-/** Tuft: three crossed grass cards. */
-export function tuftGeometry() {
+/** Tuft: three crossed grass cards (with `rects`, each shows a different baked clump). */
+export function tuftGeometry(rects = null) {
   const P = [], N = [], U = [], F = [];
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI;
     const ax = [Math.cos(a), 0, Math.sin(a)];
     const o = [-ax[0] / 2, 0, -ax[2] / 2];
     const v = [o, [o[0] + ax[0], 0, o[2] + ax[2]], [o[0] + ax[0], 1, o[2] + ax[2]], [o[0], 1, o[2]]];
-    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const r = rects ? rects[i % rects.length].uv : [0, 0, 1, 1];
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, w]) => [r[0] + u * r[2], r[1] + w * r[3]]);
     for (const k of [0, 1, 2, 0, 2, 3]) {
       P.push(...v[k]); N.push(0, 1, 0); U.push(...uv[k]); F.push(v[k][1]);
     }

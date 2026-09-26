@@ -35,12 +35,13 @@ const PAL = {
   },
   grass: {
     summer: [C('#6f9e3a'), C('#82a844'), C('#5f8f34'), C('#90b04a')],
-    autumn: [C('#c9a043'), C('#d8b451'), C('#b6863a'), C('#a8563a'), C('#c07038')],
+    // cured sedge and bunchgrass: straw and tan, a little green left low down
+    autumn: [C('#b4a06c'), C('#a8925e'), C('#9c8656'), C('#8f7c50'), C('#a58a58'), C('#8c9258')],
     winter: [C('#c2bcae')],
   },
   flowers: {
     summer: [C('#ff3fa6'), C('#e0409a'), C('#8a6cff'), C('#ffffff'), C('#ff5a36'), C('#ffd23a')],
-    autumn: [C('#9a78e0'), C('#f2e8d8')],
+    autumn: [],   // lupine and bistort have gone to seed by late September
     winter: [],
   },
   rock: [C('#8a7d72'), C('#978676'), C('#7a736d'), C('#a08a74')],
@@ -282,6 +283,41 @@ export class Vegetation {
     const decid = broadleafGeometry({ clumps: 150, crownR: 0.3, seed: 5, rects: clumps, clumpScale: 0.34 });
     swap('decid', mk(decid, q.nearCap / 2, leafMats));
     swap('decidFar', imp(decid, [capBark, capLeaf], 0.7, q.farCap / 4));
+    // bunchgrass from the scanned tufts; the season's palette colours the real blades
+    if (cards.grass) {
+      const gr = cards.grass;
+      const grass = lambert(atmo, { map: gr.map, vertexColors: true, alphaTest: 0.36, side: THREE.DoubleSide }, {
+        key: 'grass-photo', vertexPars: 'attribute float aFoliage;', colorVertex: tinted, normalFragment: keepNormal,
+        colorFragment: `
+          {
+            vec2 ddx = dFdx(vMapUv * ${gr.size.toFixed(1)}), ddy = dFdy(vMapUv * ${gr.size.toFixed(1)});
+            float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
+            diffuseColor.a *= 1.0 + lod * 0.45;
+            vec3 tx = texture2D(map, vMapUv).rgb;
+            float l = dot(tx, vec3(0.3, 0.59, 0.11));
+            diffuseColor.rgb = vColor.rgb * mix(vec3(l), tx, 0.35) * 2.3;
+          }`,
+        vertexBegin: `
+          #ifdef USE_INSTANCING
+            float ph = instanceMatrix[3][0] * 0.21 + instanceMatrix[3][2] * 0.17;
+            float sw = (sin(uTime * 2.1 + ph) * 0.6 + sin(uTime * 3.7 + ph * 2.0) * 0.25) * 0.14 * position.y * position.y;
+            transformed.x += sw; transformed.z += sw * 0.5;
+          #endif`,
+      });
+      grass.alphaToCoverage = true;
+      const old = P.grass;
+      const tuft = tuftGeometry(gr.rects);
+      P.grass = new THREE.InstancedMesh(tuft, grass, old.instanceMatrix.count);
+      P.grass.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      P.grass.setColorAt(0, new THREE.Color(1, 1, 1));
+      P.grass.instanceColor.setUsage(THREE.DynamicDrawUsage);
+      P.grass.count = 0;
+      P.grass.frustumCulled = false;
+      P.grass.receiveShadow = true;
+      this.group.remove(old);
+      old.dispose();
+      this.group.add(P.grass);
+    }
     const shrubs = [
       broadleafGeometry({ clumps: 34, crownY: 0.45, crownR: 0.5, seed: 3, shrub: true, rects: clumps, clumpScale: 0.42 }),
       broadleafGeometry({ clumps: 28, crownY: 0.35, crownR: 0.45, seed: 91, shrub: true, rects: clumps, clumpScale: 0.45 }),

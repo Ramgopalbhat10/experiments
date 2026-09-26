@@ -21,6 +21,7 @@ const OUT = path.join(CACHE, 'cards');
 // fir_sapling holds three saplings (top-level nodes 0..2); shrub_04 four plants in a row along x
 const FIR = '/polyhaven/fir_sapling/2k/fir_sapling.gltf';
 const SHRUB = '/polyhaven/shrub_04/1k/shrub_04.gltf';
+const GRASS = '/polyhaven/grass_medium_02/1k/grass_medium_02.gltf';
 export const SHOTS = [
   // sprays: saplings laid on their side, leader pointing right -> branch sprays;
   // two or three spun and stacked on one spot give the dense sprays of a mature crown
@@ -33,6 +34,11 @@ export const SHOTS = [
   // young trees seen from the side (small firs, crown silhouettes)
   { name: 'fir_side_0', model: FIR, pick: [0, 1], stack: { spin: [0, 90] }, view: 'side', w: 1024, h: 2048, pad: 0.02 },
   { name: 'fir_side_1', model: FIR, pick: [1, 2], stack: { spin: [70, 10], scale: [1, 0.95] }, view: 'side', w: 1024, h: 2048, pad: 0.02 },
+  // bunchgrass: grass_medium_02's wiry tufts stacked and spun into dense clumps, seen from the side
+  { name: 'grass_0', model: GRASS, pick: [3, 4, 1], stack: { spin: [0, 70, 140] }, view: 'side', w: 1024, h: 1024, pad: 0.02 },
+  { name: 'grass_1', model: GRASS, pick: [4, 2, 0], stack: { spin: [20, 100, 200], scale: [1, 1.1, 1] }, view: 'side', w: 1024, h: 1024, pad: 0.02 },
+  { name: 'grass_2', model: GRASS, pick: [3, 1, 2], stack: { spin: [45, 160, 280], scale: [0.9, 1.2, 1.1] }, view: 'side', w: 1024, h: 1024, pad: 0.02 },
+  { name: 'grass_3', model: GRASS, pick: [4, 3], stack: { spin: [90, 10] }, view: 'side', w: 1024, h: 1024, pad: 0.02 },
   // leafy clumps: each of shrub_04's four plants from above and from the side
   ...[0, 1, 2, 3].flatMap((i) => [
     { name: `leaf_top_${i}`, model: SHRUB, clip: { axis: 'x', from: i / 4, to: (i + 1) / 4 }, view: 'top', w: 1024, h: 1024, pad: 0.03 },

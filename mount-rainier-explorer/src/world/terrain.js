@@ -215,6 +215,9 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
     dSoil = detPlanar(wp, 4.0, 3.0, 0.8, far);
     dSnow = detPlanar(wp, 5.0, 4.5, 0.35, far);
     dRiver = detPlanar(wp, 6.0, 2.2, 0.8, far);
+    // the rock scans' own tints (a violet cast in the talus) stay out of Rainier's andesite
+    dTalus.c = mix(vec3(dot(dTalus.c, vec3(0.3, 0.59, 0.11))), dTalus.c, 0.3);
+    dCliff.c = mix(vec3(dot(dCliff.c, vec3(0.3, 0.59, 0.11))), dCliff.c, 0.35);
   }
 #endif
   #define DET(col, d, k) (col * mix(vec3(1.0), d.c, gNear * k))
@@ -245,6 +248,15 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   c = mix(c, gravel, riv * 0.85);
   P = mix(P, dRiver.p, riv * 0.85);
 
+  // the satellite knows where rock breaks through the ice (cleavers, ridges,
+  // nunataks, bare moraine): in late summer, as in September, that's where it's dark
+  float satRock = 0.0;
+#ifdef USE_SAT
+  if (uv.x > 0.0 && uv.y > 0.0 && uv.x < 1.0 && uv.y < 1.0) {
+    vec3 s0 = texture2D(uSat, uv).rgb;
+    satRock = 1.0 - smoothstep(0.18, 0.42, dot(s0, vec3(0.2126, 0.7152, 0.0722)));
+  }
+#endif
   // Snow & ice
   vec3 snowCol = srgb(vec3(0.93, 0.95, 0.99));
   float seasonal = smoothstep(uSnowline - 120.0 + (n1 - 0.5) * 400.0, uSnowline + 150.0, h);
@@ -253,6 +265,10 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float snow = max(smoothstep(0.3, 0.75, cov.b + (n2 - 0.5) * 0.35) * perennial, seasonal);
   if (uSeason > 1.5) snow = max(snow, smoothstep(0.45, 0.25, slope) * smoothstep(uSnowline - 200.0, uSnowline + 200.0, h));
   snow *= 1.0 - smoothstep(0.62, 0.85, slope) * 0.8;
+  // perennial snow and glacier ice give way to the rock the satellite saw (winter snow still covers it)
+  float bare = satRock * smoothstep(1500.0, 1900.0, h) * (uSeason > 1.5 ? 0.0 : 0.92);
+  snow *= 1.0 - bare;
+  glacier *= 1.0 - bare;
   // Glaciers: blue-white ice with crevasse bands across the flow, and the
   // debris-covered lower tongues (Carbon, Emmons, Nisqually snouts).
   vec2 flow = normalize(n.xz + 1e-4);

@@ -26,6 +26,7 @@ ASSETS = {
     'dead_tree_trunk_02': '1k', 'dry_branches_medium_01': '1k',
     # shrubs and saplings (the saplings' needles are baked into foliage cards)
     'shrub_04': '1k', 'fir_sapling': '2k', 'pine_sapling_small': '1k',
+    'grass_medium_01': '1k', 'grass_medium_02': '1k',
     # bark for the conifer trunks
     'fir_tree_01': 'textures',
 }
