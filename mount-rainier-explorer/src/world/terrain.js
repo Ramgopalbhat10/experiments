@@ -189,7 +189,7 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
 
   vec3 canopy = mix(srgb(vec3(0.075, 0.17, 0.12)), srgb(vec3(0.12, 0.22, 0.13)), n1);
   canopy = mix(canopy, srgb(vec3(0.14, 0.22, 0.13)), smoothstep(1300.0, 1800.0, h) * 0.6);
-  vec3 floorCol = mix(srgb(vec3(0.25, 0.2, 0.13)), srgb(vec3(0.19, 0.22, 0.12)), n2) * (0.8 + 0.4 * n3);
+  vec3 floorCol = mix(srgb(vec3(0.32, 0.26, 0.17)), srgb(vec3(0.25, 0.28, 0.15)), n2) * (0.8 + 0.4 * n3);
   vec3 forest = mix(floorCol, canopy, smoothstep(uTreeFar * 0.55, uTreeFar * 0.95, camDist));
 
   // vegetation cover thins out with altitude however green the satellite says it is
