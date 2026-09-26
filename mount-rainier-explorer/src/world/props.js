@@ -54,9 +54,33 @@ const SWAY = /* glsl */ `
     transformed.x += sw; transformed.z += sw * 0.6;
   #endif`;
 
+/**
+ * The packs are glTF JSON with the buffer embedded as base64. Decode it here
+ * and hand GLTFLoader an in-memory GLB, so nothing is fetched from a data: URL
+ * (which a strict connect-src would refuse).
+ */
+async function loadPack(loader, url) {
+  const json = await (await fetch(url)).json();
+  const buf = json.buffers[0];
+  const b64 = buf.uri.slice(buf.uri.indexOf(',') + 1);
+  const bin = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+  delete buf.uri;
+  const text = new TextEncoder().encode(JSON.stringify(json));
+  const pad4 = (n) => (n + 3) & ~3;
+  const jl = pad4(text.length), bl = pad4(bin.length);
+  const glb = new ArrayBuffer(12 + 8 + jl + 8 + bl);
+  const dv = new DataView(glb), u8 = new Uint8Array(glb);
+  dv.setUint32(0, 0x46546c67, true); dv.setUint32(4, 2, true); dv.setUint32(8, glb.byteLength, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4e4f534a, true);
+  u8.fill(0x20, 20, 20 + jl); u8.set(text, 20);
+  dv.setUint32(20 + jl, bl, true); dv.setUint32(24 + jl, 0x004e4942, true);
+  u8.set(bin, 28 + jl);
+  return loader.parseAsync(glb, '');
+}
+
 export async function loadProps(assets, atmo, { anisotropy = 8 } = {}) {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const gltfs = await Promise.all(PACKS.map((p) => loader.loadAsync(`${assets}/models/${p}.json`)));
+  const gltfs = await Promise.all(PACKS.map((p) => loadPack(loader, `${assets}/models/${p}.json`)));
   const parts = new Map();
   for (const gltf of gltfs) {
     gltf.scene.updateMatrixWorld(true);
