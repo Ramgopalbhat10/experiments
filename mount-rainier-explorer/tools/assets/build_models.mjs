@@ -7,7 +7,7 @@
  * multi-object sets ("rock_moss_set_01" holds seven rocks) into parts, puts
  * each part's origin at the centre of its base, and simplifies it to two
  * levels of detail with meshoptimizer (seam- and normal-aware). A pack is one
- * meshopt-compressed GLB of geometry only; each node's extras say which
+ * meshopt-compressed glTF (JSON, buffer embedded) of geometry only; each node's extras say which
  * { asset, part, lod } it is and carry the part's size in metres. The
  * textures are separate WebP files written by build_textures.py.
  *
@@ -178,8 +178,15 @@ async function main() {
       }
     }
     await doc.transform(quantize({ quantizeNormal: 8, quantizeTexcoord: 12, quantizePosition: 14 }), meshoptCompress({ encoder: MeshoptEncoder, level: 'high' }));
-    const file = path.join(OUT, `${pack}.glb`);
-    await io.write(file, doc);
+    // glTF JSON with the (meshopt-compressed) buffer embedded as a data URI:
+    // served as plain .json by any static host, read by three's GLTFLoader
+    const { json, resources } = await io.writeJSON(doc);
+    for (const b of json.buffers || []) {
+      if (!b.uri || !resources[b.uri]) continue;
+      b.uri = `data:application/octet-stream;base64,${Buffer.from(resources[b.uri]).toString('base64')}`;
+    }
+    const file = path.join(OUT, `${pack}.json`);
+    fs.writeFileSync(file, JSON.stringify(json));
     console.log(`wrote ${path.relative(process.cwd(), file)}: ${(fs.statSync(file).size / 1024).toFixed(0)} KB, ${tris} tris in all LODs`);
   }
 }

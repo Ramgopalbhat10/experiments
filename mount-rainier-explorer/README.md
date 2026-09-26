@@ -158,7 +158,7 @@ The photo-real assets are rebuilt from Poly Haven downloads:
 ```bash
 cd tools/assets && npm install
 python3 fetch_polyhaven.py        # CC0 scans into tools/.cache/polyhaven
-node build_models.mjs             # assets/models/*.glb (split, simplified to LODs, meshopt)
+node build_models.mjs             # assets/models/*.json (glTF: split, simplified to LODs, meshopt)
 python3 build_textures.py         # assets/models/tex/*.webp
 node bake/bake_cards.mjs && python3 bake/pack_cards.py   # fir and leaf card atlases
 python3 ../build_satellite.py     # assets/satellite.webp from the Sentinel-2 tiles

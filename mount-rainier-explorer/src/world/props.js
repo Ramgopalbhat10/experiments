@@ -6,9 +6,9 @@ import { lambert } from './materials.js';
 /*
  * Photo-scanned props (Poly Haven, CC0): rocks, ferns, stumps, logs, fallen
  * branches and small plants. tools/assets/build_models.mjs turns the scans
- * into two meshopt-compressed GLB packs of geometry only (each node's extras
- * say { asset, part, lod, size }), and build_textures.py writes one colour and
- * one normal map per scan.
+ * into two meshopt-compressed glTF packs of geometry only (JSON with the
+ * buffer embedded; each node's extras say { asset, part, lod, size }), and
+ * build_textures.py writes one colour and one normal map per scan.
  *
  * loadProps() returns { parts, byAsset, material(asset) }: every part has its
  * two levels of detail as plain (dequantised, world-unit) geometries.
@@ -56,7 +56,7 @@ const SWAY = /* glsl */ `
 
 export async function loadProps(assets, atmo, { anisotropy = 8 } = {}) {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const gltfs = await Promise.all(PACKS.map((p) => loader.loadAsync(`${assets}/models/${p}.glb`)));
+  const gltfs = await Promise.all(PACKS.map((p) => loader.loadAsync(`${assets}/models/${p}.json`)));
   const parts = new Map();
   for (const gltf of gltfs) {
     gltf.scene.updateMatrixWorld(true);

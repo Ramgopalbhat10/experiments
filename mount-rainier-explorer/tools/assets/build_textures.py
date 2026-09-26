@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert the Poly Haven texture sets used by assets/models/*.glb to WebP.
+"""Convert the Poly Haven texture sets used by assets/models/*.json to WebP.
 
     python3 tools/assets/build_textures.py
 
