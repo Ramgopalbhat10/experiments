@@ -171,43 +171,63 @@ export class Post {
         uScope: { value: 0 },
         uAspect: { value: 1 },
         uTime: { value: 0 },
-        uExposure: { value: 1.25 },
-        uWarm: { value: new THREE.Color('#ffd9a8') },
-        uCool: { value: new THREE.Color('#3f6a78') },
-        uSplit: { value: 0.12 },
-        uSat: { value: 1.1 },
-        uVignette: { value: 0.35 },
-        uGrain: { value: 0.035 },
+        uExposure: { value: 1.85 },
+        uWarm: { value: 0.5 },      // golden-hour warmth of the highlights (0..1), set per frame
+        uNight: { value: 0 },
+        uGrain: { value: 0.026 },
       },
       vertexShader: vs,
       fragmentShader: /* glsl */ `
         uniform sampler2D tDiffuse, tBloom, tRays;
-        uniform float uTime, uExposure, uSplit, uSat, uVignette, uGrain, uRays, uScope, uAspect;
-        uniform vec3 uWarm, uCool, uRayColor;
+        uniform float uTime, uExposure, uWarm, uNight, uGrain, uRays, uScope, uAspect;
+        uniform vec3 uRayColor;
         varying vec2 vUv;
-        vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
-        float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        // Stephen Hill's fitted ACES (RRT + ODT)
+        vec3 aces(vec3 x) {
+          const mat3 m1 = mat3(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777);
+          const mat3 m2 = mat3(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602);
+          vec3 v = m1 * x;
+          vec3 a = v * (v + 0.0245786) - 0.000090537;
+          vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+          return clamp(m2 * (a / b), 0.0, 1.0);
+        }
+        float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
         vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
         void main() {
-          vec3 c = texture2D(tDiffuse, vUv).rgb * uExposure;
-          c += texture2D(tBloom, vUv).rgb * 0.6;
-          c += texture2D(tRays, vUv).r * uRays * uRayColor * 1.6;
-          c = aces(c);
-          float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-          c = mix(vec3(l), c, uSat);
-          c = mix(c, c * uCool * 2.0, uSplit * (1.0 - smoothstep(0.0, 0.45, l)));
-          c = mix(c, c * uWarm * 1.15, uSplit * smoothstep(0.45, 1.0, l));
-          vec2 q = vUv - 0.5;
-          c *= 1.0 - uVignette * dot(q, q) * 1.6;
+          vec2 uv = vUv, cc = uv - 0.5;
+          // a whisper of lens chromatic fringe toward the frame edges
+          vec2 ca = cc * dot(cc, cc) * 0.006;
+          vec3 c = vec3(texture2D(tDiffuse, uv - ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv + ca).b);
+          c += texture2D(tBloom, uv).rgb * 0.5;
+          c += texture2D(tRays, uv).r * uRays * uRayColor * 1.3;
+          c *= uExposure;
+          // white balance: warm highlights toward golden hour, cool shadows
+          float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+          c = mix(c, c * vec3(1.07, 1.0, 0.88), smoothstep(0.05, 0.8, lum) * uWarm);
+          c = mix(c, c * vec3(0.9, 1.0, 1.07), 1.0 - smoothstep(0.0, 0.12, lum));
+          // night: dim areas lose colour and drift blue; firelight stays warm
+          c = mix(c, vec3(lum) * vec3(0.72, 0.88, 1.22), uNight * 0.55 * (1.0 - smoothstep(0.02, 0.35, lum)));
+          vec3 m = aces(c);
+          // restrained filmic grade: teal in the shadows, amber in the highlights, gentle S-curve
+          float l = dot(m, vec3(0.299, 0.587, 0.114));
+          m += vec3(0.006, 0.02, 0.026) * (1.0 - smoothstep(0.0, 0.4, l));
+          m = mix(m, m * vec3(1.05, 0.99, 0.88), smoothstep(0.4, 1.0, l));
+          m = mix(vec3(l), m, 1.08);
+          m = clamp(m, 0.0, 1.0);
+          m = mix(m, m * m * (3.0 - 2.0 * m), 0.32);
+          float vig = 1.0 - smoothstep(0.35, 1.05, length(cc * vec2(1.05, 1.25)));
+          m *= mix(0.72, 1.0, vig);
           if (uScope > 0.5) {
             // binocular mask: two overlapping circles
-            vec2 p = vec2(q.x * uAspect, q.y);
+            vec2 p = vec2(cc.x * uAspect, cc.y);
             float d = min(length(p - vec2(-0.2, 0.0)), length(p - vec2(0.2, 0.0)));
-            c *= 1.0 - smoothstep(0.4, 0.43, d);
+            m *= 1.0 - smoothstep(0.4, 0.43, d);
           }
-          c = toSRGB(clamp(c, 0.0, 1.0));
-          c += (hash(vUv * 917.0 + fract(uTime) * 61.0) - 0.5) * uGrain;
-          gl_FragColor = vec4(c, 1.0);
+          m = toSRGB(clamp(m, 0.0, 1.0));
+          // film grain (stronger in the shadows) and dither
+          float gr = hash(gl_FragCoord.xy + fract(uTime * 0.618) * 311.0) - 0.5;
+          m += gr * uGrain * (1.0 - l * 0.6) + (hash(gl_FragCoord.yx * 1.3 + uTime) - 0.5) / 255.0;
+          gl_FragColor = vec4(m, 1.0);
         }`,
       depthTest: false, depthWrite: false,
     });
@@ -263,6 +283,10 @@ export class Post {
     this.grade.uniforms.uTime.value = time;
     this.grade.uniforms.uRays.value = rays;
     this.grade.uniforms.uScope.value = opts.scope ? 1 : 0;
+    if (opts.grade) {
+      this.grade.uniforms.uWarm.value = opts.grade.warm;
+      this.grade.uniforms.uNight.value = opts.grade.night;
+    }
     this.grade.uniforms.uAspect.value = aspect;
     r.setRenderTarget(null);
     r.render(this.scene, this.quadCam);

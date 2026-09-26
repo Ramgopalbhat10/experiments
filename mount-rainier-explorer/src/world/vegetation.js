@@ -95,11 +95,11 @@ export class Vegetation {
       m.alphaToCoverage = true;
       return m;
     };
-    const bark = lambert(atmo, { vertexColors: true }, { key: 'bark', vertexPars: 'attribute float aFoliage;' });
+    const bark = lambert(atmo, { vertexColors: true }, { key: 'bark', surface: 'bark', vertexPars: 'attribute float aFoliage;' });
     const needles = foliageMat(tex.branch, 'needles');
     const leaves = foliageMat(tex.leaf, 'leaves', 0.02, 1.6);
     const rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, {
-      key: 'rock', vertexPars: 'attribute float aFoliage;', colorVertex: tinted,
+      key: 'rock', surface: 'rock', vertexPars: 'attribute float aFoliage;', colorVertex: tinted,
       fragmentPars: ROCK_GLSL, colorFragment: 'diffuseColor.rgb = rockSurface(diffuseColor.rgb, vWorldPos, 0.55, 0.0);',
     });
     const grassMat = lambert(atmo, { map: tex.grass, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide }, {

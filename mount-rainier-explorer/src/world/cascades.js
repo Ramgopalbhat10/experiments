@@ -54,7 +54,7 @@ export class Cascades {
     this.items = [];
     this.ledgeGeos = [ledgeGeometry(3), ledgeGeometry(17), ledgeGeometry(58)];
     this.rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, {
-      key: 'basalt',
+      key: 'basalt', surface: 'rock',
       colorVertex: `
         #ifdef USE_INSTANCING_COLOR
           vColor.rgb = color.rgb * instanceColor.rgb;

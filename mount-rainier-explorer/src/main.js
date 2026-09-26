@@ -3,6 +3,8 @@ import { Heightfield, FLAG_GLACIER } from './world/heightfield.js';
 import { Geo } from './core/geo.js';
 import { Atmosphere } from './world/atmosphere.js';
 import { Terrain, TerrainShadow } from './world/terrain.js';
+import { loadDetailTextures } from './world/textures.js';
+import { setSurfaceDetail } from './world/materials.js';
 import { Sky } from './world/sky.js';
 import { PathNetwork } from './world/paths.js';
 import { Vegetation } from './world/vegetation.js';
@@ -54,6 +56,9 @@ async function boot() {
   const geo = new Geo(meta);
   const hf = new Heightfield(meta);
   const prog = [0, 0];
+  // photo-scanned ground textures load alongside the heightfield (?detail=0 skips them)
+  const detailLoad = params.get('detail') === '0' ? Promise.resolve(null)
+    : loadDetailTextures(ASSETS, quality === 'low' ? 512 : 1024).catch((e) => { console.warn('ground textures', e); return null; });
   await hf.load(ASSETS, (i, p) => {
     prog[i] = p;
     setProgress(0.05 + 0.55 * (prog[0] * 0.65 + prog[1] * 0.35), 'Surveying 1,600 km² of terrain…');
@@ -84,6 +89,7 @@ async function boot() {
 
   const atmo = new Atmosphere();
   atmo.uniforms.uWorld.value.set(hf.half, hf.size);
+  atmo.uniforms.uHeightF.value = hf.heightTex;
   atmo.uniforms.uLightColor = { value: new THREE.Color() };
   atmo.uniforms.uAmbient = { value: new THREE.Color() };
   const season = params.get('season');
@@ -111,7 +117,9 @@ async function boot() {
   const flashLight = new THREE.SpotLight(0xfff1d8, 0, 80, 0.42, 0.55, 1.4);
   scene.add(fireLight, flashLight, flashLight.target);
 
-  let terrain = new Terrain(hf, atmo, { N: QUALITY[quality].terrainN });
+  const detail = await detailLoad;
+  setSurfaceDetail(detail);
+  let terrain = new Terrain(hf, atmo, { N: QUALITY[quality].terrainN, detail });
   scene.add(terrain.group);
   const bake = new TerrainShadow(renderer, hf, atmo, QUALITY[quality].bake);
   const sky = new Sky(atmo);
@@ -121,7 +129,7 @@ async function boot() {
 
   setProgress(0.7, 'Tracing trails and creeks…');
   await frame();
-  const paths = new PathNetwork(features, hf, atmo);
+  const paths = new PathNetwork(features, hf, atmo, { detail });
   scene.add(paths.group);
   const vegetation = new Vegetation(hf, paths, atmo, quality, renderer);
   terrain.treeFar.value = vegetation.farRadius;
@@ -327,7 +335,7 @@ async function boot() {
     terrain.treeFar.value = vegetation.farRadius;
     if (terrain.N !== Q.terrainN) {
       scene.remove(terrain.group);
-      terrain = new Terrain(hf, atmo, { N: Q.terrainN });
+      terrain = new Terrain(hf, atmo, { N: Q.terrainN, detail });
       terrain.treeFar.value = vegetation.farRadius;
       terrain.shared.uTrail.value = paths.trailTex;
       scene.add(terrain.group);
@@ -519,6 +527,7 @@ async function boot() {
     post.render(scene, camera, t, {
       overlay: view.overlay, scope: view.scope,
       sun: { uv: sunScreen.set(sunUV.x * 0.5 + 0.5, sunUV.y * 0.5 + 0.5), strength: rays, color: atmo.sunColor },
+      grade: { warm: 1 - Math.min(1, Math.max(0, (atmo.sunElevation - 6) / 30)) * 0.7, night: u.uNight.value },
     });
 
     if (game.photoRequested || photoReq) {

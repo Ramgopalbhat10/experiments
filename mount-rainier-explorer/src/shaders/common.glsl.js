@@ -53,6 +53,8 @@ uniform float uTime;
 uniform sampler2D uTerrainShadow;
 uniform vec2 uWorld;          // x = half size (m), y = full size (m)
 uniform float uShadowStrength;
+uniform float uMist;          // valley mist strength (thicker at dawn and dusk)
+uniform sampler2D uHeightF;   // the park heightfield, for height above the ground
 
 vec3 skyColor(vec3 dir) {
   float y = dir.y;
@@ -75,10 +77,37 @@ float fogAmount(vec3 wpos) {
   return clamp(1.0 - exp(-uFogDensity * dist * integ), 0.0, 1.0);
 }
 
+// Valley mist: banks that pool in low ground, measured as height above the
+// terrain under the point, drifting slowly. It gathers in the valleys you look
+// down into, never right around the hiker.
+float mistAmount(vec3 wpos, float dist) {
+  if (uMist <= 0.0) return 0.0;
+  vec2 uv = (wpos.xz + uWorld.x) / uWorld.y;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 0.0;
+  float ground = texture2D(uHeightF, uv).r;
+  float above = max(wpos.y - ground, 0.0);
+  float layer = exp(-above / 45.0);
+  vec2 mp = wpos.xz * 0.0011 + vec2(uTime * 0.004, uTime * 0.0025);
+  float bank = smoothstep(0.35, 0.78, vnoise(mp) * 0.65 + vnoise(mp * 3.1 + 7.0) * 0.35);
+  // valleys hold more of it than open slopes and ridges
+  float low = 1.0 - smoothstep(900.0, 1900.0, ground);
+  return clamp(uMist * layer * bank * (0.35 + 0.65 * low) * smoothstep(120.0, 900.0, dist), 0.0, 0.85);
+}
+
 vec3 applyFog(vec3 col, vec3 wpos) {
-  vec3 d = normalize(wpos - cameraPosition);
+  vec3 dv = wpos - cameraPosition;
+  float dist = length(dv);
+  vec3 d = dv / max(dist, 1e-3);
   vec3 fc = skyColor(normalize(vec3(d.x, max(d.y, 0.0) * 0.35 + 0.015, d.z))) * uFogTint;
-  return mix(col, fc, fogAmount(wpos));
+  vec3 c = mix(col, fc, fogAmount(wpos));
+  float mist = mistAmount(wpos, dist);
+  if (mist > 0.0) {
+    // mist is lit by the sky and glows warm where the sun rakes through it
+    float toSun = pow(max(dot(d, uSunDir), 0.0), 3.0);
+    vec3 mc = mix(fc * 1.08, vec3(dot(fc, vec3(0.333))) * 1.12, 0.35) + uSunColor * 0.12 * toSun * (1.0 - uNight);
+    c = mix(c, mc, mist);
+  }
+  return c;
 }
 
 float terrainShadowAt(vec3 wpos) {

@@ -19,7 +19,8 @@ function key(x, z) { return `${x},${z}`; }
  * and streams draped ribbon meshes in 1 km chunks around the player.
  */
 export class PathNetwork {
-  constructor(features, hf, atmo) {
+  constructor(features, hf, atmo, { detail = null } = {}) {
+    this.detail = detail;
     this.hf = hf;
     this.atmo = atmo;
     this.lines = [];
@@ -154,7 +155,8 @@ export class PathNetwork {
       pullToCamera: 0.9992,
       vertexPars: 'attribute vec2 aRib; attribute float aKind; varying vec2 vRib; varying float vKind;',
       vertexBegin: 'vRib = aRib; vKind = aKind;',
-      fragmentPars: 'varying vec2 vRib; varying float vKind; uniform float uSeason;',
+      fragmentPars: 'varying vec2 vRib; varying float vKind; uniform float uSeason; uniform sampler2D uTrC, uTrN; vec3 gTrP = vec3(0.0);',
+      uniforms: { uTrC: { value: this.detail?.trailColor || null }, uTrN: { value: this.detail?.trailNormal || null } },
       colorFragment: /* glsl */ `
         float edge = min(vRib.x, 1.0 - vRib.x);
         float n = vnoise(vec2(vRib.y * 0.8, vRib.x * 3.0));
@@ -172,11 +174,28 @@ export class PathNetwork {
           diffuseColor.rgb *= 0.85 + 0.3 * step(0.8, grit);
           diffuseColor.a = smoothstep(0.0, 0.22 + 0.15 * n, edge) * 0.95;
         }
+        #ifdef USE_DETAIL
+        {
+          // photo-scanned tread: normalised by its mean so the palette above holds
+          float near = 1.0 - smoothstep(60.0, 160.0, length(vWorldPos - cameraPosition));
+          vec3 sc = texture2D(uTrC, vWorldPos.xz / 2.2).rgb / vec3(0.3, 0.224, 0.151);
+          if (vKind > 2.5) sc = vec3(0.6 + 0.4 * dot(sc, vec3(0.333)));
+          diffuseColor.rgb *= mix(vec3(1.0), sc, near * 0.85);
+          vec2 tn = texture2D(uTrN, vWorldPos.xz / 2.2).xy * 2.0 - 1.0;
+          gTrP = vec3(tn.x, 0.0, -tn.y) * near * (vKind > 2.5 ? 0.25 : 0.8);
+        }
+        #endif
         if (uSeason > 1.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85, 0.87, 0.92), 0.8);
       `,
+      normalFragment: `
+        #ifdef USE_DETAIL
+          normal = normalize(normal + (viewMatrix * vec4(gTrP, 0.0)).xyz);
+        #endif
+      `,
     });
+    if (this.detail) this.trailMat.defines = { USE_DETAIL: '' };
     this.edgeMat = lambert(this.atmo, { vertexColors: true, flatShading: true }, {
-      key: 'edgestone', vertexPars: 'attribute float aFoliage;',
+      key: 'edgestone', surface: 'rock', vertexPars: 'attribute float aFoliage;',
       colorVertex: `
         #ifdef USE_INSTANCING_COLOR
           vColor.rgb = color.rgb * instanceColor.rgb;
@@ -194,7 +213,8 @@ export class PathNetwork {
       pullToCamera: 0.9993,
       vertexPars: 'attribute vec2 aRib; attribute float aKind; varying vec2 vRib; varying float vKind;',
       vertexBegin: 'vRib = aRib; vKind = aKind;',
-      fragmentPars: 'varying vec2 vRib; varying float vKind; uniform float uSeason;',
+      fragmentPars: 'varying vec2 vRib; varying float vKind; uniform float uSeason; uniform sampler2D uTrC, uTrN; vec3 gTrP = vec3(0.0);',
+      uniforms: { uTrC: { value: this.detail?.trailColor || null }, uTrN: { value: this.detail?.trailNormal || null } },
       colorFragment: /* glsl */ `
         float edge = min(vRib.x, 1.0 - vRib.x);
         float n = vnoise(vRib * vec2(6.0, 0.5));
@@ -209,11 +229,29 @@ export class PathNetwork {
           c = mix(c, vec3(0.85, 0.65, 0.12), yellow * paint);
           c = mix(c, vec3(0.8), white * paint);
         }
+        #ifdef USE_DETAIL
+        {
+          // scanned grit, desaturated into aggregate and worn tar
+          float near = 1.0 - smoothstep(50.0, 180.0, length(vWorldPos - cameraPosition));
+          vec3 sc = texture2D(uTrC, vWorldPos.xz / 3.1).rgb / vec3(0.3, 0.224, 0.151);
+          float g = dot(sc, vec3(0.3, 0.45, 0.25));
+          vec3 grit = vKind > 1.5 ? vec3(0.55 + 0.45 * g) : mix(vec3(g), sc, 0.45);
+          c *= mix(vec3(1.0), grit, near);
+          vec2 tn = texture2D(uTrN, vWorldPos.xz / 3.1).xy * 2.0 - 1.0;
+          gTrP = vec3(tn.x, 0.0, -tn.y) * near * (vKind > 1.5 ? 0.2 : 0.6);
+        }
+        #endif
         if (uSeason > 1.5) c = mix(c, vec3(0.8, 0.82, 0.88), 0.35);
         diffuseColor.rgb = c;
         diffuseColor.a = smoothstep(0.0, 0.06, edge);
       `,
+      normalFragment: `
+        #ifdef USE_DETAIL
+          normal = normalize(normal + (viewMatrix * vec4(gTrP, 0.0)).xyz);
+        #endif
+      `,
     });
+    if (this.detail) this.roadMat.defines = { USE_DETAIL: '' };
     this.streamMat = lambert(this.atmo, { color: 0xffffff, transparent: true, depthWrite: false }, {
       ...common,
       key: 'stream',

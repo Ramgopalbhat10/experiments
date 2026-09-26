@@ -53,6 +53,41 @@ uniform float uTreeFar;
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
+// --- photo-scanned ground detail (near the camera) ---------------------------
+float gNear = 0.0;     // how much scanned detail is visible here (0 far away)
+vec3 gP = vec3(0.0);   // world-space normal perturbation from the detail maps
+struct Det { vec3 c; vec3 p; };
+#ifdef USE_DETAIL
+uniform highp sampler2DArray uDetC;
+uniform highp sampler2DArray uDetN;
+// the layer's own average colour (its smallest mip), so detail keeps our palette
+vec3 detMean(float layer) { return max(textureLod(uDetC, vec3(0.5, 0.5, layer), 12.0).rgb, vec3(0.015)); }
+Det detPlanar(vec3 wp, float layer, float scale, float bump, float far) {
+  vec2 uv = wp.xz / scale;
+  vec3 a = texture(uDetC, vec3(uv, layer)).rgb;
+  vec3 nn = texture(uDetN, vec3(uv, layer)).xyz;
+  if (far > 0.05) {
+    // a second, rotated and larger sample hides the tiling further out
+    vec2 uv2 = mat2(0.8, -0.6, 0.6, 0.8) * uv * 0.27 + 0.37;
+    a = mix(a, texture(uDetC, vec3(uv2, layer)).rgb, far * 0.55);
+    nn = mix(nn, texture(uDetN, vec3(uv2, layer)).xyz, far * 0.55);
+  }
+  vec2 t = nn.xy * 2.0 - 1.0;
+  return Det(a / detMean(layer), vec3(t.x, 0.0, -t.y) * bump);
+}
+Det detTri(vec3 wp, vec3 n, float layer, float scale, float bump) {
+  vec3 bw = pow(abs(n), vec3(4.0));
+  bw /= (bw.x + bw.y + bw.z);
+  vec2 ux = wp.zy / scale, uy = wp.xz / scale, uz = wp.xy / scale;
+  vec3 a = texture(uDetC, vec3(ux, layer)).rgb * bw.x + texture(uDetC, vec3(uy, layer)).rgb * bw.y + texture(uDetC, vec3(uz, layer)).rgb * bw.z;
+  vec2 tx = texture(uDetN, vec3(ux, layer)).xy * 2.0 - 1.0;
+  vec2 ty = texture(uDetN, vec3(uy, layer)).xy * 2.0 - 1.0;
+  vec2 tz = texture(uDetN, vec3(uz, layer)).xy * 2.0 - 1.0;
+  vec3 p = vec3(0.0, tx.y, tx.x) * bw.x + vec3(ty.x, 0.0, ty.y) * bw.y + vec3(tz.x, tz.y, 0.0) * bw.z;
+  return Det(a / detMean(layer), p * bump);
+}
+#endif
+
 ${MEADOW_GLSL}
 
 // 2D cellular noise: x = distance to nearest feature, y = its random id
@@ -161,11 +196,39 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float alpine = smoothstep(1900.0, 2250.0, hj);
   float veg = smoothstep(0.08, 0.55, cov.g) * (1.0 - alpine * 0.75);
   float fst = smoothstep(0.12, 0.5, cov.r);
-  vec3 c = mix(talus, soil, smoothstep(1700.0, 1150.0, h) * 0.7);
-  c = mix(c, rock, smoothstep(0.42, 0.65, slope + (n1 - 0.5) * 0.25));
-  c = mix(c, meadow, veg * (1.0 - smoothstep(0.42, 0.62, slope)));
-  c = mix(c, forest, fst);
-  c = mix(c, rock, smoothstep(0.58, 0.78, slope) * (1.0 - fst * 0.6));
+
+  // scanned detail: each ground type is modulated by its own photo texture
+  gNear = 1.0 - smoothstep(110.0, 240.0, camDist);
+  Det dMeadow = Det(vec3(1.0), vec3(0.0)), dForest = dMeadow, dCliff = dMeadow, dTalus = dMeadow, dSoil = dMeadow, dSnow = dMeadow, dRiver = dMeadow;
+#ifdef USE_DETAIL
+  if (gNear > 0.0) {
+    float far = smoothstep(12.0, 70.0, camDist);
+    dMeadow = detPlanar(wp, 0.0, 2.4, 0.55, far);
+    dForest = detPlanar(wp, 1.0, 2.8, 0.6, far);
+    dCliff = detTri(wp, n, 2.0, 7.0, 0.9);
+    dTalus = detPlanar(wp, 3.0, 3.6, 0.9, far);
+    dSoil = detPlanar(wp, 4.0, 3.0, 0.8, far);
+    dSnow = detPlanar(wp, 5.0, 4.5, 0.35, far);
+    dRiver = detPlanar(wp, 6.0, 2.2, 0.8, far);
+  }
+#endif
+  #define DET(col, d, k) (col * mix(vec3(1.0), d.c, gNear * k))
+  talus = DET(talus, dTalus, 0.9);
+  soil = DET(soil, dSoil, 0.9);
+  rock = DET(rock, dCliff, 0.85);
+  meadow = DET(meadow, dMeadow, 0.8);
+  forest = DET(forest, dForest, 0.85);
+
+  float a1 = smoothstep(1700.0, 1150.0, h) * 0.7;
+  float a2 = smoothstep(0.42, 0.65, slope + (n1 - 0.5) * 0.25);
+  float a3 = veg * (1.0 - smoothstep(0.42, 0.62, slope));
+  float a5 = smoothstep(0.58, 0.78, slope) * (1.0 - fst * 0.6);
+  vec3 c = mix(talus, soil, a1);
+  vec3 P = mix(dTalus.p, dSoil.p, a1);
+  c = mix(c, rock, a2);        P = mix(P, dCliff.p, a2);
+  c = mix(c, meadow, a3);      P = mix(P, dMeadow.p, a3);
+  c = mix(c, forest, fst);     P = mix(P, dForest.p, fst);
+  c = mix(c, rock, a5);        P = mix(P, dCliff.p, a5);
 
   // River gravel bars (braided glacial rivers are wide and grey)
   // (only on flat valley floors: in a canyon the river runs over rock)
@@ -173,7 +236,9 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   float riv = smoothstep(0.55, 0.85, cov.a) * valley;
   c = mix(c, srgb(vec3(0.30, 0.27, 0.2)), smoothstep(0.15, 0.4, cov.a) * (1.0 - riv) * 0.6 * valley);
   vec3 gravel = mix(srgb(vec3(0.5, 0.48, 0.44)), srgb(vec3(0.4, 0.41, 0.4)), n2) * (0.85 + 0.3 * n3);
+  gravel = DET(gravel, dRiver, 0.9);
   c = mix(c, gravel, riv * 0.85);
+  P = mix(P, dRiver.p, riv * 0.85);
 
   // Snow & ice
   vec3 snowCol = srgb(vec3(0.93, 0.95, 0.99));
@@ -190,14 +255,17 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   vec3 ice = mix(snowCol, srgb(vec3(0.55, 0.72, 0.85)), 0.25 + 0.5 * crev);
   float debris = smoothstep(1900.0, 1500.0, h) * smoothstep(0.35, 0.6, n1 + 0.2);
   ice = mix(ice, srgb(vec3(0.36, 0.34, 0.33)), debris * 0.85);
-  c = mix(c, snowCol, snow);
-  c = mix(c, ice, glacier * 0.85);
+  c = mix(c, DET(snowCol, dSnow, 0.6), snow);
+  P = mix(P, dSnow.p, snow);
+  c = mix(c, DET(ice, dSnow, 0.4), glacier * 0.85);
+  P = mix(P, dSnow.p * 0.6, glacier * 0.85);
+  gP = P * gNear;
   return c;
 }
 `;
 
 export class Terrain {
-  constructor(hf, atmo, { levels = 8, N = 128, base = 4 } = {}) {
+  constructor(hf, atmo, { levels = 8, N = 128, base = 4, detail = null } = {}) {
     this.hf = hf;
     this.levels = levels;
     this.N = N;
@@ -220,12 +288,17 @@ export class Terrain {
       uTreeFar: this.treeFar,
       uTrail: { value: null },
     };
+    if (detail) {
+      shared.uDetC = { value: detail.color };
+      shared.uDetN = { value: detail.normal };
+    }
     this.shared = shared;
     for (let i = 0; i < levels; i++) {
       const hole = { value: new THREE.Vector4(1, 1, -1, -1) };
       const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      if (detail) mat.defines = { USE_DETAIL: '' };
       stylize(mat, atmo, {
-        key: 'terrain',
+        key: detail ? 'terrain-detail' : 'terrain',
         uniforms: { ...shared, uHole: hole },
         vertexPars: `${HEIGHT_GLSL}
           uniform vec3 uFocus; uniform float uHalfN; uniform float uMorphR;`,
@@ -242,6 +315,11 @@ export class Terrain {
         `,
         fragmentPars: TERRAIN_FRAG,
         normalFragment: /* glsl */ `
+          #ifdef USE_DETAIL
+            #define FACET 0.6
+          #else
+            #define FACET 1.1
+          #endif
           vec2 tuv = (vWorldPos.xz + uHFf.x) / (2.0 * uHFf.x);
           vec3 tn = texture2D(uNormalTex, tuv).xyz * 2.0 - 1.0;
           tn.y = texture2D(uNormalTex, tuv).y;
@@ -253,6 +331,9 @@ export class Terrain {
           float b0 = fbm3(vWorldPos.xz * 0.15);
           float bx = fbm3((vWorldPos.xz + e.xy) * 0.15);
           float bz = fbm3((vWorldPos.xz + e.yx) * 0.15);
+          #ifdef USE_DETAIL
+            dn *= 0.25;
+          #endif
           tn = normalize(tn + vec3(b0 - bx, 0.0, b0 - bz) * 1.2 * dn);
           // cliffs break into big flat facets, like painted rock planes
           {
@@ -268,9 +349,12 @@ export class Terrain {
                 if (d < bd) { bd = d; best = c; }
               }
               vec3 rn = vec3(hash12(best * 1.7) - 0.5, hash12(best + 3.1) * 0.4, hash12(best * 2.3 + 9.0) - 0.5);
-              tn = normalize(mix(tn, normalize(tn + rn * 1.1), rockAmt));
+              tn = normalize(mix(tn, normalize(tn + rn * FACET), rockAmt));
             }
           }
+          #ifdef USE_DETAIL
+            tn = normalize(tn + gP);
+          #endif
           normal = normalize((viewMatrix * vec4(tn, 0.0)).xyz);
         `,
         colorFragment: /* glsl */ `

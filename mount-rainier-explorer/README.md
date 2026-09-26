@@ -132,7 +132,8 @@ src/post.js           HDR grade, SSAO, bloom, god rays, binocular mask
 src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
 tools/trailer/        offline trailer render, score synthesis, edit/encode
-assets/               terrain.png, landcover.png, features.json, trailer-score.mp3
+assets/               terrain.png, landcover.png, features.json, trailer-score.mp3,
+                      tex/ (photo-scanned ground, rock and bark maps)
 ```
 
 ## Rebuilding the data
@@ -149,4 +150,5 @@ python3 tools/build_data.py     # downloads tiles into tools/.cache, writes asse
 - Elevation: USGS 3DEP via [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
 - Land cover derived from [Sentinel‑2 cloudless 2016](https://s2maps.eu) by EOX IT Services GmbH (CC BY 4.0), which contains modified Copernicus Sentinel data (2016)
 - Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL)
-- The art direction is inspired by *Firewatch* (Campo Santo). This is a fan experiment, and every model, texture and sound is generated procedurally.
+- Photo-scanned textures in `assets/tex/` from [Poly Haven](https://polyhaven.com) (CC0): withered_grass, forrest_ground_01, cliff_side, aerial_rocks_02, rocky_trail, snow_02, river_small_rocks, pine_bark. They are resized to 1024 px WebP. Add `?detail=0` to the URL to turn them off.
+- The art direction is inspired by *Firewatch* (Campo Santo). This is a fan experiment. Apart from the Poly Haven scans, every model, texture and sound is generated procedurally.
