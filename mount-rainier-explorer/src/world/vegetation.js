@@ -6,6 +6,7 @@ import { FLAG_LAKE, FLAG_ROAD } from './heightfield.js';
 import {
   branchTexture, leafTexture, grassTexture, flowerTexture,
   coniferGeometry, broadleafGeometry, tuftGeometry, boulderGeometry, snagGeometry, logGeometry, makeImpostor,
+  sprayConiferGeometry,
 } from './foliage.js';
 
 const CELL = 100;
@@ -43,14 +44,28 @@ const PAL = {
     winter: [],
   },
   rock: [C('#8a7d72'), C('#978676'), C('#7a736d'), C('#a08a74')],
+  // tints for the photo-needle conifers: the needles carry their own colour
+  photo: {
+    douglas: [C('#d8e2d0'), C('#c9d6c2'), C('#e2e6d2')],
+    hemlock: [C('#e4ecd4'), C('#d6e2c8'), C('#eaeed6')],
+    subalpine: [C('#c8d8cc'), C('#bccfc4'), C('#d2ded0'), C('#c4d4c0')],
+  },
 };
 
 const T_FIR = 0, T_SPIRE = 1, T_DECID = 2, T_SNAG = 3, T_SHRUB = 4, T_ROCK = 5, T_LOG = 6;
 const STRIDE = 8; // type, x, y, z, scale, rot, role, rand
+// rock roles: which family of scanned rocks suits the spot
+const R_GREY = 0, R_MOSS = 1, R_BIG = 2, R_FACE = 3;
+// forest-floor props near the camera (scanned ferns, branches, stumps, pebbles, small plants)
+const F_FERN = 0, F_BRANCH = 1, F_STUMP = 2, F_PEBBLE = 3, F_PLANT = 4;
+const FCELL = 16, FSTRIDE = 6; // type, x, y, z, scale, rot
 
 export class Vegetation {
-  constructor(hf, paths, atmo, quality, renderer) {
+  constructor(hf, paths, atmo, quality, renderer, props = null) {
     this.hf = hf;
+    this.props = props;
+    this.fcache = new Map();
+    this.lastF = new THREE.Vector3(1e9, 0, 1e9);
     this.paths = paths;
     this.atmo = atmo;
     this.group = new THREE.Group();
@@ -180,10 +195,136 @@ export class Vegetation {
         mk(broadleafGeometry({ clumps: 7, crownY: 0.35, crownR: 0.45, seed: 91, shrub: true }), q.shrubCap / 2, leafMats),
       ],
       rock: [mk(boulderGeometry(7), q.rockCap / 2, rockMat), mk(boulderGeometry(41), q.rockCap / 2, rockMat)],
+      scanned: null,
       grass: mk(tuftGeometry(), q.grassCap, grassMat, false),
       flower: mk(tuftGeometry(), q.grassCap / 4, flowerMat, false),
     };
     this._tmpColor = new THREE.Color();
+    if (props) this._scannedPools(props, mk);
+    if (props?.cards) this._photoTrees(props.cards, { mk, imp, bark, sway, tinted, keepNormal, translucency, capBark, atmo });
+  }
+
+  /**
+   * Conifers from photo-baked needle sprays replace the painted ones: Douglas
+   * fir (tall, open crowns, dead lower limbs), western/mountain hemlock
+   * (drooping, feathery) and subalpine fir spires, near and mid-distance
+   * versions, plus impostors rendered from them for the far forest.
+   */
+  _photoTrees(cards, { mk, imp, bark, sway, tinted, keepNormal, translucency, capBark, atmo }) {
+    const fir = cards.fir, q = this.q;
+    const alpha = `
+      {
+        vec2 ddx = dFdx(vMapUv * ${fir.size.toFixed(1)}), ddy = dFdy(vMapUv * ${fir.size.toFixed(1)});
+        float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
+        diffuseColor.a *= 1.0 + lod * 0.3;
+        // the sapling's olive needles toward the park's deep blue-green conifers
+        float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.62) * vec3(0.74, 0.93, 0.86);
+      }`;
+    const needles = lambert(atmo, {
+      map: fir.map, normalMap: fir.normalMap, normalScale: new THREE.Vector2(0.9, 0.9),
+      vertexColors: true, alphaTest: 0.38, side: THREE.DoubleSide,
+    }, {
+      key: 'needles-photo', vertexPars: 'attribute float aFoliage;', colorVertex: tinted, colorFragment: alpha,
+      vertexBegin: sway(0.01, 1.0), normalFragment: keepNormal, lightsEnd: translucency,
+    });
+    needles.alphaToCoverage = true;
+    const mats = [bark, needles];
+    const capNeedle = new THREE.MeshLambertMaterial({ map: fir.map, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    capNeedle.color.setRGB(0.62, 0.8, 0.72);
+    const douglasProfile = (t) => Math.pow(1 - t, 0.75) * (0.6 + 0.4 * Math.sin(Math.min(1, t * 2.5) * Math.PI / 2));
+    const G = {
+      douglas: sprayConiferGeometry(fir, { whorls: 28, crownBase: 0.3, radius: 0.14, perWhorl: 6, droop: 0.42, upturn: 0.22, trunkR: 0.012, seed: 11, profile: douglasProfile, width: 1.35, stubs: 9 }),
+      hemlock: sprayConiferGeometry(fir, { whorls: 26, crownBase: 0.16, radius: 0.18, perWhorl: 6, droop: 0.62, upturn: 0.04, trunkR: 0.011, seed: 29, profile: (t) => Math.pow(1 - t, 0.9), width: 1.4, stubs: 5 }),
+      spire: sprayConiferGeometry(fir, { whorls: 36, crownBase: 0.02, radius: 0.125, perWhorl: 6, droop: 0.5, upturn: 0.12, trunkR: 0.013, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 1.7, layers: 1 }),
+      douglasMid: sprayConiferGeometry(fir, { whorls: 13, crownBase: 0.3, radius: 0.145, perWhorl: 4, droop: 0.42, upturn: 0.22, seed: 11, profile: douglasProfile, width: 1.8, layers: 1 }),
+      spireMid: sprayConiferGeometry(fir, { whorls: 16, crownBase: 0.02, radius: 0.13, perWhorl: 4, droop: 0.5, seed: 71, profile: (t) => Math.pow(1 - t, 1.1), width: 2.0, layers: 1 }),
+    };
+    const P = this.pools;
+    const swap = (key, mesh) => {
+      const old = P[key];
+      this.group.remove(old);
+      old.dispose();
+      P[key] = mesh;
+    };
+    swap('firNear', mk(G.douglas, q.nearCap, mats));
+    swap('firNear2', mk(G.hemlock, q.nearCap, mats));
+    swap('spireNear', mk(G.spire, q.nearCap * 2, mats));
+    // mid-distance trees stand outside the ±70 m shadow map: skip their shadow pass
+    swap('firMid', mk(G.douglasMid, q.nearCap * 2, mats, false));
+    swap('spireMid', mk(G.spireMid, q.nearCap * 3, mats, false));
+    swap('firFar', imp(G.douglas, [capBark, capNeedle], 0.34, q.farCap));
+    swap('spireFar', imp(G.spire, [capBark, capNeedle], 0.28, q.farCap));
+    this.photoTrees = true;
+
+    // broad-leaf trees and shrubs from real leaf clumps, coloured by the season's palette
+    const leaf = cards.leaf, clumps = leaf.rects.slice(0, 8);
+    const leafColor = `
+      {
+        vec2 ddx = dFdx(vMapUv * ${leaf.size.toFixed(1)}), ddy = dFdy(vMapUv * ${leaf.size.toFixed(1)});
+        float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
+        diffuseColor.a *= 1.0 + lod * 0.3;
+        vec3 tx = texture2D(map, vMapUv).rgb;
+        float l = dot(tx, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb = vColor.rgb * mix(vec3(l), tx, 0.15) * 3.6;
+      }`;
+    const leaves = lambert(atmo, {
+      map: leaf.map, normalMap: leaf.normalMap, normalScale: new THREE.Vector2(0.7, 0.7),
+      vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide,
+    }, {
+      key: 'leaves-photo', vertexPars: 'attribute float aFoliage;', colorVertex: tinted, colorFragment: leafColor,
+      vertexBegin: sway(0.02, 1.6), normalFragment: keepNormal, lightsEnd: translucency,
+    });
+    leaves.alphaToCoverage = true;
+    const leafMats = [bark, leaves];
+    const capLeaf = new THREE.MeshLambertMaterial({ map: leaf.map, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    capLeaf.color.setRGB(0.9, 0.8, 0.4);
+    const decid = broadleafGeometry({ clumps: 150, crownR: 0.3, seed: 5, rects: clumps, clumpScale: 0.34 });
+    swap('decid', mk(decid, q.nearCap / 2, leafMats));
+    swap('decidFar', imp(decid, [capBark, capLeaf], 0.7, q.farCap / 4));
+    const shrubs = [
+      broadleafGeometry({ clumps: 34, crownY: 0.45, crownR: 0.5, seed: 3, shrub: true, rects: clumps, clumpScale: 0.42 }),
+      broadleafGeometry({ clumps: 28, crownY: 0.35, crownR: 0.45, seed: 91, shrub: true, rects: clumps, clumpScale: 0.45 }),
+    ];
+    P.shrub.forEach((old, i) => {
+      this.group.remove(old);
+      old.dispose();
+      P.shrub[i] = mk(shrubs[i], q.shrubCap / 2, leafMats);
+    });
+  }
+
+  /**
+   * Pools for the photo-scanned props: one instanced mesh per part and level
+   * of detail. Rocks come in families (grey talus, mossy forest rocks, big
+   * boulders, rock faces); logs, ferns, branches, stumps and pebbles too.
+   */
+  _scannedPools(props, mk) {
+    const q = this.q;
+    const B = props.byAsset;
+    // caps: instances per level of detail; only the nearest level casts shadows
+    const pool = (list, caps) => list.map((p) => {
+      const m = props.material(p.asset);
+      const lod = caps.map((cap, i) => mk(p.lods[Math.min(i, p.lods.length - 1)], Math.max(8, Math.round(cap)), m, i === 0));
+      return { part: p, lod, size: p.size };
+    });
+    const rc = q.rockCap, gc = q.grassCap;
+    const S = (this.pools.scanned = {
+      rock: [
+        pool(B.rock_moss_set_02, [rc * 0.012, rc * 0.05, rc * 0.12]),
+        pool(B.rock_moss_set_01, [rc * 0.012, rc * 0.05, rc * 0.1]),
+        pool([...B.boulder_01, ...B.namaqualand_boulder_03, ...B.rock_face_02], [rc * 0.012, rc * 0.05, rc * 0.1]),
+        pool([...B.rock_face_01, ...B.rock_face_02], [rc * 0.01, rc * 0.04, rc * 0.06]),
+      ],
+      log: pool([...B.dead_tree_trunk_02, ...B.dead_tree_trunk], [60, 300]),
+      fern: pool(B.fern_02, [gc * 0.008, gc * 0.03]),
+      branch: pool(B.dry_branches_medium_01, [100, 260]),
+      stump: pool(B.tree_stump_01, [30, 60]),
+      pebble: pool(B.rock_moss_set_02, [gc * 0.002, gc * 0.004, gc * 0.012]),
+      plant: pool(B.shrub_04, [gc * 0.005, gc * 0.014]),
+    });
+    // the procedural boulders and logs stand down
+    for (const m of [...this.pools.rock, this.pools.log]) { m.visible = false; m.count = 0; }
+    this.scannedMeshes = Object.values(S).flat().flatMap((v) => v.lod);
   }
 
   setQuality(q) {
@@ -196,8 +337,10 @@ export class Vegetation {
     this.q = { ...(presets[q] || presets.medium), ...(this.q ? { nearCap: this.q.nearCap, farCap: this.q.farCap, shrubCap: this.q.shrubCap, rockCap: this.q.rockCap, grassCap: this.q.grassCap } : {}) };
     this.cache?.clear();
     this.gcache?.clear();
+    this.fcache?.clear();
     this.last.set(1e9, 0, 1e9);
     this.lastG.set(1e9, 0, 1e9);
+    this.lastF?.set(1e9, 0, 1e9);
   }
 
   get farRadius() { return this.q.far; }
@@ -206,6 +349,7 @@ export class Vegetation {
     this.season = s;
     this.last.set(1e9, 0, 1e9);
     this.lastG.set(1e9, 0, 1e9);
+    this.lastF.set(1e9, 0, 1e9);
   }
 
   /** Sample every lake shoreline so cells can line it with rocks and sedges. */
@@ -294,7 +438,7 @@ export class Vegetation {
           out.push(type, x, y - 0.4, z, sc, r4 * Math.PI * 2, 0, r2);
           // windthrow: an occasional fallen log in the forest
           if (type === T_FIR && f > 0.5 && r3 < 0.05 && clear > 6) {
-            out.push(T_LOG, x + 4, hf.heightAt(x + 4, z) - 0.3, z, 8 + r2 * 14, rnd() * 6.283, 0, r4);
+            out.push(T_LOG, x + 4, hf.heightAt(x + 4, z) - (this.props ? 0.15 : 0.3), z, 8 + r2 * 14, rnd() * 6.283, 0, r4);
           }
           continue;
         }
@@ -313,7 +457,8 @@ export class Vegetation {
         const pRock = (1 - f) * (1 - m) * (0.12 + (1 - n.y) * 0.8) * (1 - s * 0.7);
         if (r3 < pRock && paths.clearance(x, z) > 3) {
           const big = r4 > 0.93 ? 3.5 : 1;
-          out.push(T_ROCK, x, y - 0.35 * big, z, (0.5 + r2 * 1.6) * big, r4 * 40, 0, r1);
+          const role = big > 1 ? (n.y < 0.8 ? R_FACE : R_BIG) : f > 0.35 ? R_MOSS : R_GREY;
+          out.push(T_ROCK, x, this.props ? y : y - 0.35 * big, z, (0.5 + r2 * 1.6) * big, r4 * 40, role, r1);
         }
       }
     }
@@ -325,7 +470,7 @@ export class Vegetation {
         if (rnd() > 0.35) continue;
         const x = sh[i] + (rnd() - 0.5) * 2.5, z = sh[i + 1] + (rnd() - 0.5) * 2.5;
         const sc = 0.4 + rnd() * rnd() * 2.2;
-        out.push(T_ROCK, x, hf.heightAt(x, z) - sc * 0.3, z, sc, rnd() * 40, 0, rnd());
+        out.push(T_ROCK, x, hf.heightAt(x, z) - (this.props ? 0 : sc * 0.3), z, sc, rnd() * 40, hf.forestAt(x, z) > 0.4 ? R_MOSS : R_GREY, rnd());
       }
     }
     c = Float32Array.from(out);
@@ -415,6 +560,121 @@ export class Vegetation {
     return c;
   }
 
+  /**
+   * Forest-floor and meadow props for one 16 m cell: sword ferns carpeting the
+   * low forest, fallen branches and the odd stump under the trees, pebbles
+   * scattered everywhere above the snow, small leafy plants in the meadows.
+   */
+  _genFloorCell(cx, cz) {
+    const k = `${cx},${cz}`;
+    let c = this.fcache.get(k);
+    if (c) return c;
+    const hf = this.hf, paths = this.paths;
+    const rnd = mulberry32(hash2(cx * 59 + 11, cz * 23 + 7));
+    const out = [];
+    const n = new THREE.Vector3();
+    const N = Math.round(46 * this.q.gDensity);
+    for (let i = 0; i < N; i++) {
+      const x = cx * FCELL + rnd() * FCELL, z = cz * FCELL + rnd() * FCELL;
+      const r1 = rnd(), r2 = rnd(), r3 = rnd();
+      if (!hf.inside(x, z, 60)) continue;
+      if (hf.waterAt(x, z) > 0.2 || hf.flagsAt(x, z) & (FLAG_LAKE | FLAG_ROAD)) continue;
+      const s = hf.snowAt(x, z);
+      if (s > 0.5) continue;
+      const clear = paths.clearance(x, z);
+      if (clear < 0.4) continue;
+      const f = hf.forestAt(x, z), m = hf.meadowAt(x, z);
+      const y = hf.heightAt(x, z);
+      hf.normalAt(x, z, n);
+      const low = 1 - smoothstep(1250, 1700, y);
+      // ferns love the shaded, damp low forest; thicker in patches
+      const patch = fbm(x * 0.045 + 7.1, z * 0.045 - 3.3, 2);
+      const pFern = f * low * smoothstep(0.3, 0.6, patch) * 0.8;
+      if (r1 < pFern && n.y > 0.6 && clear > 0.9) {
+        out.push(F_FERN, x, y - 0.03, z, 0.8 + r2 * 0.9, r3 * 6.283);
+        continue;
+      }
+      if (r1 < pFern + f * 0.05 && clear > 1) { out.push(F_BRANCH, x, y + 0.02, z, 0.7 + r2 * 0.8, r3 * 6.283); continue; }
+      if (r1 < pFern + f * 0.05 + f * 0.006 && clear > 2.5) { out.push(F_STUMP, x, y - 0.12, z, 0.7 + r2 * 0.7, r3 * 6.283); continue; }
+      // pebbles and cobbles, most common on thin alpine soils and stream banks
+      const pPeb = (0.03 + (1 - f) * 0.06 + smoothstep(1700, 2100, y) * 0.12 + (1 - n.y) * 0.3) * (1 - s);
+      if (r2 < pPeb) { out.push(F_PEBBLE, x, y - 0.02, z, 0.08 + r3 * r3 * 0.45, r1 * 40); continue; }
+      if (r3 < m * 0.12 * (1 - f) && y < 2000) out.push(F_PLANT, x, y - 0.02, z, 1.4 + r2 * 1.8, r1 * 6.283);
+    }
+    c = Float32Array.from(out);
+    if (this.fcache.size > (this.cacheLimit || 5000)) this.fcache.clear();
+    this.fcache.set(k, c);
+    return c;
+  }
+
+  _rebuildFloor(focus) {
+    this.lastF.copy(focus);
+    const SC = this.pools.scanned;
+    const winter = this.season === 'winter', autumn = this.season === 'autumn';
+    const R = Math.round(this.q.grassR * 1.35), cr = Math.ceil(R / FCELL);
+    const fcx = Math.floor(focus.x / FCELL), fcz = Math.floor(focus.z / FCELL);
+    const counts = new Map();
+    const col = this._tmpColor;
+    const put = (v, li, x, y, z, k, ky, rot) => {
+      const mesh = v.lod[Math.min(li, v.lod.length - 1)];
+      const i = counts.get(mesh) || 0;
+      if (i >= mesh.instanceMatrix.count) return;
+      const a = mesh.instanceMatrix.array, o = i * 16;
+      const c = Math.cos(rot), sn = Math.sin(rot);
+      a[o] = c * k; a[o + 1] = 0; a[o + 2] = -sn * k; a[o + 3] = 0;
+      a[o + 4] = 0; a[o + 5] = ky; a[o + 6] = 0; a[o + 7] = 0;
+      a[o + 8] = sn * k; a[o + 9] = 0; a[o + 10] = c * k; a[o + 11] = 0;
+      a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+      mesh.instanceColor.array.set([col.r, col.g, col.b], i * 3);
+      counts.set(mesh, i + 1);
+    };
+    for (let dz = -cr; dz <= cr; dz++) {
+      for (let dx = -cr; dx <= cr; dx++) {
+        const d = this._genFloorCell(fcx + dx, fcz + dz);
+        for (let o = 0; o < d.length; o += FSTRIDE) {
+          const t = d[o], x = d[o + 1], y = d[o + 2], z = d[o + 3], s = d[o + 4], rot = d[o + 5];
+          const dist = Math.hypot(x - focus.x, z - focus.z);
+          if (dist > R) continue;
+          const h = (rot * 13.7) % 1;
+          const near = dist < 24 ? 0 : 1;
+          if (t === F_FERN) {
+            if (dist > R * 0.8) continue;
+            if (winter) continue;
+            col.setRGB(0.85 + h * 0.25, 0.9 + h * 0.2, 0.8 + h * 0.2);
+            if (autumn && h > 0.8) col.setRGB(1.3, 1.05, 0.55);   // the odd bracken turning
+            const v = SC.fern[Math.floor(h * 997) % SC.fern.length];
+            put(v, near, x, y, z, s, s * (0.85 + h * 0.3), rot);
+          } else if (t === F_BRANCH) {
+            col.setRGB(0.85 + h * 0.2, 0.85 + h * 0.2, 0.85 + h * 0.2);
+            put(SC.branch[Math.floor(h * 997) % SC.branch.length], near, x, y, z, s, s, rot);
+          } else if (t === F_STUMP) {
+            col.setRGB(0.9 + h * 0.15, 0.9 + h * 0.12, 0.9 + h * 0.1);
+            put(SC.stump[0], near, x, y, z, s, s * (0.8 + h * 0.5), rot);
+          } else if (t === F_PEBBLE) {
+            const v = SC.pebble[Math.floor(h * 997) % SC.pebble.length];
+            const k = (2 * s) / Math.max(v.size[0], v.size[2]);
+            const g = 0.82 + h * 0.3;
+            col.setRGB(g, g, g * 0.98);
+            put(v, dist < 8 ? 0 : dist < 22 ? 1 : 2, x, y - v.size[1] * k * 0.2, z, k, k * (0.7 + h * 0.5), rot);
+          } else if (t === F_PLANT) {
+            if (winter || dist > R * 0.7) continue;
+            if (autumn) col.setRGB(1.25 + h * 0.3, 0.72 + h * 0.2, 0.4);
+            else col.setRGB(0.85 + h * 0.2, 1, 0.8);
+            put(SC.plant[0], near, x, y, z, s, s, rot);
+          }
+        }
+      }
+    }
+    for (const v of [SC.fern, SC.branch, SC.stump, SC.pebble, SC.plant].flat()) {
+      for (const mesh of v.lod) {
+        mesh.count = counts.get(mesh) || 0;
+        mesh.visible = mesh.count > 0;
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.instanceColor.needsUpdate = true;
+      }
+    }
+  }
+
   _pick(list, r) { return list[Math.min(list.length - 1, Math.max(0, Math.floor(r * list.length)))]; }
 
   update(focus) {
@@ -422,6 +682,7 @@ export class Vegetation {
     if (moved > 40) this._rebuild(focus);
     const movedG = Math.hypot(focus.x - this.lastG.x, focus.z - this.lastG.z);
     if (movedG > 6) this._rebuildGrass(focus);
+    if (this.pools.scanned && Math.hypot(focus.x - this.lastF.x, focus.z - this.lastF.z) > 6) this._rebuildFloor(focus);
   }
 
   _rebuild(focus) {
@@ -440,6 +701,22 @@ export class Vegetation {
       a[o] = c * s; a[o + 1] = 0; a[o + 2] = -sn * s; a[o + 3] = 0;
       a[o + 4] = sn * st * sy; a[o + 5] = ct * sy; a[o + 6] = c * st * sy; a[o + 7] = 0;
       a[o + 8] = sn * s; a[o + 9] = 0; a[o + 10] = c * s; a[o + 11] = 0;
+      a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+      mesh.instanceColor.array[i * 3] = color.r;
+      mesh.instanceColor.array[i * 3 + 1] = color.g;
+      mesh.instanceColor.array[i * 3 + 2] = color.b;
+      counts.set(mesh, i + 1);
+    };
+    // scanned props: per-axis scale (logs are long and thin)
+    const SC = P.scanned;
+    const putS = (mesh, x, y, z, sx, sy, sz, rot, color) => {
+      const i = counts.get(mesh) || 0;
+      if (i >= mesh.instanceMatrix.count) return;
+      const a = mesh.instanceMatrix.array, o = i * 16;
+      const c = Math.cos(rot), sn = Math.sin(rot);
+      a[o] = c * sx; a[o + 1] = 0; a[o + 2] = -sn * sx; a[o + 3] = 0;
+      a[o + 4] = 0; a[o + 5] = sy; a[o + 6] = 0; a[o + 7] = 0;
+      a[o + 8] = sn * sz; a[o + 9] = 0; a[o + 10] = c * sz; a[o + 11] = 0;
       a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
       mesh.instanceColor.array[i * 3] = color.r;
       mesh.instanceColor.array[i * 3 + 1] = color.g;
@@ -469,16 +746,33 @@ export class Vegetation {
           }
           if (t === T_ROCK) {
             if (dist > rockR) continue;
-            col.copy(this._pick(PAL.rock, rr));
-            if (winter) col.lerp(C('#e2e6ee'), 0.55);
-            put(P.rock[rr > 0.5 ? 1 : 0], x, y, z, s, s * 0.85, rot, col);
+            if (SC) {
+              const fam = SC.rock[role] || SC.rock[0];
+              const v = fam[Math.floor(rr * 997) % fam.length];
+              const k = (2.1 * s) / Math.max(v.size[0], v.size[2]);
+              const g = 0.86 + ((rr * 7.3) % 1) * 0.26;
+              col.setRGB(g, g * 0.99, g * 0.97);
+              const li = dist < 35 + 6 * s ? 0 : dist < 150 + 20 * s ? 1 : 2;
+              putS(v.lod[li], x, y - v.size[1] * k * 0.18, z, k, k * (0.85 + ((rr * 3.7) % 1) * 0.3), k, rot, col);
+            } else {
+              col.copy(this._pick(PAL.rock, rr));
+              if (winter) col.lerp(C('#e2e6ee'), 0.55);
+              put(P.rock[rr > 0.5 ? 1 : 0], x, y, z, s, s * 0.85, rot, col);
+            }
             if (dist < 60 && s > 1.1) colliders.push(x, z, s * 0.9);
             continue;
           }
           if (t === T_LOG) {
             if (dist > q.near) continue;
-            col.setRGB(1, 1, 1);
-            put(P.log, x, y, z, s, s, rot, col);
+            if (SC) {
+              const v = SC.log[rr > 0.35 ? 0 : 1];
+              const kl = s / v.size[0], kt = Math.min(1.6, Math.max(0.45, s / 14)) / v.size[1];
+              col.setRGB(0.9 + rr * 0.15, 0.9 + rr * 0.12, 0.9 + rr * 0.1);
+              putS(v.lod[dist < 45 ? 0 : 1], x, y, z, kl, kt, kt, rot, col);
+            } else {
+              col.setRGB(1, 1, 1);
+              put(P.log, x, y, z, s, s, rot, col);
+            }
             continue;
           }
           if (dist > R) continue;
@@ -487,11 +781,11 @@ export class Vegetation {
           const near = dist < q.near, full = dist < q.lod0;
           if (dist < 60) colliders.push(x, z, clamp(s * 0.012, 0.2, 0.7));
           if (t === T_FIR) {
-            col.copy(this._pick(y < 1000 ? PAL.douglas : PAL.hemlock, rr)).multiplyScalar(0.85 + rr * 0.3);
+            col.copy(this._pick(this.photoTrees ? (y < 1000 ? PAL.photo.douglas : PAL.photo.hemlock) : y < 1000 ? PAL.douglas : PAL.hemlock, rr)).multiplyScalar(0.85 + rr * 0.3);
             if (winter) col.lerp(C('#dde4ec'), 0.35);
             put(full ? (rr > 0.5 ? P.firNear : P.firNear2) : near ? P.firMid : P.firFar, x, y, z, s, s, rot, col);
           } else if (t === T_SPIRE) {
-            col.copy(this._pick(PAL.subalpine, rr)).multiplyScalar(0.85 + rr * 0.3);
+            col.copy(this._pick(this.photoTrees ? PAL.photo.subalpine : PAL.subalpine, rr)).multiplyScalar(0.85 + rr * 0.3);
             if (winter) col.lerp(C('#e6ecf2'), 0.45);
             put(full ? P.spireNear : near ? P.spireMid : P.spireFar, x, y, z, s * 0.9, s, rot, col);
           } else if (t === T_DECID) {
@@ -504,7 +798,9 @@ export class Vegetation {
         }
       }
     }
-    const all = [P.firNear, P.firNear2, P.spireNear, P.firMid, P.spireMid, P.decid, P.firFar, P.spireFar, P.decidFar, P.snag, P.log, ...P.shrub, ...P.rock];
+    const scannedFar = SC ? [...SC.rock.flat(), ...SC.log].flatMap((v) => v.lod) : [];
+    const all = [P.firNear, P.firNear2, P.spireNear, P.firMid, P.spireMid, P.decid, P.firFar, P.spireFar, P.decidFar, P.snag, P.log, ...P.shrub, ...P.rock, ...scannedFar];
+    for (const mesh of scannedFar) mesh.visible = (counts.get(mesh) || 0) > 0;
     for (const mesh of all) {
       mesh.count = counts.get(mesh) || 0;
       mesh.instanceMatrix.needsUpdate = true;

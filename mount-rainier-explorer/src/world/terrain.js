@@ -53,6 +53,11 @@ uniform float uTreeFar;
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
+#ifdef USE_SAT
+uniform sampler2D uSat;
+uniform float uSatGain, uSatMix;
+#endif
+
 // --- photo-scanned ground detail (near the camera) ---------------------------
 float gNear = 0.0;     // how much scanned detail is visible here (0 far away)
 vec3 gP = vec3(0.0);   // world-space normal perturbation from the detail maps
@@ -259,13 +264,32 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   P = mix(P, dSnow.p, snow);
   c = mix(c, DET(ice, dSnow, 0.4), glacier * 0.85);
   P = mix(P, dSnow.p * 0.6, glacier * 0.85);
+#ifdef USE_SAT
+  {
+    // Beyond the scanned near field the ground takes its colour from the
+    // Sentinel-2 mosaic: real forest stands, moraines, rock bands, river bars.
+    float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    float w = smoothstep(70.0, 420.0, camDist) * inside;
+    if (w > 0.0) {
+      vec3 sat = texture2D(uSat, uv).rgb * uSatGain;
+      float sl = dot(sat, vec3(0.2126, 0.7152, 0.0722));
+      float cl = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      // the satellite saw summer: autumn meadows keep our reds and golds, shaded by its pattern
+      float keepHue = a3 * (1.0 - fst) * (0.35 + 0.65 * fall) * step(0.5, uSeason) * step(uSeason, 1.5);
+      vec3 target = mix(sat, c * clamp(sl / max(cl, 1e-3), 0.6, 1.6), keepHue);
+      // snow is blown out in the imagery: keep ours (and winter's snow cover)
+      target = mix(target, c, max(snow, glacier * 0.85));
+      c = mix(c, target, w * uSatMix);
+    }
+  }
+#endif
   gP = P * gNear;
   return c;
 }
 `;
 
 export class Terrain {
-  constructor(hf, atmo, { levels = 8, N = 128, base = 4, detail = null } = {}) {
+  constructor(hf, atmo, { levels = 8, N = 128, base = 4, detail = null, satellite = null } = {}) {
     this.hf = hf;
     this.levels = levels;
     this.N = N;
@@ -292,13 +316,20 @@ export class Terrain {
       shared.uDetC = { value: detail.color };
       shared.uDetN = { value: detail.normal };
     }
+    if (satellite) {
+      shared.uSat = { value: satellite };
+      shared.uSatGain = { value: 1.0 };
+      shared.uSatMix = { value: 1.0 };
+    }
     this.shared = shared;
     for (let i = 0; i < levels; i++) {
       const hole = { value: new THREE.Vector4(1, 1, -1, -1) };
       const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-      if (detail) mat.defines = { USE_DETAIL: '' };
+      mat.defines = {};
+      if (detail) mat.defines.USE_DETAIL = '';
+      if (satellite) mat.defines.USE_SAT = '';
       stylize(mat, atmo, {
-        key: detail ? 'terrain-detail' : 'terrain',
+        key: `terrain${detail ? '-detail' : ''}${satellite ? '-sat' : ''}`,
         uniforms: { ...shared, uHole: hole },
         vertexPars: `${HEIGHT_GLSL}
           uniform vec3 uFocus; uniform float uHalfN; uniform float uMorphR;`,

@@ -46,20 +46,27 @@ function huckleberryTexture() {
 }
 
 /**
- * A low, dome-shaped huckleberry bush: ~34 small leafy cards laid over a dome,
+ * A low, dome-shaped huckleberry bush: small leafy cards laid over a dome,
  * each facing outward, the top ones lying almost flat so the bush is covered
- * from above too. Unit radius ~0.55, height ~0.6.
+ * from above too. Unit radius ~0.55, height ~0.6. With `rects` (leaf clumps
+ * baked from a real shrub scan) each card shows one clump of the atlas.
  */
-function shrubGeometry() {
+function shrubGeometry(rects = null, count = 34, sizeK = 1) {
   const P = [], N = [], U = [], V = [];
   const r = mulberry32(77);
-  const push = (p, n, uv, vary) => { P.push(...p); N.push(...n); U.push(...uv); V.push(vary); };
-  for (let i = 0; i < 34; i++) {
+  let rect = null;
+  const push = (p, n, uv, vary) => {
+    P.push(...p); N.push(...n);
+    U.push(...(rect ? [rect.uv[0] + uv[0] * rect.uv[2], rect.uv[1] + uv[1] * rect.uv[3]] : uv));
+    V.push(vary);
+  };
+  for (let i = 0; i < count; i++) {
+    rect = rects ? rects[Math.floor(r() * rects.length)] : null;
     // point on the dome
     const az = r() * Math.PI * 2, el = Math.acos(1 - r() * 0.95);
     const nx = Math.sin(el) * Math.cos(az), ny = Math.cos(el), nz = Math.sin(el) * Math.sin(az);
     const cx = nx * 0.5, cy = ny * 0.5 + 0.05, cz = nz * 0.5;
-    const size = 0.26 + r() * 0.2;
+    const size = (0.26 + r() * 0.2) * sizeK;
     // card basis: tangent around the dome and a "bitangent" leaning outward+up
     let tx = -Math.sin(az), tz = Math.cos(az);
     const roll = (r() - 0.5) * 1.4;
@@ -100,7 +107,7 @@ function moundGeometry() {
 }
 
 export class MeadowCarpet {
-  constructor(hf, paths, atmo, quality) {
+  constructor(hf, paths, atmo, quality, cards = null) {
     this.hf = hf;
     this.paths = paths;
     this.atmo = atmo;
@@ -129,14 +136,34 @@ export class MeadowCarpet {
         float ph = instanceMatrix[3][0] * 0.3 + instanceMatrix[3][2] * 0.23;
         transformed.x += sin(uTime * 1.7 + ph) * 0.04 * position.y;
       #endif`;
-    const near = lambert(atmo, { map: huckleberryTexture(), vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide }, {
-      key: 'meadow-near',
+    const leaf = cards?.leaf;
+    // with the photo leaf atlas the leaves keep their own light and shade and
+    // take the mosaic's colour (reds, golds, greens) from the patch
+    const photoColor = `
+      {
+        vec3 tx = texture2D(map, vMapUv).rgb;
+        float l = dot(tx, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb = vColor.rgb * mix(vec3(l), tx, 0.12) * 3.6 * vShade;
+      }`;
+    const near = lambert(atmo, leaf
+      ? { map: leaf.map, normalMap: leaf.normalMap, normalScale: new THREE.Vector2(0.7, 0.7), vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide }
+      : { map: huckleberryTexture(), vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide }, {
+      key: leaf ? 'meadow-near-photo' : 'meadow-near',
       vertexPars: patch, colorVertex, vertexBegin: sway,
       fragmentPars: 'varying float vShade;',
-      colorFragment: 'diffuseColor.rgb *= vShade;',
+      colorFragment: leaf ? photoColor : 'diffuseColor.rgb *= vShade;',
       normalFragment: 'normal = normalize(vNormal);',
     });
     near.alphaToCoverage = true;
+    // mid distance: the same leafy shrubs with fewer, bigger cards instead of smooth mounds
+    const midPhoto = leaf ? lambert(atmo, { map: leaf.map, vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide }, {
+      key: 'meadow-mid-photo',
+      vertexPars: patch, colorVertex,
+      fragmentPars: 'varying float vShade;',
+      colorFragment: photoColor,
+      normalFragment: 'normal = normalize(vNormal);',
+    }) : null;
+    if (midPhoto) midPhoto.alphaToCoverage = true;
     const mid = lambert(atmo, { vertexColors: true }, {
       key: 'meadow-mid',
       vertexPars: patch, colorVertex,
@@ -157,8 +184,9 @@ export class MeadowCarpet {
     };
     // knee-high shrubs: contact darkening comes from the AO pass; their own
     // shadow-map shadows only speckle the whole meadow dark
-    this.near = mk(shrubGeometry(), near, this.q.nearCap, false);
-    this.mid = mk(moundGeometry(), mid, this.q.midCap, false);
+    const clumps = leaf ? leaf.rects.slice(0, 8) : null;
+    this.near = mk(shrubGeometry(clumps, leaf ? 44 : 34, leaf ? 0.85 : 1), near, this.q.nearCap, false);
+    this.mid = leaf ? mk(shrubGeometry(clumps, 12, 1.45), midPhoto, this.q.midCap, false) : mk(moundGeometry(), mid, this.q.midCap, false);
   }
 
   setQuality(q) {

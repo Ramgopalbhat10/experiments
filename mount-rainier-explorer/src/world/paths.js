@@ -19,8 +19,11 @@ function key(x, z) { return `${x},${z}`; }
  * and streams draped ribbon meshes in 1 km chunks around the player.
  */
 export class PathNetwork {
-  constructor(features, hf, atmo, { detail = null } = {}) {
+  constructor(features, hf, atmo, { detail = null, props = null } = {}) {
     this.detail = detail;
+    // scanned grey rocks line the trails when they're available
+    this.stoneParts = props?.byAsset.rock_moss_set_02 || null;
+    this.stoneMat = this.stoneParts ? props.material('rock_moss_set_02') : null;
     this.hf = hf;
     this.atmo = atmo;
     this.lines = [];
@@ -371,7 +374,33 @@ export class PathNetwork {
       grp.add(m);
     }
     // edge stones, posts and rope lines
-    if (edges.stones.length) {
+    if (edges.stones.length && this.stoneParts) {
+      // one instanced mesh per rock shape, each stone picking a shape by its random
+      const parts = this.stoneParts, n = edges.stones.length / 6;
+      const byPart = parts.map(() => []);
+      for (let i = 0; i < n; i++) byPart[Math.floor(edges.stones[i * 6 + 5] * 997) % parts.length].push(i);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+      parts.forEach((p, pi) => {
+        const list = byPart[pi];
+        if (!list.length) return;
+        const im = new THREE.InstancedMesh(p.lods[2] || p.lods[1], this.stoneMat, list.length);
+        list.forEach((i, j) => {
+          const o = i * 6, sc = edges.stones[o + 3];
+          const k = (2.2 * sc) / Math.max(p.size[0], p.size[2]);
+          q.setFromAxisAngle(_up, edges.stones[o + 4]);
+          m4.compose(_v.set(edges.stones[o], edges.stones[o + 1] - p.size[1] * k * 0.1, edges.stones[o + 2]), q, _s.set(k, k * 0.8, k));
+          im.setMatrixAt(j, m4);
+          const g = 0.8 + edges.stones[o + 5] * 0.3;
+          im.setColorAt(j, c.setRGB(g, g, g * 0.97));
+        });
+        // small enough that their shadows aren't worth a second pass
+        im.castShadow = false;
+        im.receiveShadow = true;
+        im.computeBoundingSphere();
+        im.userData.detail = true;
+        grp.add(im);
+      });
+    } else if (edges.stones.length) {
       const n = edges.stones.length / 6;
       const im = new THREE.InstancedMesh(this.stoneGeo, this.edgeMat, n);
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();

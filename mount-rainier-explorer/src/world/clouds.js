@@ -2,42 +2,10 @@ import * as THREE from 'three';
 import { ATMO_PARS, NOISE_GLSL } from '../shaders/common.glsl.js';
 import { mulberry32 } from '../core/noise.js';
 
-/** A cauliflower cumulus drawn from overlapping soft blobs, flat-bottomed. */
-function cumulusTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d');
-  const r = mulberry32(8);
-  for (let i = 0; i < 70; i++) {
-    const t = r();
-    const x = 128 + (r() - 0.5) * 150 * (1 - t * 0.4);
-    const y = 170 - t * 110 + (r() - 0.5) * 20;
-    const rad = 18 + r() * 34 * (1 - t * 0.3);
-    const grd = g.createRadialGradient(x, y - rad * 0.25, rad * 0.1, x, y, rad);
-    const v = Math.floor(200 + t * 55);
-    grd.addColorStop(0, `rgba(${v},${v},${v},0.95)`);
-    grd.addColorStop(0.7, `rgba(${v - 20},${v - 20},${v - 15},0.6)`);
-    grd.addColorStop(1, 'rgba(160,160,170,0)');
-    g.fillStyle = grd;
-    g.beginPath();
-    g.arc(x, y, rad, 0, Math.PI * 2);
-    g.fill();
-  }
-  // flatten the base
-  g.globalCompositeOperation = 'destination-out';
-  const fade = g.createLinearGradient(0, 175, 0, 215);
-  fade.addColorStop(0, 'rgba(0,0,0,0)');
-  fade.addColorStop(1, 'rgba(0,0,0,1)');
-  g.fillStyle = fade;
-  g.fillRect(0, 175, 256, 81);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 /**
  * Cumulus billowing around the summit and over the Cascades, like a typical
- * September afternoon at Paradise. Camera-facing puffs, lit by the sun.
+ * September afternoon at Paradise. Camera-facing billboards shaped by noise
+ * and self-shadowed toward the sun, so they read as vapour, not cotton.
  */
 export class Clouds {
   constructor(atmo, summit) {
@@ -70,7 +38,7 @@ export class Clouds {
     g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(new Float32Array(seeds), 1));
     g.instanceCount = sizes.length;
     this.material = new THREE.ShaderMaterial({
-      uniforms: { ...atmo.uniforms, uMap: { value: cumulusTexture() }, uCover: { value: 1 } },
+      uniforms: { ...atmo.uniforms, uCover: { value: 1 } },
       vertexShader: /* glsl */ `
         #include <common>
         #include <logdepthbuf_pars_vertex>
@@ -96,28 +64,47 @@ export class Clouds {
         #include <logdepthbuf_pars_fragment>
         ${NOISE_GLSL}
         ${ATMO_PARS}
-        uniform sampler2D uMap;
         uniform float uCover;
         uniform vec3 uLightColor, uAmbient;
         varying vec2 vUv;
         varying vec3 vWorldPos;
         varying float vSeed;
+        // billowing cumulus: a dome with a flat base, eaten away by noise at every scale
+        float fbm4(vec2 p) {
+          float s = 0.0, a = 0.5;
+          for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.03 + 7.1; a *= 0.5; }
+          return s;
+        }
+        float density(vec2 uv) {
+          vec2 q = uv - vec2(0.5, 0.36);
+          float dome = 1.0 - length(q * vec2(1.9, 2.4 - step(0.0, q.y) * 0.5));
+          float base = smoothstep(0.02, 0.12, uv.y);                        // flat underside
+          vec2 np = uv * vec2(3.2, 2.6) + vSeed * 17.0 + vec2(uTime * 0.004, 0.0);
+          float n = fbm4(np) + 0.5 * fbm4(np * 2.7 + 3.3) - 0.35;
+          return clamp((dome + n * 0.55) * base, 0.0, 1.0);
+        }
         void main() {
           #include <logdepthbuf_fragment>
           vec2 uv = vUv;
           if (vSeed > 0.5) uv.x = 1.0 - uv.x;
-          vec4 t = texture2D(uMap, uv);
-          float a = t.a * uCover;
+          float d = density(uv);
+          float a = smoothstep(0.18, 0.5, d) * uCover;
           if (a < 0.01) discard;
+          // light marched a little toward the sun across the billboard: deep, shadowed cores
           vec3 V = normalize(vWorldPos - cameraPosition);
+          vec3 R = normalize(cross(vec3(0.0, 1.0, 0.0), -V));
+          vec2 sd = normalize(vec2(dot(uSunDir, R), uSunDir.y) + 1e-4);
+          float occl = 0.0;
+          for (int i = 1; i <= 4; i++) occl += density(uv + sd * 0.045 * float(i));
+          float light = exp(-occl * 0.85);
           float toSun = max(dot(V, uSunDir), 0.0);
-          // sunlit crowns, blue-grey shaded bases, silver lining when backlit
-          vec3 lit = uLightColor * 0.42 + uAmbient * 0.55;
-          vec3 shade = uAmbient * 0.75 + vec3(0.03, 0.035, 0.05);
-          vec3 col = mix(shade, lit, smoothstep(0.15, 0.95, uv.y) * t.r);
-          col += uSunColor * pow(toSun, 8.0) * (1.0 - a) * 1.5;
+          vec3 lit = uLightColor * 0.5 + uAmbient * 0.4;
+          vec3 shade = uAmbient * 0.62 + vec3(0.025, 0.03, 0.045);
+          vec3 col = mix(shade, lit, clamp(light * 1.15 + uv.y * 0.15, 0.0, 1.0));
+          // silver lining where thin cloud is backlit
+          col += uSunColor * pow(toSun, 10.0) * (1.0 - smoothstep(0.2, 0.7, d)) * 1.8;
           col = mix(col, applyFog(col, vWorldPos), 0.6);
-          gl_FragColor = vec4(col, a * 0.95);
+          gl_FragColor = vec4(col, a * 0.97);
         }`,
       transparent: true,
       depthWrite: false,

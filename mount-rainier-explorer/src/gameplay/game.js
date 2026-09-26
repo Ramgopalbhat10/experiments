@@ -148,11 +148,14 @@ export class Game {
   ready() { return $('intro').classList.contains('gone') && !this.map.open && !this.hud.panel; }
 
   toggleView() {
-    const first = this.controller.mode !== 'first';
+    this.setView(this.controller.mode !== 'first');
+  }
+
+  setView(first, quiet = false) {
     this.controller.setMode(first ? 'first' : 'third');
     document.body.classList.toggle('fp', first);
     document.body.classList.toggle('viewfinder', first && this.item === 'camera');
-    this.toast(first ? 'First person' : 'Third person');
+    if (!quiet) this.toast(first ? 'First person' : 'Third person');
   }
 
   use() {

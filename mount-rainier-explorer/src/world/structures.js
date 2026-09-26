@@ -66,7 +66,7 @@ function signGeometry() {
 }
 
 export class Structures {
-  constructor(features, hf, atmo, geo) {
+  constructor(features, hf, atmo, geo, { assets = null } = {}) {
     this.group = new THREE.Group();
     this.group.name = 'structures';
     this.polys = [];
@@ -76,7 +76,7 @@ export class Structures {
     const mat = lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, { key: 'struct' });
     // OSM buildings: stone foundation, cedar shingle courses, framed window rows
     // (warm at night) and shingled roofs, all painted in the shader
-    const houseMat = lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, {
+    const houseMat = assets ? this._photoHouseMat(atmo, assets) : lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, {
       key: 'house',
       uniforms: { uGlow: this.glassGlow },
       vertexPars: 'attribute vec3 aB; varying vec3 vB;',
@@ -192,6 +192,93 @@ export class Structures {
     }
   }
 
+  /**
+   * Buildings dressed in photo-scanned materials (Poly Haven, CC0): weathered
+   * plank siding over a stone foundation, grey shingle roofs, each tinted by
+   * the building's own colour, with window rows whose glass reflects the sky.
+   */
+  _photoHouseMat(atmo, assets) {
+    const loader = new THREE.TextureLoader();
+    const tex = (name, srgb) => {
+      const t = loader.load(`${assets}/models/tex/${name}.webp`);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    const uniforms = {
+      uGlow: this.glassGlow,
+      uWallC: { value: tex('weathered_plank_siding_c', true) }, uWallN: { value: tex('weathered_plank_siding_n') },
+      uStoneC: { value: tex('rustic_stone_wall_02_c', true) }, uStoneN: { value: tex('rustic_stone_wall_02_n') },
+      uRoofC: { value: tex('grey_roof_01_c', true) }, uRoofN: { value: tex('grey_roof_01_n') },
+    };
+    // which surface a fragment is on and where it samples:
+    // 0 stone, 1 siding, 2 roof, 3 glass, 4 painted trim
+    const SURF = /* glsl */ `
+      int surf; vec2 suv; float vWin; vec2 winCell;
+      void surface() {
+        vWin = 0.0;
+        if (vB.x > 2.5) { surf = 0; suv = vB.yz / 2.6; return; }          // chimney stone
+        if (vB.x > 1.5) { surf = 4; suv = vB.yz; return; }                // fascia and soffit
+        if (vB.x < 0.5) {
+          float u = vB.y, v = vB.z;
+          if (v < 0.9) { surf = 0; suv = vec2(u, v) / 2.6; return; }
+          surf = 1; suv = vec2(u, v) / 2.2;
+          // window rows: spacing and size vary per building, and not every bay has one
+          float sp = vW.x, hw = vW.y * 0.5 / sp;
+          vec2 w = vec2(fract(u / sp), fract((v - 0.9) / 3.2));
+          winCell = floor(vec2(u / sp, (v - 0.9) / 3.2));
+          float keep = step(0.18, hash12(winCell + vW.x * 7.1));
+          float inWin = keep * step(0.5 - hw, w.x) * step(w.x, 0.5 + hw) * step(0.2, w.y) * step(w.y, 0.72) * step(1.3, v);
+          float t = 0.035 / sp * 3.0;
+          float glassIn = step(0.5 - hw + t, w.x) * step(w.x, 0.5 + hw - t) * step(0.235, w.y) * step(w.y, 0.685)
+            * (1.0 - step(abs(w.x - 0.5), 0.012)) * (1.0 - step(abs(w.y - 0.47), 0.008));
+          if (glassIn * inWin > 0.5) { surf = 3; suv = w; }
+          else if (inWin > 0.5) { surf = 4; suv = w; }
+        } else { surf = 2; suv = vB.yz / 2.4; }
+      }`;
+    return lambert(atmo, { vertexColors: true, flatShading: true, side: THREE.DoubleSide }, {
+      key: 'house-photo',
+      uniforms,
+      vertexPars: 'attribute vec3 aB; attribute vec2 aW; varying vec3 vB; varying vec2 vW;',
+      vertexBegin: 'vB = aB; vW = aW;',
+      fragmentPars: `uniform float uGlow; varying vec3 vB; varying vec2 vW;
+        uniform sampler2D uWallC, uWallN, uStoneC, uStoneN, uRoofC, uRoofN;
+        ${SURF}
+        float lum(vec3 c) { return dot(c, vec3(0.3, 0.59, 0.11)); }`,
+      colorFragment: `
+        surface();
+        vec3 base = diffuseColor.rgb;     // the building's own colour (vertex colour)
+        // photo textures normalised by their mean so each building keeps its colour
+        if (surf == 0) { vec3 st = texture2D(uStoneC, suv).rgb; diffuseColor.rgb = mix(vec3(lum(st)), st, 0.5) * 0.95; }
+        else if (surf == 1) diffuseColor.rgb = lum(texture2D(uWallC, suv).rgb) / 0.054 * base;
+        else if (surf == 2) diffuseColor.rgb = lum(texture2D(uRoofC, suv).rgb) / 0.106 * base;
+        else if (surf == 4) diffuseColor.rgb = vB.x > 1.5 ? base * 0.55 : vec3(0.36, 0.33, 0.27);
+        else {
+          // glass: dark rooms behind, the sky reflected more at grazing angles
+          vec3 V = normalize(cameraPosition - vWorldPos);
+          vec3 n = normalize(cross(dFdx(vWorldPos), dFdy(vWorldPos)));
+          float fres = pow(1.0 - abs(dot(V, n)), 3.0);
+          vec3 room = mix(vec3(0.02, 0.022, 0.025), vec3(0.06, 0.05, 0.04), hash12(winCell + 1.3));
+          diffuseColor.rgb = mix(room, mix(uHorizon, uZenith, 0.35) * 0.9, 0.25 + 0.6 * fres);
+          vWin = step(0.35, hash12(winCell + 3.7));
+        }`,
+      normalFragment: `
+        if (surf <= 2) {
+          vec3 mapN = (surf == 0 ? texture2D(uStoneN, suv) : surf == 1 ? texture2D(uWallN, suv) : texture2D(uRoofN, suv)).xyz * 2.0 - 1.0;
+          vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition);
+          vec2 st0 = dFdx(suv), st1 = dFdy(suv);
+          vec3 N0 = normalize(normal);
+          vec3 q1p = cross(q1, N0), q0p = cross(N0, q0);
+          vec3 T = q1p * st0.x + q0p * st1.x, B = q1p * st0.y + q0p * st1.y;
+          float dt = max(dot(T, T), dot(B, B));
+          float sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
+          normal = normalize(T * (mapN.x * sc) + B * (mapN.y * sc) + N0 * mapN.z);
+        }`,
+      lightsEnd: 'reflectedLight.indirectDiffuse += vec3(1.0, 0.62, 0.3) * uGlow * vWin * 1.6;',
+    });
+  }
+
   _building(pts, b, hf) {
     const rnd = mulberry32(hash2(pts[0].x | 0, pts[0].y | 0));
     let minH = Infinity, maxH = -Infinity, cx = 0, cz = 0;
@@ -209,8 +296,15 @@ export class Structures {
     const roofH = Math.min(9, ext * 0.45);
     const wallCol = new THREE.Color(rnd() > 0.35 ? '#7a5a3e' : '#8f887c').multiplyScalar(0.85 + rnd() * 0.3);
     const roofCol = new THREE.Color(['#3d5a3e', '#4a3228', '#3a3f45', '#6b2e22'][Math.floor(rnd() * 4)]);
-    const pos = [], col = [], bb = [];
-    const push = (x, y, z, c, k, u, v) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); bb.push(k, u, v); };
+    const pos = [], col = [], bb = [], ww = [];
+    const winSp = 2.4 + rnd() * 1.4, winW = Math.min(winSp * 0.55, 0.9 + rnd() * 0.7);
+    const push = (x, y, z, c, k, u, v) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); bb.push(k, u, v); ww.push(winSp, winW); };
+    const quad = (A, B, Cc, D, c, k) => {
+      // A,B along the bottom, D,Cc along the top; u across, v up
+      const L = Math.hypot(B[0] - A[0], B[2] - A[2]), H = Math.hypot(D[0] - A[0], D[1] - A[1], D[2] - A[2]);
+      push(...A, c, k, 0, 0); push(...B, c, k, L, 0); push(...Cc, c, k, L, H);
+      push(...A, c, k, 0, 0); push(...Cc, c, k, L, H); push(...D, c, k, 0, H);
+    };
     const n = pts.length;
     const inset = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 0.25, cz + (p.y - cz) * 0.25));
     const eave = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 1.08, cz + (p.y - cz) * 1.08));
@@ -228,7 +322,25 @@ export class Structures {
       const Le = Math.hypot(ec.x - ea.x, ec.y - ea.y);
       push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ec.x, top - 0.3, ec.y, roofCol, 1, Le, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope);
       push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope); push(ia.x, top + roofH, ia.y, roofCol, 1, 0, slope);
+      // fascia board along the eave, and the soffit back to the wall
+      quad([ea.x, top - 0.62, ea.y], [ec.x, top - 0.62, ec.y], [ec.x, top - 0.3, ec.y], [ea.x, top - 0.3, ea.y], roofCol, 2);
+      quad([a.x, top, a.y], [c.x, top, c.y], [ec.x, top - 0.62, ec.y], [ea.x, top - 0.62, ea.y], roofCol, 2);
       run += L;
+    }
+    // stone chimneys on the bigger buildings
+    if (ext > 11) {
+      const nc = ext > 30 ? 2 : 1;
+      for (let k = 0; k < nc; k++) {
+        const p = inset[Math.floor(rnd() * n)];
+        const qx = cx + (p.x - cx) * (0.4 + rnd() * 0.5), qz = cz + (p.y - cz) * (0.4 + rnd() * 0.5);
+        const w = 0.7 + rnd() * 0.4, y1 = top + roofH + 1.2 + rnd();
+        const cc = [[qx - w, qz - w], [qx + w, qz - w], [qx + w, qz + w], [qx - w, qz + w]];
+        for (let i = 0; i < 4; i++) {
+          const A = cc[i], B = cc[(i + 1) % 4];
+          quad([A[0], top, A[1]], [B[0], top, B[1]], [B[0], y1, B[1]], [A[0], y1, A[1]], wallCol, 3);
+        }
+        quad([qx - w - 0.1, y1, qz - w - 0.1], [qx + w + 0.1, y1, qz - w - 0.1], [qx + w + 0.1, y1, qz + w + 0.1], [qx - w - 0.1, y1, qz + w + 0.1], wallCol, 3);
+      }
     }
     const tris = THREE.ShapeUtils.triangulateShape(inset, []);
     for (const t of tris) {
@@ -239,6 +351,7 @@ export class Structures {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.setAttribute('aB', new THREE.Float32BufferAttribute(bb, 3));
+    g.setAttribute('aW', new THREE.Float32BufferAttribute(ww, 2));
     g.computeVertexNormals();
     return g;
   }

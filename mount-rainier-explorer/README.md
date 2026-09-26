@@ -1,6 +1,6 @@
 # Rainier Explorer
 
-A Firewatch-inspired hiking game set in **Mount Rainier National Park**, built with three.js. It covers about 41 × 41 km of real terrain around the mountain: glaciers, alpine lakes, waterfalls, trails, fire lookouts and fall colour. You can play in third or first person, carry hiking gear, make camp, cook, listen to the radio and stargaze.
+A Firewatch-inspired hiking game set in **Mount Rainier National Park**, built with three.js. It covers about 41 × 41 km of real terrain around the mountain: glaciers, alpine lakes, waterfalls, trails, fire lookouts and fall colour. You see the park through the hiker's eyes (third person is one key away), carry hiking gear, make camp, cook, listen to the radio and stargaze.
 
 
 ## Run it
@@ -23,6 +23,10 @@ Any static file server works. Options go in the URL:
 | `q` | `?q=high` | Graphics: `low`, `medium`, `high` |
 | `stats` | `?stats` | Show fps / draw calls |
 | `ao` | `?ao=0` | Turn ambient occlusion off |
+| `view` | `?view=third` | Start behind the hiker instead of first person |
+| `detail`, `props`, `sat` | `?props=0` | Turn off the scanned ground textures, the scanned models and photo foliage, or the satellite colour |
+| `shafts` | `?shafts=2` | Light-shaft strength (`0` turns them off) |
+| `puffs` | `?puffs=1` | Add the cumulus billboards around the summit |
 
 ## Controls
 
@@ -30,7 +34,7 @@ Any static file server works. Options go in the URL:
 |---|---|
 | WASD / arrows, Shift, Space | Walk, run, jump |
 | Mouse (click to lock) | Look |
-| **V** | First / third person |
+| **V** | Third / first person (first person is the default) |
 | **1–8** or wheel (first person) | Gear: hands, map, compass, radio, camera, binoculars, flashlight, trekking poles |
 | Left click | Use held gear (unfold map, radio on/off, photo, binoculars, flashlight) |
 | Right mouse | Look through binoculars; the rangefinder shows distance, elevation and what you're looking at |
@@ -57,20 +61,23 @@ Gamepads and touch screens (virtual joystick) also work.
 - 45 curated destinations with descriptions, discovery tracking, and a ranger on the radio with a line about each one.
 
 **Matched to the real place**
-- Fall colour follows the real ecology. Huckleberry, heather and mountain ash grow thickest along the trails through the subalpine band (about 1,350–1,950 m), with grassy openings between them. Lower down the meadows turn vine-maple gold, and higher up they give way to cured grass, pumice and rubble, as at Sunrise. Near shrubs, mid-distance mounds and far terrain share one colour function, so the hand-off is seamless.
+- Fall colour follows the real ecology. Huckleberry, heather and mountain ash grow thickest along the trails through the subalpine band (about 1,350–1,950 m), with grassy openings between them. Lower down the meadows turn vine-maple gold, and higher up they give way to cured grass, pumice and rubble, as at Sunrise. Near and mid-distance shrubs and the far terrain share one colour function, so the hand-off is seamless.
 - Distant peaks read as brown and grey andesite, with talus streaked down the fall line, rust staining, and individual stones close up. Far meadows are muted to rust and olive rather than saturated patches.
-- Dense subalpine fir and mountain hemlock "tree islands" on a 4 m placement grid, plus lone firs standing in the meadows, as at Paradise and Spray Park. Conifers use three LODs: full branch cards, a lighter mid-distance mesh, and painted impostors.
+- Dense subalpine fir and mountain hemlock "tree islands" on a 4 m placement grid, plus lone firs standing in the meadows, as at Paradise and Spray Park. Conifers use three LODs: full branch sprays, a lighter mid-distance mesh, and impostors.
 - Named waterfalls are set pieces: a gorge carved into the terrain, a craggy face of broken andesite ledges (wet and dark where the water runs, mossy on the ledges), thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
 - Paved trails (the Skyline loop) are weathered asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
-- OSM buildings have stone foundations, shingle courses, framed window rows that glow at night, and shingled roofs.
+- OSM buildings have stone foundations, plank siding, fascia boards, stone chimneys, varied window rows (sky reflected in the glass, warm light at night) and shingled roofs.
 - Lakes have shelving shores, boulders and sedges at the waterline. You arrive on a low shore with open water toward the mountain.
-- The sky is a September-afternoon blue, with sunlit cumulus building around the summit and over the Cascades. The high cone is dark reddish andesite against the glaciers.
+- The sky is a September-afternoon blue with high cirrus. The high cone is dark reddish andesite against the glaciers.
 - By default you start at the Myrtle Falls viewpoint at 3:30 PM in autumn.
 
-**Look (after Firewatch)**
-- Canvas-painted foliage textures: conifers built from drooping branch cards with soft canopy shading, painted impostors in the distance, windblown grass, fireweed and lupine, and huckleberry and vine maple that turn crimson in autumn.
-- A sky with a teal-to-tangerine gradient, posterized clouds and god rays. Height fog blends into the horizon, and a baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
-- Faceted boulders and cliffs with a shared weathered-rock shader (3D-noise strata, lichen, cracks, moss on up-facing facets), snags, fallen logs, glacier crevasses and debris-covered snouts.
+**Look (photo-real materials)**
+- Photo-scanned models from Poly Haven (CC0): mossy and grey boulders, rock faces, ferns, stumps, fallen trunks and branches, and small plants, simplified to three levels of detail and placed by the same ecology rules (ferns carpet the low forest, pebbles thicken on thin alpine soils).
+- Conifers are built from branch sprays baked from a scanned fir sapling's real needles: Douglas fir with open crowns and dead lower limbs, drooping hemlocks, and narrow subalpine fir spires, with bark-textured trunks, mid-distance meshes and impostors rendered from the same trees.
+- Huckleberry, vine maple and deciduous crowns use leaf clumps baked from a scanned shrub; the season's palette colours the real leaves (crimson huckleberry, gold vine maple).
+- Ground, trails, roads and buildings use scanned textures (grass, forest floor, cliff, talus, snow, gravel; plank siding, stone, shingles). Beyond the near field the ground takes its colour from Sentinel‑2 imagery with the satellite's own shading divided out.
+- A filmic grade (fitted ACES, teal shadows, amber highlights), valley mist that pools in low ground, and volumetric light shafts marched through the sun's shadow map. Height fog blends into the horizon, and a baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
+- Glacier crevasses and debris-covered snouts, snags, and a weathered-rock shader on the waterfall ledges.
 - Screen-space ambient occlusion (depth only, half resolution, medium and high quality) grounds shrubs, trees and rocks. Conifers are self-shadowed inside the crown.
 - Real night sky: bright-star catalogue and constellations rotated by local sidereal time for the in-game date, plus a Milky Way along the true galactic plane.
 
@@ -133,8 +140,10 @@ src/post.js           HDR grade, SSAO, bloom, god rays, volumetric light shafts
 src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
 tools/trailer/        offline trailer render, score synthesis, edit/encode
-assets/               terrain.png, landcover.png, features.json, trailer-score.mp3,
-                      tex/ (photo-scanned ground, rock and bark maps)
+assets/               terrain.png, landcover.png, features.json, satellite.webp, trailer-score.mp3,
+                      tex/ (scanned ground maps, baked fir and leaf cards),
+                      models/ (scanned rock and forest-floor packs + their textures)
+tools/assets/         Poly Haven fetch, model simplification, foliage card baking
 ```
 
 ## Rebuilding the data
@@ -144,6 +153,17 @@ pip install numpy pillow
 python3 tools/build_data.py     # downloads tiles into tools/.cache, writes assets/
 ```
 
+The photo-real assets are rebuilt from Poly Haven downloads:
+
+```bash
+cd tools/assets && npm install
+python3 fetch_polyhaven.py        # CC0 scans into tools/.cache/polyhaven
+node build_models.mjs             # assets/models/*.glb (split, simplified to LODs, meshopt)
+python3 build_textures.py         # assets/models/tex/*.webp
+node bake/bake_cards.mjs && python3 bake/pack_cards.py   # fir and leaf card atlases
+python3 ../build_satellite.py     # assets/satellite.webp from the Sentinel-2 tiles
+```
+
 `terrain.png` stores elevation in decimetres across the R/G channels, with flags (lake, river, road, glacier) in B. `landcover.png` holds forest, meadow and snow in R/G/B. `features.json` holds vectors in local metres (x east, z south), with the origin at 46.845°N, 121.715°W.
 
 ## Attribution
@@ -151,5 +171,6 @@ python3 tools/build_data.py     # downloads tiles into tools/.cache, writes asse
 - Elevation: USGS 3DEP via [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
 - Land cover derived from [Sentinel‑2 cloudless 2016](https://s2maps.eu) by EOX IT Services GmbH (CC BY 4.0), which contains modified Copernicus Sentinel data (2016)
 - Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL)
-- Photo-scanned textures in `assets/tex/` from [Poly Haven](https://polyhaven.com) (CC0): withered_grass, forrest_ground_01, cliff_side, aerial_rocks_02, rocky_trail, snow_02, river_small_rocks, pine_bark. They are resized to 1024 px WebP. Add `?detail=0` to the URL to turn them off.
-- The art direction is inspired by *Firewatch* (Campo Santo). This is a fan experiment. Apart from the Poly Haven scans, every model, texture and sound is generated procedurally.
+- Photo-scanned textures and models from [Poly Haven](https://polyhaven.com) (CC0). Textures: withered_grass, forrest_ground_01, cliff_side, aerial_rocks_02, rocky_trail, snow_02, river_small_rocks, pine_bark, weathered_plank_siding, rustic_stone_wall_02, grey_roof_01. Models: rock_moss_set_01, rock_moss_set_02, boulder_01, rock_face_01, rock_face_02, namaqualand_boulder_03, fern_02, tree_stump_01, dead_tree_trunk, dead_tree_trunk_02, dry_branches_medium_01, shrub_04; the fir and leaf cards are baked from fir_sapling and shrub_04.
+- Terrain colour from [Sentinel‑2 cloudless 2016](https://s2maps.eu) by EOX IT Services GmbH (CC BY 4.0), contains modified Copernicus Sentinel data (2016).
+- The first art direction was inspired by *Firewatch* (Campo Santo). This is a fan experiment. Apart from the Poly Haven scans and the satellite imagery, every model, texture and sound is generated procedurally.

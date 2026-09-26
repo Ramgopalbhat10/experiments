@@ -231,24 +231,139 @@ export function coniferGeometry({ whorls = 13, crownBase = 0.12, radius = 0.25, 
   return mergeGeometries([bark, foliage], true);
 }
 
-/** Broad-leaf crown (alder, cottonwood, vine maple) from leaf-clump cards. */
-export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false }) {
+/**
+ * Conifer built from photo-baked branch sprays (tools/assets/bake): a tapered
+ * trunk carrying whorls of drooping sprays, each branch one flat spray and
+ * one hanging one so the crown has depth from every side, with umbrella-like
+ * whorl cards filling the layers and a young-fir silhouette for the leader.
+ * Unit height; groups 0 = bark, 1 = sprays. `cards` is loadCards().fir.
+ *
+ * profile(t) gives the crown radius at relative crown height t (0 base .. 1 top).
+ */
+export function sprayConiferGeometry(cards, {
+  whorls = 18, crownBase = 0.15, radius = 0.2, perWhorl = 5, droop = 0.35, upturn = 0.15,
+  trunkR = 0.012, seed = 1, profile = (t) => 1 - t, width = 1.1, layers = 0.5, stubs = 0,
+}) {
+  const rnd = mulberry32(seed);
+  const P = [], N = [], U = [], F = [], C = [];
+  const sprays = cards.by('fir_spray'), whorl = cards.by('fir_whorl'), side = cards.by('fir_side');
+  const cy = (crownBase + 1) / 2;
+  const push = (p, uv, ao) => {
+    P.push(p[0], p[1], p[2]);
+    canopyNormal(p[0], p[1], p[2], cy, N);
+    U.push(uv[0], uv[1]);
+    F.push(Math.min(1, Math.hypot(p[0], p[2]) * 6) * Math.min(1, p[1] * 1.4));
+    C.push(ao, ao, ao * 0.97);
+  };
+  const tri = (a, b, c) => { for (const v of [a, b, c]) push(v.p, v.uv, v.ao); };
+  const aoAt = (x, y, z) => {
+    const t = Math.min(1, Math.max(0, (y - crownBase) / (1 - crownBase)));
+    const rMax = radius * Math.max(0.05, profile(t)) + 0.02;
+    const out = Math.min(1, Math.hypot(x, z) / rMax);
+    return (0.42 + 0.58 * Math.pow(out, 1.3)) * (0.72 + 0.34 * t);
+  };
+  // a spray bent in three segments: out from the trunk, drooping, the tip lifting
+  const spray = (y, a, L, W, roll, rect) => {
+    const d = [Math.cos(a), 0, Math.sin(a)];
+    const sx = -d[2], sz = d[0];
+    const drop = droop * (0.6 + rnd() * 0.8);
+    const pts = [[d[0] * trunkR, y, d[2] * trunkR]];
+    const angs = [drop * 0.55, drop * 1.2, drop * 0.6 - upturn];
+    for (let k = 0; k < 3; k++) {
+      const q = pts[k], seg = L / 3, e = angs[k];
+      pts.push([q[0] + d[0] * seg * Math.cos(e), q[1] - seg * Math.sin(e), q[2] + d[2] * seg * Math.cos(e)]);
+    }
+    // the card's cross axis: horizontal side vector rolled around the branch
+    const cr = Math.cos(roll), sr = Math.sin(roll);
+    const ax = [sx * cr * W / 2, sr * W / 2, sz * cr * W / 2];
+    const [u0, v0, uw, vh] = rect.uv;
+    const vx = (k, side) => {
+      const p = pts[k];
+      const q = [p[0] + ax[0] * side, p[1] + ax[1] * side, p[2] + ax[2] * side];
+      return { p: q, uv: [u0 + uw * (k / 3), v0 + vh * (side > 0 ? 1 : 0)], ao: aoAt(q[0], q[1], q[2]) };
+    };
+    for (let k = 0; k < 3; k++) {
+      const a0 = vx(k, -1), b0 = vx(k + 1, -1), b1 = vx(k + 1, 1), a1 = vx(k, 1);
+      tri(a0, b0, b1); tri(a0, b1, a1);
+    }
+  };
+  for (let w = 0; w < whorls; w++) {
+    const t = w / (whorls - 1);
+    const y = crownBase + (0.965 - crownBase) * t + (rnd() - 0.5) * 0.012;
+    const R = radius * Math.max(0.04, profile(t)) * (0.85 + rnd() * 0.3) + 0.012;
+    const n = Math.max(3, Math.round(perWhorl * (1 - t * 0.35)));
+    for (let b = 0; b < n; b++) {
+      const a = (b / n) * Math.PI * 2 + w * 2.39 + (rnd() - 0.5) * 0.7;
+      const rect = sprays[Math.floor(rnd() * sprays.length)];
+      const L = R * (1.0 + rnd() * 0.25);
+      const W = L * (rect.size[1] / rect.size[0]) * width;
+      spray(y, a, L, W, (rnd() - 0.5) * 0.6, rect);                               // flat
+      if (rnd() < 0.85) spray(y - 0.004, a + (rnd() - 0.5) * 0.3, L * 0.92, W * 0.9, Math.PI / 2 + (rnd() - 0.5) * 0.7, rect);  // hanging
+    }
+    // a whorl umbrella every other layer fills the crown seen from below and above
+    if (whorl.length && rnd() < layers) {
+      const rect = whorl[Math.floor(rnd() * whorl.length)];
+      const [u0, v0, uw, vh] = rect.uv;
+      const r0 = R * 1.05, rot = rnd() * Math.PI * 2, sag = droop * R * 0.7;
+      const c = { p: [0, y + 0.004, 0], uv: [u0 + uw / 2, v0 + vh / 2], ao: aoAt(0, y, 0) };
+      const corner = (k) => {
+        const ang = rot + (k * Math.PI) / 2;
+        const px = Math.cos(ang) * r0 * Math.SQRT2 * 0.8, pz = Math.sin(ang) * r0 * Math.SQRT2 * 0.8;
+        const uvs = [[u0 + uw, v0 + vh], [u0, v0 + vh], [u0, v0], [u0 + uw, v0]][k];
+        return { p: [px, y - sag, pz], uv: uvs, ao: aoAt(px, y - sag, pz) };
+      };
+      for (let k = 0; k < 4; k++) tri(c, corner(k), corner((k + 1) % 4));
+    }
+  }
+  // leader: two crossed young-fir silhouettes at the very top
+  if (side.length) {
+    const rect = side[Math.floor(rnd() * side.length)];
+    const [u0, v0, uw, vh] = rect.uv;
+    const h = 0.1, wdt = h * rect.size[0] / rect.size[1];
+    for (const a of [0, Math.PI / 2]) {
+      const dx = Math.cos(a) * wdt / 2, dz = Math.sin(a) * wdt / 2, y0 = 0.9;
+      const q = (x, y, z, u, v) => ({ p: [x, y, z], uv: [u0 + uw * u, v0 + vh * v], ao: 0.95 });
+      const A = q(-dx, y0, -dz, 0, 0), B = q(dx, y0, dz, 1, 0), Cc = q(dx, y0 + h, dz, 1, 1), D = q(-dx, y0 + h, -dz, 0, 1);
+      tri(A, B, Cc); tri(A, Cc, D);
+    }
+  }
+  const foliage = finish(P, N, U, F);
+  foliage.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  const parts = [barkGeometry(trunkR, trunkR * 0.18, 0.97, 9, [0.3, 0.2, 0.15])];
+  // dead lower limbs of old growth: thin, drooping, broken off at odd lengths
+  for (let i = 0; i < stubs; i++) {
+    const y = 0.14 + rnd() * (crownBase - 0.12), a = rnd() * Math.PI * 2, l = 0.012 + rnd() * rnd() * 0.05;
+    parts.push(barkGeometry(trunkR * 0.1, trunkR * 0.03, l, 3, [0.16, 0.12, 0.09]).rotateZ(-1.9 - rnd() * 0.5).rotateY(a).translate(0, y, 0));
+  }
+  return mergeGeometries([mergeGeometries(parts), foliage], true);
+}
+
+/**
+ * Broad-leaf crown (alder, cottonwood, vine maple) from leaf-clump cards.
+ * With `rects` (leaf clumps baked from a real shrub scan) each card shows one
+ * clump; clumpScale sizes the cards relative to the crown so the leaves stay
+ * near their real size (many small clumps rather than a few big ones).
+ */
+export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false, rects = null, clumpScale = 1 }) {
   const rnd = mulberry32(seed);
   const P = [], N = [], U = [], F = [];
   const cy = crownY;
   for (let i = 0; i < clumps; i++) {
     const a = rnd() * Math.PI * 2, e = (rnd() - 0.3) * 1.2;
-    const rr = crownR * (0.5 + rnd() * 0.5);
+    const rr = crownR * Math.pow(0.35 + rnd() * 0.65, 0.6);
     const cx = Math.cos(a) * Math.cos(e) * rr, cz = Math.sin(a) * Math.cos(e) * rr;
     const cyy = crownY + Math.sin(e) * rr * 0.8;
-    const s = crownR * (0.55 + rnd() * 0.45);
+    const s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    const rect = rects ? rects[Math.floor(rnd() * rects.length)] : null;
     // camera-agnostic: two crossed cards per clump
-    const t = rnd() * Math.PI;
+    const t = rnd() * Math.PI, tilt = rects ? (rnd() - 0.5) * 0.9 : 0;
+    const u0 = U.length;
     for (const k of [0, Math.PI / 2]) {
       const ax = [Math.cos(t + k) * s, 0, Math.sin(t + k) * s];
-      const up = [0, s * 0.85, 0];
-      card(P, N, U, F, [cx - ax[0] / 2, cyy - up[1] / 2, cz - ax[2] / 2], ax, up, cy);
+      const up = [-Math.sin(t + k) * s * tilt * 0.85, s * 0.85, Math.cos(t + k) * s * tilt * 0.85];
+      card(P, N, U, F, [cx - ax[0] / 2 - up[0] / 2, cyy - up[1] / 2, cz - ax[2] / 2 - up[2] / 2], ax, up, cy);
     }
+    if (rect) for (let j = u0; j < U.length; j += 2) { U[j] = rect.uv[0] + U[j] * rect.uv[2]; U[j + 1] = rect.uv[1] + U[j + 1] * rect.uv[3]; }
   }
   const foliage = finish(P, N, U, F);
   if (shrub) {

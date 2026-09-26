@@ -36,7 +36,7 @@ export function makeShots(R, C) {
     R.stars.showLines = false;
     R.stars.uniforms.uBoost.value = 1;
     R.camp.packUp();
-    R.clouds.mesh.visible = true;
+    R.clouds.mesh.visible = R.cloudPuffs;
     document.getElementById('subtitle').classList.remove('show');
   };
   const holdItem = (id) => {

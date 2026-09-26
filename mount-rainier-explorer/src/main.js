@@ -5,6 +5,7 @@ import { Atmosphere } from './world/atmosphere.js';
 import { Terrain, TerrainShadow } from './world/terrain.js';
 import { loadDetailTextures } from './world/textures.js';
 import { setSurfaceDetail } from './world/materials.js';
+import { loadProps } from './world/props.js';
 import { Sky } from './world/sky.js';
 import { PathNetwork } from './world/paths.js';
 import { Vegetation } from './world/vegetation.js';
@@ -89,6 +90,9 @@ async function boot() {
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.3, 200000);
 
   const atmo = new Atmosphere();
+  // photo-scanned rocks, ferns, logs and branches (?props=0 falls back to the procedural ones)
+  const propsLoad = params.get('props') === '0' ? Promise.resolve(null)
+    : loadProps(ASSETS, atmo).catch((e) => { console.warn('scanned props', e); return null; });
   atmo.uniforms.uWorld.value.set(hf.half, hf.size);
   atmo.uniforms.uHeightF.value = hf.heightTex;
   atmo.uniforms.uLightColor = { value: new THREE.Color() };
@@ -120,7 +124,14 @@ async function boot() {
 
   const detail = await detailLoad;
   setSurfaceDetail(detail);
-  let terrain = new Terrain(hf, atmo, { N: QUALITY[quality].terrainN, detail });
+  // Sentinel-2 colour for mid and far ground (?sat=0 turns it off)
+  let satellite = null;
+  if (params.get('sat') !== '0') {
+    satellite = new THREE.TextureLoader().load(`${ASSETS}/satellite.webp`);
+    satellite.colorSpace = THREE.SRGBColorSpace;
+    satellite.anisotropy = 8;
+  }
+  let terrain = new Terrain(hf, atmo, { N: QUALITY[quality].terrainN, detail, satellite });
   scene.add(terrain.group);
   const bake = new TerrainShadow(renderer, hf, atmo, QUALITY[quality].bake);
   const sky = new Sky(atmo);
@@ -130,13 +141,14 @@ async function boot() {
 
   setProgress(0.7, 'Tracing trails and creeks…');
   await frame();
-  const paths = new PathNetwork(features, hf, atmo, { detail });
+  const props = await propsLoad;
+  const paths = new PathNetwork(features, hf, atmo, { detail, props });
   scene.add(paths.group);
-  const vegetation = new Vegetation(hf, paths, atmo, quality, renderer);
+  const vegetation = new Vegetation(hf, paths, atmo, quality, renderer, props);
   terrain.treeFar.value = vegetation.farRadius;
   terrain.shared.uTrail.value = paths.trailTex;
   scene.add(vegetation.group);
-  const meadow = new MeadowCarpet(hf, paths, atmo, quality);
+  const meadow = new MeadowCarpet(hf, paths, atmo, quality, props?.cards);
   scene.add(meadow.group);
 
   setProgress(0.78, 'Filling alpine lakes…');
@@ -145,7 +157,7 @@ async function boot() {
   scene.add(lakes.mesh);
   const falls = new Waterfalls(features, hf, paths, atmo, new Cascades(hf, paths, atmo));
   scene.add(falls.group);
-  const structures = new Structures(features, hf, atmo, geo);
+  const structures = new Structures(features, hf, atmo, geo, { assets: props ? ASSETS : null });
   scene.add(structures.group);
 
   const camp = new Camp(atmo, hf, fireLight);
@@ -160,6 +172,8 @@ async function boot() {
   const summit = { x: sx, z: sz };
   const clouds = new Clouds(atmo, summit);
   scene.add(clouds.mesh);
+  // the sky dome's own cloud layer carries the sky; the cumulus billboards are opt-in (?puffs=1)
+  clouds.mesh.visible = params.get('puffs') === '1';
   vegetation.setShores(lakes);
   const findPoint = (name, x, z, maxD = 3000) => {
     let best = null, bd = maxD;
@@ -336,7 +350,7 @@ async function boot() {
     terrain.treeFar.value = vegetation.farRadius;
     if (terrain.N !== Q.terrainN) {
       scene.remove(terrain.group);
-      terrain = new Terrain(hf, atmo, { N: Q.terrainN, detail });
+      terrain = new Terrain(hf, atmo, { N: Q.terrainN, detail, satellite });
       terrain.treeFar.value = vegetation.farRadius;
       terrain.shared.uTrail.value = paths.trailTex;
       scene.add(terrain.group);
@@ -377,6 +391,9 @@ async function boot() {
     isAuto: () => !params.has('cine') && !document.body.classList.contains('trailer-mode'),
   });
   game.ranger = ranger;
+  // like Firewatch, the park is seen through the hiker's eyes (V for third person;
+  // the trailer and ?view=third keep the camera behind the hiker)
+  if (!params.has('trailer') && !params.has('cine') && params.get('view') !== 'third') game.setView(true, true);
 
   const toggleFast = () => {
     controller.fast = !controller.fast;
@@ -634,7 +651,7 @@ async function boot() {
     };
     tick();
   }
-  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds, ranger };
+  window.__rainier = { get terrain() { return terrain; }, game, camp, stars, scene, camera, controller, atmo, hf, travel, PLACES, renderer, vegetation, lakes, falls, paths, meadow, post, structures, hiker, clouds, ranger, props, cloudPuffs: params.get('puffs') === '1' };
 }
 
 boot().catch((e) => {
