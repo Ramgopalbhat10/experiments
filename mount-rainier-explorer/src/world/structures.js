@@ -56,6 +56,60 @@ function lookoutGeometry() {
   return mergeGeometries(parts);
 }
 
+/**
+ * The same lookout for the photo-material house shader: every face carries its
+ * surface id and planar coordinates (aB: 0 siding, 1 roof, 2 trim, 3 stone,
+ * 4 glass pane), and no window rows (aW spacing far wider than the cabin).
+ */
+function photoLookoutGeometry() {
+  const wood = new THREE.Color('#6b4a32'), trim = new THREE.Color('#5a4030'), roof = new THREE.Color('#3a4a3c'), stone = new THREE.Color('#8a857c');
+  const parts = [];
+  const box = (g, k, c) => {
+    g = g.index ? g.toNonIndexed() : g;
+    const p = g.attributes.position, n = g.attributes.normal, N = p.count;
+    const col = new Float32Array(N * 3), bb = new Float32Array(N * 3), ww = new Float32Array(N * 2);
+    for (let i = 0; i < N; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i));
+      let u = ax > 0.5 ? z : x, v = y;
+      if (ay > 0.7) { u = x; v = z; }
+      if (k === 1) { u = x + z; v = y * 1.4; }
+      if (k === 0) v += 5;              // above the siding shader's stone band
+      col.set([c.r, c.g, c.b], i * 3);
+      bb.set([k, u, v], i * 3);
+      ww.set([100, 0], i * 2);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('aB', new THREE.BufferAttribute(bb, 3));
+    g.setAttribute('aW', new THREE.BufferAttribute(ww, 2));
+    g.deleteAttribute('uv');
+    parts.push(g);
+  };
+  const B = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+  box(B(5.6, 1.4, 5.6, 0, 0.2, 0), 3, stone);
+  box(B(8, 0.15, 8, 0, 0.95, 0), 2, trim);
+  for (const sd of [-1, 1]) {
+    box(B(8, 0.08, 0.08, 0, 2.0, sd * 3.96), 2, trim);
+    box(B(0.08, 0.08, 8, sd * 3.96, 2.0, 0), 2, trim);
+    for (let i = -3; i <= 3; i++) {
+      box(B(0.08, 1.0, 0.08, i * 1.3, 1.5, sd * 3.96), 2, trim);
+      box(B(0.08, 1.0, 0.08, sd * 3.96, 1.5, i * 1.3), 2, trim);
+    }
+  }
+  box(B(4.8, 1.0, 4.8, 0, 1.5, 0), 0, wood);
+  box(B(4.7, 1.5, 4.7, 0, 2.75, 0), 4, wood);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(B(0.18, 1.6, 0.18, sx * 2.38, 2.75, sz * 2.38), 2, trim);
+  for (let i = -1; i <= 1; i++) {
+    box(B(0.1, 1.5, 4.76, i * 1.2, 2.75, 0), 2, trim);
+    box(B(4.76, 1.5, 0.1, 0, 2.75, i * 1.2), 2, trim);
+  }
+  box(B(4.9, 0.25, 4.9, 0, 3.6, 0), 2, trim);
+  box(new THREE.ConeGeometry(4.6, 1.6, 4, 1).rotateY(Math.PI / 4).translate(0, 4.5, 0), 1, roof);
+  box(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 4).translate(0, 5.8, 0), 2, trim);
+  for (let i = 0; i < 4; i++) box(B(1.2, 0.2, 0.5, 0, 0.9 - i * 0.25, 4.2 + i * 0.45), 2, trim);
+  return mergeGeometries(parts);
+}
+
 function signGeometry() {
   return mergeGeometries([
     colored(new THREE.BoxGeometry(0.14, 1.9, 0.14).translate(0, 0.95, 0), '#4a3322'),
@@ -152,7 +206,8 @@ export class Structures {
     }
 
     // --- Fire lookouts ----------------------------------------------------
-    const lg = lookoutGeometry();
+    const lg = assets ? photoLookoutGeometry() : lookoutGeometry();
+    const lookMat = assets ? houseMat : glowMat;
     for (const L of LOOKOUTS) {
       let [x, z] = geo.toWorld(L.lat, L.lon);
       const snap = snapToOSM(features, L.osm, x, z);
@@ -166,7 +221,7 @@ export class Structures {
           if (h > best + 0.5) { best = h; bx = px; bz = pz; }
         }
       }
-      const m = new THREE.Mesh(lg, glowMat);
+      const m = new THREE.Mesh(lg, lookMat);
       m.position.set(bx, best - 0.2, bz);
       m.rotation.y = (hash2(bx | 0, bz | 0) % 360) * Math.PI / 180;
       m.castShadow = m.receiveShadow = true;
@@ -218,6 +273,7 @@ export class Structures {
       int surf; vec2 suv; float vWin; vec2 winCell;
       void surface() {
         vWin = 0.0;
+        if (vB.x > 3.5) { surf = 3; suv = fract(vB.yz / vec2(1.2, 1.5)); winCell = floor(vB.yz / vec2(1.2, 1.5)); return; }  // glass pane
         if (vB.x > 2.5) { surf = 0; suv = vB.yz / 2.6; return; }          // chimney stone
         if (vB.x > 1.5) { surf = 4; suv = vB.yz; return; }                // fascia and soffit
         if (vB.x < 0.5) {
