@@ -260,7 +260,9 @@ export class Structures {
           vec3 n = normalize(cross(dFdx(vWorldPos), dFdy(vWorldPos)));
           float fres = pow(1.0 - abs(dot(V, n)), 3.0);
           vec3 room = mix(vec3(0.02, 0.022, 0.025), vec3(0.06, 0.05, 0.04), hash12(winCell + 1.3));
-          diffuseColor.rgb = mix(room, mix(uHorizon, uZenith, 0.35) * 0.9, 0.25 + 0.6 * fres);
+          vec3 sky = mix(uHorizon, uZenith, 0.3);
+          sky = mix(vec3(dot(sky, vec3(0.333))), sky, 0.45) * 0.6;
+          diffuseColor.rgb = mix(room, sky, 0.12 + 0.5 * fres);
           vWin = step(0.35, hash12(winCell + 3.7));
         }`,
       normalFragment: `
@@ -293,12 +295,12 @@ export class Structures {
     const levels = b.l || (ext > 30 ? 2.5 : 1);
     const base = minH - 1.0;
     const top = maxH + levels * 3.2;
-    const roofH = Math.min(9, ext * 0.45);
-    const wallCol = new THREE.Color(rnd() > 0.35 ? '#7a5a3e' : '#8f887c').multiplyScalar(0.85 + rnd() * 0.3);
+    const wallCol = new THREE.Color(rnd() > 0.3 ? '#74563c' : '#7a746a').multiplyScalar(0.8 + rnd() * 0.3);
     const roofCol = new THREE.Color(['#3d5a3e', '#4a3228', '#3a3f45', '#6b2e22'][Math.floor(rnd() * 4)]);
     const pos = [], col = [], bb = [], ww = [];
     const winSp = 2.4 + rnd() * 1.4, winW = Math.min(winSp * 0.55, 0.9 + rnd() * 0.7);
     const push = (x, y, z, c, k, u, v) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); bb.push(k, u, v); ww.push(winSp, winW); };
+    const tri = (A, B, Cc, c, k) => { push(...A[0], c, k, ...A[1]); push(...B[0], c, k, ...B[1]); push(...Cc[0], c, k, ...Cc[1]); };
     const quad = (A, B, Cc, D, c, k) => {
       // A,B along the bottom, D,Cc along the top; u across, v up
       const L = Math.hypot(B[0] - A[0], B[2] - A[2]), H = Math.hypot(D[0] - A[0], D[1] - A[1], D[2] - A[2]);
@@ -306,9 +308,7 @@ export class Structures {
       push(...A, c, k, 0, 0); push(...Cc, c, k, L, H); push(...D, c, k, 0, H);
     };
     const n = pts.length;
-    const inset = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 0.25, cz + (p.y - cz) * 0.25));
-    const eave = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 1.08, cz + (p.y - cz) * 1.08));
-    const g0 = maxH; // shingles start just above the highest ground
+    const g0 = maxH; // siding starts just above the highest ground
     let run = 0;
     for (let i = 0; i < n; i++) {
       const a = pts[i], c = pts[(i + 1) % n];
@@ -316,37 +316,13 @@ export class Structures {
       // wall quad (CCW footprint -> outward faces); u runs around the building, v up from the ground
       push(a.x, base, a.y, wallCol, 0, run, base - g0); push(c.x, base, c.y, wallCol, 0, run + L, base - g0); push(c.x, top, c.y, wallCol, 0, run + L, top - g0);
       push(a.x, base, a.y, wallCol, 0, run, base - g0); push(c.x, top, c.y, wallCol, 0, run + L, top - g0); push(a.x, top, a.y, wallCol, 0, run, top - g0);
-      // roof slope from eave to inset ridge; v runs up the slope
-      const ea = eave[i], ec = eave[(i + 1) % n], ia = inset[i], ic = inset[(i + 1) % n];
-      const slope = Math.hypot(Math.hypot(ia.x - ea.x, ia.y - ea.y), roofH + 0.3);
-      const Le = Math.hypot(ec.x - ea.x, ec.y - ea.y);
-      push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ec.x, top - 0.3, ec.y, roofCol, 1, Le, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope);
-      push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope); push(ia.x, top + roofH, ia.y, roofCol, 1, 0, slope);
-      // fascia board along the eave, and the soffit back to the wall
-      quad([ea.x, top - 0.62, ea.y], [ec.x, top - 0.62, ec.y], [ec.x, top - 0.3, ec.y], [ea.x, top - 0.3, ea.y], roofCol, 2);
-      quad([a.x, top, a.y], [c.x, top, c.y], [ec.x, top - 0.62, ec.y], [ea.x, top - 0.62, ea.y], roofCol, 2);
       run += L;
     }
-    // stone chimneys on the bigger buildings
-    if (ext > 11) {
-      const nc = ext > 30 ? 2 : 1;
-      for (let k = 0; k < nc; k++) {
-        const p = inset[Math.floor(rnd() * n)];
-        const qx = cx + (p.x - cx) * (0.4 + rnd() * 0.5), qz = cz + (p.y - cz) * (0.4 + rnd() * 0.5);
-        const w = 0.7 + rnd() * 0.4, y1 = top + roofH + 1.2 + rnd();
-        const cc = [[qx - w, qz - w], [qx + w, qz - w], [qx + w, qz + w], [qx - w, qz + w]];
-        for (let i = 0; i < 4; i++) {
-          const A = cc[i], B = cc[(i + 1) % 4];
-          quad([A[0], top, A[1]], [B[0], top, B[1]], [B[0], y1, B[1]], [A[0], y1, A[1]], wallCol, 3);
-        }
-        quad([qx - w - 0.1, y1, qz - w - 0.1], [qx + w + 0.1, y1, qz - w - 0.1], [qx + w + 0.1, y1, qz + w + 0.1], [qx - w - 0.1, y1, qz + w + 0.1], wallCol, 3);
-      }
-    }
-    const tris = THREE.ShapeUtils.triangulateShape(inset, []);
-    for (const t of tris) {
-      const A = inset[t[0]], B = inset[t[1]], Cc = inset[t[2]];
-      push(A.x, top + roofH, A.y, roofCol, 1, A.x, A.y); push(Cc.x, top + roofH, Cc.y, roofCol, 1, Cc.x, Cc.y); push(B.x, top + roofH, B.y, roofCol, 1, B.x, B.y);
-    }
+    const plan = roofPlan(pts);
+    const ctx = { rnd, top, g0, wallCol, roofCol, push, tri, quad, winSp, big: ext > 22, bb };
+    if (plan) gableRoofs(plan, ctx);
+    else hipRoof(pts, cx, cz, ext, ctx);
+
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -407,4 +383,191 @@ function inside(x, z, poly) {
     if ((a.y > z) !== (b.y > z) && x < ((b.x - a.x) * (z - a.y)) / (b.y - a.y) + a.x) r = !r;
   }
   return r;
+}
+
+// --- roofs ------------------------------------------------------------------
+
+/**
+ * Split a footprint into rectangles for gable roofs: find the building's own
+ * axes (the edge direction giving the smallest bounding box), check the
+ * outline runs along them, and cut the grid of its corner coordinates into
+ * as few rectangles as possible. Near-rectangles that aren't rectilinear get
+ * their oriented bounding box. Returns null for shapes that need a hip roof.
+ */
+function roofPlan(pts) {
+  const n = pts.length;
+  let best = null;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], c = pts[(i + 1) % n];
+    const L = Math.hypot(c.x - a.x, c.y - a.y);
+    if (L < 1) continue;
+    const co = (c.x - a.x) / L, si = (c.y - a.y) / L;
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of pts) {
+      const u = p.x * co + p.y * si, v = -p.x * si + p.y * co;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+    }
+    const A = (u1 - u0) * (v1 - v0);
+    if (!best || A < best.A) best = { A, co, si, u0, u1, v0, v1 };
+  }
+  if (!best) return null;
+  const { co, si } = best;
+  const uv = pts.map((p) => [p.x * co + p.y * si, -p.x * si + p.y * co]);
+  let area = 0, per = 0, aligned = 0;
+  for (let i = 0; i < n; i++) {
+    const [ua, va] = uv[i], [uc, vc] = uv[(i + 1) % n];
+    area += ua * vc - uc * va;
+    const L = Math.hypot(uc - ua, vc - va);
+    per += L;
+    const ang = Math.atan2(Math.abs(vc - va), Math.abs(uc - ua));
+    if (Math.min(ang, Math.PI / 2 - ang) < 0.17) aligned += L;
+  }
+  area = Math.abs(area) / 2;
+  const fill = area / best.A;
+  const frame = { co, si, toXZ: (u, v) => [u * co - v * si, u * si + v * co] };
+  const whole = [{ u0: best.u0, u1: best.u1, v0: best.v0, v1: best.v1 }];
+  if (fill > 0.86) return { ...frame, rects: whole };
+  if (aligned / per < 0.9) return null;
+  // rectilinear: grid of the corners' (clustered) coordinates
+  const cluster = (vals) => {
+    vals.sort((a, b) => a - b);
+    const out = [];
+    for (const v of vals) (out.length && v - out[out.length - 1].last < 0.8 ? (out[out.length - 1].sum += v, out[out.length - 1].n++, out[out.length - 1].last = v) : out.push({ sum: v, n: 1, last: v }));
+    return out.map((c) => c.sum / c.n);
+  };
+  const us = cluster(uv.map((p) => p[0])), vs = cluster(uv.map((p) => p[1]));
+  const inPoly = (u, v) => {
+    let r = false;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [ua, va] = uv[i], [ub, vb] = uv[j];
+      if ((va > v) !== (vb > v) && u < ((ub - ua) * (v - va)) / (vb - va) + ua) r = !r;
+    }
+    return r;
+  };
+  const NU = us.length - 1, NV = vs.length - 1;
+  const cell = [], used = [];
+  for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+    cell[j * NU + i] = inPoly((us[i] + us[i + 1]) / 2, (vs[j] + vs[j + 1]) / 2);
+    used[j * NU + i] = false;
+  }
+  const rects = [];
+  for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+    if (!cell[j * NU + i] || used[j * NU + i]) continue;
+    let i1 = i;
+    while (i1 + 1 < NU && cell[j * NU + i1 + 1] && !used[j * NU + i1 + 1]) i1++;
+    let j1 = j;
+    const rowFree = (jj) => { for (let k = i; k <= i1; k++) if (!cell[jj * NU + k] || used[jj * NU + k]) return false; return true; };
+    while (j1 + 1 < NV && rowFree(j1 + 1)) j1++;
+    for (let jj = j; jj <= j1; jj++) for (let k = i; k <= i1; k++) used[jj * NU + k] = true;
+    rects.push({ u0: us[i], u1: us[i1 + 1], v0: vs[j], v1: vs[j1 + 1] });
+  }
+  if (!rects.length) return null;
+  return { ...frame, rects, inPoly };
+}
+
+/**
+ * Pitched gable roofs, one per rectangle: overhanging eaves with fascia and
+ * soffit, siding up the gable ends, stone chimneys, and dormers along the long
+ * roofs of the big lodges. Where two wings meet, each roof runs on into the
+ * other so they cross like real cross-gables.
+ */
+function gableRoofs(plan, { rnd, top, g0, wallCol, roofCol, push, tri, quad, winSp, big, bb }) {
+  const { toXZ, inPoly } = plan;
+  const pitch = (big ? 38 : 30) + rnd() * 10;
+  const tp = Math.tan((pitch * Math.PI) / 180);
+  const ov = 0.75, og = 0.55;
+  let chimney = null, bestA = 0;
+  for (const r of plan.rects) {
+    const du = r.u1 - r.u0, dv = r.v1 - r.v0;
+    if (Math.min(du, dv) < 1.5) continue;
+    // a = along the ridge, b = across; P(a, b, y) -> world
+    const alongU = du >= dv;
+    const a0 = alongU ? r.u0 : r.v0, a1 = alongU ? r.u1 : r.v1;
+    const bc = alongU ? (r.v0 + r.v1) / 2 : (r.u0 + r.u1) / 2;
+    const hw = (alongU ? dv : du) / 2;
+    const P = (a, b, y) => { const [x, z] = alongU ? toXZ(a, bc + b) : toXZ(bc + b, a); return [x, y, z]; };
+    // ends inside the footprint run on into the neighbouring wing
+    const inner = (a) => inPoly && (inPoly(...(alongU ? [a, bc] : [bc, a])));
+    const e0 = inner(a0 - 0.6), e1 = inner(a1 + 0.6);
+    const s0 = e0 ? a0 - hw : a0 - og, s1 = e1 ? a1 + hw : a1 + og;
+    const ridge = top + hw * tp, eave = top - ov * tp;
+    for (const side of [-1, 1]) {
+      const slope = (hw + ov) / Math.cos((pitch * Math.PI) / 180);
+      const A = P(s0, side * (hw + ov), eave), B = P(s1, side * (hw + ov), eave), C = P(s1, 0, ridge), D = P(s0, 0, ridge);
+      const L = s1 - s0;
+      tri([A, [0, 0]], [B, [L, 0]], [C, [L, slope]], roofCol, 1);
+      tri([A, [0, 0]], [C, [L, slope]], [D, [0, slope]], roofCol, 1);
+      // fascia and soffit along the eave
+      quad(P(s0, side * (hw + ov), eave - 0.3), P(s1, side * (hw + ov), eave - 0.3), P(s1, side * (hw + ov), eave), P(s0, side * (hw + ov), eave), roofCol, 2);
+      quad(P(Math.max(s0, a0), side * hw, top), P(Math.min(s1, a1), side * hw, top), P(Math.min(s1, a1), side * (hw + ov), eave - 0.3), P(Math.max(s0, a0), side * (hw + ov), eave - 0.3), roofCol, 2);
+    }
+    // gable ends: siding up to the ridge (and a rake board under the overhang)
+    for (const [a, ext] of [[a0, !e0], [a1, !e1]]) {
+      if (!ext) continue;
+      const va = top - g0;
+      tri([P(a, -hw, top), [0, va]], [P(a, hw, top), [hw * 2, va]], [P(a, 0, ridge), [hw, va + hw * tp]], wallCol, 0);
+    }
+    // dormers march along the long roofs of the lodges
+    const len = a1 - a0;
+    if (big && len > 16 && hw > 5) {
+      const nd = Math.floor(len / 9);
+      for (const side of [-1, 1]) {
+        for (let k = 0; k < nd; k++) {
+          const ac = a0 + (k + 0.5) * (len / nd), dw = 1.3;
+          const bf = side * (hw - 1.2);                        // dormer face, 1.2 m in from the wall
+          const yb = top + (hw - Math.abs(bf)) * tp, yt = yb + 1.9;
+          const bb2 = side * (hw - 1.2 - 1.9 / tp);             // where its roof meets the main roof
+          const u0 = winSp * 0.5 - dw;
+          quad(P(ac - dw, bf, yb), P(ac + dw, bf, yb), P(ac + dw, bf, yt), P(ac - dw, bf, yt), wallCol, 0);
+          // put the face's coordinates in the siding frame so a window row lands in it
+          for (let q = 0; q < 6; q++) {
+            const o = bb.length - 18 + q * 3;
+            bb[o + 1] = u0 + bb[o + 1];
+            bb[o + 2] = 1.5 + bb[o + 2];
+          }
+          for (const sd of [-1, 1]) tri([P(ac + sd * dw, bf, yb), [0, 0]], [P(ac + sd * dw, bf, yt), [0, 1.9]], [P(ac + sd * dw, bb2, yt), [1.9 / tp, 1.9]], wallCol, 0);
+          const pk = yt + dw * 0.9;
+          for (const sd of [-1, 1]) {
+            tri([P(ac + sd * (dw + 0.25), bf + side * 0.3, yt - 0.2), [0, 0]], [P(ac, bf + side * 0.3, pk), [dw, 1]], [P(ac, bb2, pk), [dw, 3]], roofCol, 1);
+            tri([P(ac + sd * (dw + 0.25), bf + side * 0.3, yt - 0.2), [0, 0]], [P(ac, bb2, pk), [dw, 3]], [P(ac + sd * (dw + 0.25), bb2, yt - 0.2), [0, 3]], roofCol, 1);
+          }
+          tri([P(ac - dw, bf, yt), [0, 0]], [P(ac + dw, bf, yt), [2 * dw, 0]], [P(ac, bf, pk), [dw, dw]], wallCol, 0);
+        }
+      }
+    }
+    if (hw * 2 * len > bestA) { bestA = hw * 2 * len; chimney = { P, a: a0 + len * (0.2 + rnd() * 0.6), b: (rnd() - 0.5) * hw * 0.6, ridge }; }
+  }
+  if (chimney && bestA > 60) {
+    const { P, a, b, ridge } = chimney, w = 0.7;
+    const y1 = ridge + 1.2 + rnd();
+    const cc = [[a - w, b - w], [a + w, b - w], [a + w, b + w], [a - w, b + w]];
+    for (let i = 0; i < 4; i++) {
+      const A = cc[i], B = cc[(i + 1) % 4];
+      quad(P(A[0], A[1], top), P(B[0], B[1], top), P(B[0], B[1], y1), P(A[0], A[1], y1), wallCol, 3);
+    }
+    quad(P(a - w - 0.1, b - w - 0.1, y1), P(a + w + 0.1, b - w - 0.1, y1), P(a + w + 0.1, b + w + 0.1, y1), P(a - w - 0.1, b + w + 0.1, y1), wallCol, 3);
+  }
+}
+
+/** Fallback for irregular footprints: a hip roof rising to an inset ridge. */
+function hipRoof(pts, cx, cz, ext, { top, roofCol, push, quad }) {
+  const n = pts.length;
+  const roofH = Math.min(9, ext * 0.45);
+  const inset = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 0.25, cz + (p.y - cz) * 0.25));
+  const eave = pts.map((p) => new THREE.Vector2(cx + (p.x - cx) * 1.08, cz + (p.y - cz) * 1.08));
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], c = pts[(i + 1) % n];
+    const ea = eave[i], ec = eave[(i + 1) % n], ia = inset[i], ic = inset[(i + 1) % n];
+    const slope = Math.hypot(Math.hypot(ia.x - ea.x, ia.y - ea.y), roofH + 0.3);
+    const Le = Math.hypot(ec.x - ea.x, ec.y - ea.y);
+    push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ec.x, top - 0.3, ec.y, roofCol, 1, Le, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope);
+    push(ea.x, top - 0.3, ea.y, roofCol, 1, 0, 0); push(ic.x, top + roofH, ic.y, roofCol, 1, Le, slope); push(ia.x, top + roofH, ia.y, roofCol, 1, 0, slope);
+    quad([ea.x, top - 0.62, ea.y], [ec.x, top - 0.62, ec.y], [ec.x, top - 0.3, ec.y], [ea.x, top - 0.3, ea.y], roofCol, 2);
+    quad([a.x, top, a.y], [c.x, top, c.y], [ec.x, top - 0.62, ec.y], [ea.x, top - 0.62, ea.y], roofCol, 2);
+  }
+  const tris = THREE.ShapeUtils.triangulateShape(inset, []);
+  for (const t of tris) {
+    const A = inset[t[0]], B = inset[t[1]], Cc = inset[t[2]];
+    push(A.x, top + roofH, A.y, roofCol, 1, A.x, A.y); push(Cc.x, top + roofH, Cc.y, roofCol, 1, Cc.x, Cc.y); push(B.x, top + roofH, B.y, roofCol, 1, B.x, B.y);
+  }
 }
