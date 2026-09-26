@@ -66,7 +66,7 @@ Gamepads and touch screens (virtual joystick) also work.
 - Dense subalpine fir and mountain hemlock "tree islands" on a 4 m placement grid, plus lone firs standing in the meadows, as at Paradise and Spray Park. Conifers use three LODs: full branch sprays, a lighter mid-distance mesh, and impostors.
 - Named waterfalls are set pieces: a gorge carved into the terrain, a craggy face of broken andesite ledges (wet and dark where the water runs, mossy on the ledges), thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
 - Paved trails (the Skyline loop) are weathered asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
-- OSM buildings have stone foundations, plank siding, fascia boards, stone chimneys, varied window rows (sky reflected in the glass, warm light at night) and shingled roofs.
+- OSM buildings have stone foundations, plank siding, pitched gable roofs (footprints split into wings whose roofs cross like real cross-gables), dormer rows on the lodges, fascia and soffits, stone chimneys, and varied window rows (sky reflected in the glass, warm light at night). The fire lookouts share the same scanned siding, stone, shingles and glass.
 - Lakes have shelving shores, boulders and sedges at the waterline. You arrive on a low shore with open water toward the mountain.
 - The sky is a September-afternoon blue with high cirrus. The high cone is dark reddish andesite against the glaciers.
 - By default you start at the Myrtle Falls viewpoint at 3:30 PM in autumn.
