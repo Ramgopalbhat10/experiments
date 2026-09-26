@@ -24,7 +24,7 @@ Any static file server works. Options go in the URL:
 | `stats` | `?stats` | Show fps / draw calls |
 | `ao` | `?ao=0` | Turn ambient occlusion off |
 | `view` | `?view=third` | Start behind the hiker instead of first person |
-| `detail`, `props`, `sat` | `?props=0` | Turn off the scanned ground textures, the scanned models and photo foliage, or the satellite colour |
+| `detail`, `props`, `sat`, `relief` | `?props=0` | Turn off the scanned ground textures, the scanned models and photo foliage, the satellite colour, or the 10 m lidar relief |
 | `shafts` | `?shafts=2` | Light-shaft strength (`0` turns them off) |
 | `puffs` | `?puffs=1` | Add the cumulus billboards around the summit |
 
@@ -54,7 +54,7 @@ Gamepads and touch screens (virtual joystick) also work.
 ## What's in it
 
 **World (real data)**
-- Terrain from USGS 3DEP elevation (20 m grid), drawn as a geometry-clipmap LOD with bicubic heights, CDLOD morphing and skirts. You can see the whole mountain from anywhere in the park.
+- Terrain from USGS 3DEP elevation (20 m grid) plus a 10 m layer of fine relief from the lidar-derived 3DEP tiles (gullies, moraines, rock steps, road cuts), drawn as a geometry-clipmap LOD with bicubic heights, CDLOD morphing and skirts. You can see the whole mountain from anywhere in the park.
 - Land cover (forest, meadow, rock, snow) classified from Sentinel‑2 imagery. Glaciers, lakes, rivers, trails, roads, buildings and waterfalls come from OpenStreetMap.
 - 350+ lakes sit at their surveyed levels with shallow shores. The nearest lake gets a real planar reflection, so Reflection Lakes and Tipsoo mirror the mountain.
 - 90+ named waterfalls with animated sheets and mist, fire lookouts (Tolmie, Fremont, Gobblers Knob, Shriner, High Rock) whose windows glow at night, and OSM buildings (Paradise Inn, Longmire, Sunrise).
@@ -140,7 +140,7 @@ src/post.js           HDR grade, SSAO, bloom, god rays, volumetric light shafts
 src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
 tools/trailer/        offline trailer render, score synthesis, edit/encode
-assets/               terrain.png, landcover.png, features.json, satellite.webp, trailer-score.mp3,
+assets/               terrain.png, landcover.png, features.json, satellite.webp, detail.webp, trailer-score.mp3,
                       tex/ (scanned ground maps, baked fir and leaf cards),
                       models/ (scanned rock and forest-floor packs + their textures)
 tools/assets/         Poly Haven fetch, model simplification, foliage card baking
@@ -162,6 +162,7 @@ node build_models.mjs             # assets/models/*.json (glTF: split, simplifie
 python3 build_textures.py         # assets/models/tex/*.webp
 node bake/bake_cards.mjs && python3 bake/pack_cards.py   # fir and leaf card atlases
 python3 ../build_satellite.py     # assets/satellite.webp from the Sentinel-2 tiles
+python3 ../build_detail.py        # assets/detail.webp: 10 m relief from zoom-14 3DEP tiles
 ```
 
 `terrain.png` stores elevation in decimetres across the R/G channels, with flags (lake, river, road, glacier) in B. `landcover.png` holds forest, meadow and snow in R/G/B. `features.json` holds vectors in local metres (x east, z south), with the origin at 46.845°N, 121.715°W.

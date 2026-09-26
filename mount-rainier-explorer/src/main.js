@@ -61,10 +61,11 @@ async function boot() {
   // photo-scanned ground textures load alongside the heightfield (?detail=0 skips them)
   const detailLoad = params.get('detail') === '0' ? Promise.resolve(null)
     : loadDetailTextures(ASSETS, quality === 'low' ? 512 : 1024).catch((e) => { console.warn('ground textures', e); return null; });
+  // ?relief=0 leaves out the 10 m lidar relief
   await hf.load(ASSETS, (i, p) => {
     prog[i] = p;
     setProgress(0.05 + 0.55 * (prog[0] * 0.65 + prog[1] * 0.35), 'Surveying 1,600 km² of terrain…');
-  });
+  }, { detail: params.get('relief') !== '0' });
   setProgress(0.62, 'Growing old-growth forest…');
   await frame();
 

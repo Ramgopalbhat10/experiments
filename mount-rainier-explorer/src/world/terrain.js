@@ -53,6 +53,10 @@ uniform float uTreeFar;
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
+#ifdef USE_RELIEF
+uniform sampler2D uRelief;
+uniform float uReliefCell;
+#endif
 #ifdef USE_SAT
 uniform sampler2D uSat;
 uniform float uSatGain, uSatMix;
@@ -299,6 +303,24 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
     }
   }
 #endif
+  // Distant forest: the speckle of individual crowns and the shadowed gaps
+  // between them (what makes far slopes read as forest rather than felt),
+  // faded out once a crown is smaller than a pixel.
+  {
+    // the pixel's shorter footprint axis, as anisotropic filtering would use
+    float fw = min(length(dFdx(wp)), length(dFdy(wp)));
+    float crown = 7.0;
+    float vis = (1.0 - smoothstep(0.35, 0.9, fw / crown)) * smoothstep(uTreeFar * 0.45, uTreeFar * 0.9, camDist);
+    float cover = fst * (1.0 - snow) * (1.0 - glacier);
+    if (vis * cover > 0.01) {
+      vec2 cl = cells(wp.xz / crown);
+      vec2 cl2 = cells(wp.xz / (crown * 2.3) + 5.7);
+      float body = 1.0 - smoothstep(0.25, 0.75, cl.x);            // lit crown vs gap
+      float big = 1.0 - smoothstep(0.35, 0.9, cl2.x);              // clumps of taller trees
+      float k = mix(0.42, 1.22, body) * mix(0.85, 1.12, big) * (0.9 + 0.2 * cl.y);
+      c *= mix(1.0, k, vis * cover * 0.85);
+    }
+  }
   gP = P * gNear;
   return c;
 }
@@ -332,6 +354,10 @@ export class Terrain {
       shared.uDetC = { value: detail.color };
       shared.uDetN = { value: detail.normal };
     }
+    if (hf.detailTex) {
+      shared.uRelief = { value: hf.detailTex };
+      shared.uReliefCell = { value: hf.dCell };
+    }
     if (satellite) {
       shared.uSat = { value: satellite };
       shared.uSatGain = { value: 1.0 };
@@ -344,11 +370,21 @@ export class Terrain {
       mat.defines = {};
       if (detail) mat.defines.USE_DETAIL = '';
       if (satellite) mat.defines.USE_SAT = '';
+      if (hf.detailTex) mat.defines.USE_RELIEF = '';
       stylize(mat, atmo, {
-        key: `terrain${detail ? '-detail' : ''}${satellite ? '-sat' : ''}`,
+        key: `terrain${detail ? '-detail' : ''}${satellite ? '-sat' : ''}${hf.detailTex ? '-relief' : ''}`,
         uniforms: { ...shared, uHole: hole },
         vertexPars: `${HEIGHT_GLSL}
-          uniform vec3 uFocus; uniform float uHalfN; uniform float uMorphR;`,
+          uniform vec3 uFocus; uniform float uHalfN; uniform float uMorphR;
+          #ifdef USE_RELIEF
+          uniform sampler2D uRelief; uniform float uReliefCell;
+          // fine relief (m); coarse rings read a mip level matched to their spacing
+          float reliefAt(vec2 w, float spacing) {
+            vec2 uv = (w + uHF.x) / (2.0 * uHF.x);
+            if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 0.0;
+            return (textureLod(uRelief, uv, max(0.0, log2(spacing / uReliefCell))).r * 255.0 - 128.0) * 0.1;
+          }
+          #endif`,
         vertexBegin: /* glsl */ `
           float sp = modelMatrix[0][0];
           vec2 ctr = vec2(modelMatrix[3][0], modelMatrix[3][2]);
@@ -358,7 +394,11 @@ export class Terrain {
           float m = clamp((max(dd.x, dd.y) - (uHalfN - 1.0 - uMorphR)) / uMorphR, 0.0, 1.0);
           grid -= fract(grid * 0.5) * 2.0 * m;
           wxz = ctr + grid * sp;
-          transformed = vec3(grid.x, heightAt(wxz) + position.y * sp * 1.5, grid.y);
+          float hgt = heightAt(wxz);
+          #ifdef USE_RELIEF
+            hgt += reliefAt(wxz, sp);
+          #endif
+          transformed = vec3(grid.x, hgt + position.y * sp * 1.5, grid.y);
         `,
         fragmentPars: TERRAIN_FRAG,
         normalFragment: /* glsl */ `
@@ -371,6 +411,17 @@ export class Terrain {
           vec3 tn = texture2D(uNormalTex, tuv).xyz * 2.0 - 1.0;
           tn.y = texture2D(uNormalTex, tuv).y;
           tn = normalize(tn);
+          #ifdef USE_RELIEF
+          {
+            // the lidar relief's slope: gullies, moraines, rock steps, at a scale matched to distance
+            float rl = max(0.0, log2(length(vWorldPos - cameraPosition) * 0.0016));
+            float e = uReliefCell * exp2(rl);
+            vec2 du = vec2(e / (2.0 * uHFf.x), 0.0);
+            float hx = (textureLod(uRelief, tuv + du.xy, rl).r - textureLod(uRelief, tuv - du.xy, rl).r) * 25.5 / (2.0 * e);
+            float hz = (textureLod(uRelief, tuv + du.yx, rl).r - textureLod(uRelief, tuv - du.yx, rl).r) * 25.5 / (2.0 * e);
+            tn = normalize(vec3(tn.x - hx * tn.y, tn.y, tn.z - hz * tn.y));
+          }
+          #endif
           float camD = length(vWorldPos - cameraPosition);
           // painterly micro-relief near the camera
           float dn = 1.0 - smoothstep(60.0, 400.0, camD);
