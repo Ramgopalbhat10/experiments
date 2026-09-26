@@ -43,6 +43,7 @@ function setProgress(p, label) {
   if (label) $('load-label').textContent = label;
 }
 
+const SHAFTS = +(params.get('shafts') || 1);
 const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 async function boot() {
@@ -528,6 +529,11 @@ async function boot() {
       overlay: view.overlay, scope: view.scope,
       sun: { uv: sunScreen.set(sunUV.x * 0.5 + 0.5, sunUV.y * 0.5 + 0.5), strength: rays, color: atmo.sunColor },
       grade: { warm: 1 - Math.min(1, Math.max(0, (atmo.sunElevation - 6) / 30)) * 0.7, night: u.uNight.value },
+      // sunlight scattering through the trees: strongest in the misty morning and low sun
+      shafts: params.get('shafts') === '0' || atmo.moon ? null : {
+        light: sun,
+        strength: THREE.MathUtils.smoothstep(atmo.sunElevation, -1, 5) * (0.7 + 1.1 * u.uMist.value) * SHAFTS,
+      },
     });
 
     if (game.photoRequested || photoReq) {

@@ -20,6 +20,8 @@ export class Post {
     this.aoBlurRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 2), Math.ceil(size.y / 2), aoOpts);
     this.bloomRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 4), Math.ceil(size.y / 4), { type: THREE.HalfFloatType });
     this.raysRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 4), Math.ceil(size.y / 4), { type: THREE.HalfFloatType });
+    this.shaftRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 2), Math.ceil(size.y / 2), aoOpts);
+    this.shaftBlurRT = new THREE.WebGLRenderTarget(Math.ceil(size.x / 2), Math.ceil(size.y / 2), aoOpts);
     this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const tri = new THREE.BufferGeometry();
     tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
@@ -144,6 +146,69 @@ export class Post {
         }`,
       depthTest: false, depthWrite: false,
     });
+    // --- volumetric light shafts: march each view ray through the sun's shadow
+    // map, so sunlight scatters in the air only where it actually reaches ------
+    this.shaftMat = new THREE.ShaderMaterial({
+      uniforms: {
+        ...depthUniforms(),
+        tShadow: { value: null },
+        uShadowM: { value: new THREE.Matrix4() },
+        uCamWorld: { value: new THREE.Matrix4() },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+        uMaxD: { value: 140 },
+        uGround: { value: 0 },
+      },
+      vertexShader: vs,
+      fragmentShader: /* glsl */ `
+        precision highp sampler2DShadow;
+        ${DEPTH}
+        uniform sampler2DShadow tShadow;
+        uniform mat4 uShadowM, uCamWorld;
+        uniform vec3 uSunDir;
+        uniform float uMaxD, uGround;
+        varying vec2 vUv;
+        float lit(vec3 wp) {
+          vec4 sc = uShadowM * vec4(wp, 1.0);
+          sc.xyz /= sc.w;
+          if (any(lessThan(sc.xy, vec2(0.0))) || any(greaterThan(sc.xy, vec2(1.0)))) return 1.0;
+          return texture(tShadow, vec3(sc.xy, sc.z));
+        }
+        void main() {
+          float d = texture2D(tDepth, vUv).r;
+          vec3 vp = viewPos(vUv);
+          float dist = length(vp);
+          // the sky (far plane) counts as open air out to the march range
+          if (dist > 0.99 * uFar || d >= 1.0 || d <= 0.0) dist = uMaxD;
+          vec3 ro = (uCamWorld * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+          vec3 rd = normalize((uCamWorld * vec4(vp, 0.0)).xyz);
+          float L = min(dist, uMaxD);
+          const int N = 28;
+          float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+          float acc = 0.0;
+          for (int i = 0; i < N; i++) {
+            // denser samples near the camera, where shafts are sharpest
+            float t = (float(i) + ign) / float(N);
+            float s = t * t * L;
+            vec3 p = ro + rd * s;
+            // haze thins with height above the camera's ground
+            float dens = exp(-max(p.y - uGround, 0.0) / 60.0);
+            acc += lit(p) * dens * (2.0 * t * L / float(N));
+          }
+          float cosT = dot(rd, uSunDir);
+          // Henyey-Greenstein forward scatter plus a little isotropic haze
+          float g = 0.72;
+          float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosT, 1.5) * 0.08;
+          float ph = 0.05 + hg;
+          gl_FragColor = vec4(acc / uMaxD * ph, 0.0, 0.0, 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    this.shaftBlur = new THREE.ShaderMaterial({
+      uniforms: { ...depthUniforms(), tAO: { value: null }, uTexel: { value: new THREE.Vector2() } },
+      vertexShader: vs,
+      fragmentShader: this.aoBlur.fragmentShader,
+      depthTest: false, depthWrite: false,
+    });
     // multiplies the resolved AO into the HDR scene before the overlay is drawn
     this.aoApply = new THREE.ShaderMaterial({
       uniforms: { tAO: { value: this.aoBlurRT.texture }, uStrength: { value: 1 } },
@@ -167,6 +232,8 @@ export class Post {
         tBloom: { value: this.bloomRT.texture },
         tRays: { value: this.raysRT.texture },
         uRays: { value: 0 },
+        tShafts: { value: this.shaftBlurRT.texture },
+        uShafts: { value: 0 },
         uRayColor: { value: new THREE.Color(1, 0.8, 0.55) },
         uScope: { value: 0 },
         uAspect: { value: 1 },
@@ -178,8 +245,8 @@ export class Post {
       },
       vertexShader: vs,
       fragmentShader: /* glsl */ `
-        uniform sampler2D tDiffuse, tBloom, tRays;
-        uniform float uTime, uExposure, uWarm, uNight, uGrain, uRays, uScope, uAspect;
+        uniform sampler2D tDiffuse, tBloom, tRays, tShafts;
+        uniform float uTime, uExposure, uWarm, uNight, uGrain, uRays, uScope, uAspect, uShafts;
         uniform vec3 uRayColor;
         varying vec2 vUv;
         // Stephen Hill's fitted ACES (RRT + ODT)
@@ -200,6 +267,7 @@ export class Post {
           vec3 c = vec3(texture2D(tDiffuse, uv - ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv + ca).b);
           c += texture2D(tBloom, uv).rgb * 0.5;
           c += texture2D(tRays, uv).r * uRays * uRayColor * 1.3;
+          c += texture2D(tShafts, uv).r * uShafts * uRayColor;
           c *= uExposure;
           // white balance: warm highlights toward golden hour, cool shadows
           float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -210,7 +278,7 @@ export class Post {
           vec3 m = aces(c);
           // restrained filmic grade: teal in the shadows, amber in the highlights, gentle S-curve
           float l = dot(m, vec3(0.299, 0.587, 0.114));
-          m += vec3(0.006, 0.02, 0.026) * (1.0 - smoothstep(0.0, 0.4, l));
+          m += vec3(0.005, 0.012, 0.024) * (1.0 - smoothstep(0.0, 0.4, l));
           m = mix(m, m * vec3(1.05, 0.99, 0.88), smoothstep(0.4, 1.0, l));
           m = mix(vec3(l), m, 1.08);
           m = clamp(m, 0.0, 1.0);
@@ -243,18 +311,25 @@ export class Post {
     this.aoBlurRT.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
     this.bloomRT.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
     this.raysRT.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
+    this.shaftRT.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
+    this.shaftBlurRT.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
   }
 
   /**
    * opts.overlay: { scene, camera } drawn on top with a cleared depth buffer
    * (first-person hands); opts.sun: { uv: Vector2, strength } for god rays;
-   * opts.scope: binocular mask.
+   * opts.scope: binocular mask; opts.shafts: { light, strength, ground } for
+   * volumetric light shafts through the light's shadow map.
    */
   render(scene, camera, time, opts = {}) {
     const r = this.renderer;
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
     if (this.ao) this._ambientOcclusion(camera);
+    const sh = opts.shafts;
+    const shaftOn = sh && sh.strength > 0.01 && sh.light.castShadow && sh.light.shadow.map;
+    if (shaftOn) this._shafts(camera, sh);
+    this.grade.uniforms.uShafts.value = shaftOn ? sh.strength : 0;
     if (opts.overlay) {
       const ac = r.autoClear;
       r.autoClear = false;
@@ -289,6 +364,36 @@ export class Post {
     }
     this.grade.uniforms.uAspect.value = aspect;
     r.setRenderTarget(null);
+    r.render(this.scene, this.quadCam);
+  }
+
+  _depthUniforms(camera, mats, texel) {
+    const reversed = this.renderer.state?.buffers?.depth?.getReversed?.() || false;
+    for (const m of mats) {
+      const u = m.uniforms;
+      u.uNear.value = camera.near;
+      u.uFar.value = camera.far;
+      u.uLog.value = reversed ? 0 : 1;
+      u.uProj.value.set(camera.projectionMatrix.elements[0], camera.projectionMatrix.elements[5]);
+      if (u.uTexel) u.uTexel.value.set(texel.x, texel.y);
+    }
+  }
+
+  _shafts(camera, sh) {
+    const r = this.renderer;
+    this._depthUniforms(camera, [this.shaftMat, this.shaftBlur], { x: 1 / this.shaftRT.width, y: 1 / this.shaftRT.height });
+    const u = this.shaftMat.uniforms;
+    u.tShadow.value = sh.light.shadow.map.depthTexture;
+    u.uShadowM.value.copy(sh.light.shadow.matrix);
+    u.uCamWorld.value.copy(camera.matrixWorld);
+    u.uSunDir.value.subVectors(sh.light.position, sh.light.target.position).normalize();
+    u.uGround.value = sh.ground ?? camera.position.y - 2;
+    this.quad.material = this.shaftMat;
+    r.setRenderTarget(this.shaftRT);
+    r.render(this.scene, this.quadCam);
+    this.quad.material = this.shaftBlur;
+    this.shaftBlur.uniforms.tAO.value = this.shaftRT.texture;
+    r.setRenderTarget(this.shaftBlurRT);
     r.render(this.scene, this.quadCam);
   }
 

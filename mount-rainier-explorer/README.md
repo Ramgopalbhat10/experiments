@@ -128,7 +128,8 @@ src/gameplay/         game (gear, energy, radio, camp menu), camp, viewmodel (ha
 src/ui/               HUD, paper map
 src/data/             places, radio lines, ranger line library
 src/audio.js          ambience + radio music
-src/post.js           HDR grade, SSAO, bloom, god rays, binocular mask
+src/post.js           HDR grade, SSAO, bloom, god rays, volumetric light shafts
+                      (shadow-map ray march), binocular mask
 src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
 tools/trailer/        offline trailer render, score synthesis, edit/encode
