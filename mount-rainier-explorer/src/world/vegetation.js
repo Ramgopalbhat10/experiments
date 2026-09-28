@@ -96,9 +96,13 @@ export class Vegetation {
     // Cards use soft "canopy" normals; don't let double-siding flip them.
     const keepNormal = 'normal = normalize(vNormal);';
     // light glowing through needles when the sun is behind the tree
+    // light through the needles toward the eye when the sun is behind the tree, and light
+    // scattered around inside the crown (foliage is never as dark as a solid surface's shade)
     const translucency = `
-      reflectedLight.indirectDiffuse += diffuseColor.rgb * uSunColor * 0.35 *
-        pow(max(dot(normalize(vWorldPos - cameraPosition), uSunDir), 0.0), 4.0) * terrainShadowAt(vWorldPos);`;
+      {
+        float back = pow(max(dot(normalize(vWorldPos - cameraPosition), uSunDir), 0.0), 3.0);
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * uLightColor * terrainShadowAt(vWorldPos) * (0.12 * back + 0.035);
+      }`;
     const keepAlpha = `
       {
         vec2 ddx = dFdx(vMapUv * 512.0), ddy = dFdy(vMapUv * 512.0);
@@ -113,7 +117,14 @@ export class Vegetation {
       m.alphaToCoverage = true;
       return m;
     };
-    const bark = lambert(atmo, { vertexColors: true }, { key: 'bark', surface: 'bark', vertexPars: 'attribute float aFoliage;' });
+    // bark keeps its own colour: only the brightness of an instance's (leaf) tint carries over
+    const bark = lambert(atmo, { vertexColors: true }, {
+      key: 'bark', surface: 'bark', vertexPars: 'attribute float aFoliage;',
+      colorVertex: `
+        #ifdef USE_INSTANCING_COLOR
+          vColor.rgb = color.rgb * clamp(dot(instanceColor.rgb, vec3(0.3, 0.59, 0.11)), 0.7, 1.15);
+        #endif`,
+    });
     const needles = foliageMat(tex.branch, 'needles');
     const leaves = foliageMat(tex.leaf, 'leaves', 0.02, 1.6);
     const rockMat = lambert(atmo, { vertexColors: true, flatShading: true }, {
@@ -223,7 +234,7 @@ export class Vegetation {
         diffuseColor.a *= 1.0 + lod * 0.3;
         // the sapling's olive needles toward the park's deep blue-green conifers
         float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-        diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.62) * vec3(0.82, 1.0, 0.9);
+        diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.62) * vec3(1.05, 1.28, 1.12);
       }`;
     const needles = lambert(atmo, {
       map: fir.map, normalMap: fir.normalMap, normalScale: new THREE.Vector2(0.9, 0.9),
@@ -236,7 +247,7 @@ export class Vegetation {
     const mats = [bark, needles];
     const capNeedle = new THREE.MeshLambertMaterial({ map: fir.map, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide });
     // the needle material's tint, for the unlit impostor bake
-    capNeedle.color.setRGB(0.72, 0.92, 0.82);
+    capNeedle.color.setRGB(0.92, 1.18, 1.03);
     const douglasProfile = (t) => Math.pow(1 - t, 0.75) * (0.6 + 0.4 * Math.sin(Math.min(1, t * 2.5) * Math.PI / 2));
     const G = {
       douglas: sprayConiferGeometry(fir, { whorls: 28, crownBase: 0.3, radius: 0.14, perWhorl: 6, droop: 0.42, upturn: 0.22, trunkR: 0.012, seed: 11, profile: douglasProfile, width: 1.35, stubs: 9 }),
@@ -284,7 +295,7 @@ export class Vegetation {
     const leafMats = [bark, leaves];
     const capLeaf = new THREE.MeshLambertMaterial({ map: leaf.map, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide });
     capLeaf.color.setRGB(0.9, 0.8, 0.4);
-    const decid = broadleafGeometry({ clumps: 150, crownR: 0.3, seed: 5, rects: clumps, clumpScale: 0.34 });
+    const decid = broadleafGeometry({ clumps: 190, crownY: 0.6, crownR: 0.36, trunkH: 0.62, seed: 5, rects: clumps, clumpScale: 0.3, lobes: 5 });
     swap('decid', mk(decid, q.nearCap / 2, leafMats));
     swap('decidFar', imp(decid, [capBark, capLeaf], 0.7, q.farCap / 4));
     // bunchgrass from the scanned tufts; the season's palette colours the real blades

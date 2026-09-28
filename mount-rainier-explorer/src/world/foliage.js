@@ -329,7 +329,8 @@ export function sprayConiferGeometry(cards, {
   }
   const foliage = finish(P, N, U, F);
   foliage.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
-  const parts = [barkGeometry(trunkR, trunkR * 0.18, 0.97, 9, [0.3, 0.2, 0.15])];
+  // the trunk stops under the leader so it never pokes out of a thin crown top
+  const parts = [barkGeometry(trunkR, trunkR * 0.18, 0.9, 9, [0.15, 0.1, 0.07])];
   // dead lower limbs of old growth: thin, drooping, broken off at odd lengths
   for (let i = 0; i < stubs; i++) {
     const y = 0.14 + rnd() * (crownBase - 0.12), a = rnd() * Math.PI * 2, l = 0.012 + rnd() * rnd() * 0.05;
@@ -344,16 +345,32 @@ export function sprayConiferGeometry(cards, {
  * clump; clumpScale sizes the cards relative to the crown so the leaves stay
  * near their real size (many small clumps rather than a few big ones).
  */
-export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false, rects = null, clumpScale = 1 }) {
+export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false, rects = null, clumpScale = 1, lobes = 0 }) {
   const rnd = mulberry32(seed);
   const P = [], N = [], U = [], F = [];
   const cy = crownY;
+  // an irregular crown: leaf clumps gather around a few lobes held out on limbs
+  const L = [];
+  for (let i = 0; i < lobes; i++) {
+    const a = (i / lobes) * Math.PI * 2 + (rnd() - 0.5) * 0.9, o = crownR * (0.35 + rnd() * 0.45);
+    L.push([Math.cos(a) * o, crownY + (rnd() - 0.4) * crownR * 0.9, Math.sin(a) * o, crownR * (0.5 + rnd() * 0.25)]);
+  }
+  if (lobes) L.push([0, crownY + crownR * 0.45, 0, crownR * 0.55]);
   for (let i = 0; i < clumps; i++) {
     const a = rnd() * Math.PI * 2, e = (rnd() - 0.3) * 1.2;
-    const rr = crownR * Math.pow(0.35 + rnd() * 0.65, 0.6);
-    const cx = Math.cos(a) * Math.cos(e) * rr, cz = Math.sin(a) * Math.cos(e) * rr;
-    const cyy = crownY + Math.sin(e) * rr * 0.8;
-    const s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    let cx, cz, cyy, s;
+    if (lobes) {
+      const lb = L[Math.floor(rnd() * L.length)];
+      const rr = lb[3] * Math.pow(0.3 + rnd() * 0.7, 0.5);
+      cx = lb[0] + Math.cos(a) * Math.cos(e) * rr; cz = lb[2] + Math.sin(a) * Math.cos(e) * rr;
+      cyy = lb[1] + Math.sin(e) * rr * 0.75;
+      s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    } else {
+      const rr = crownR * Math.pow(0.35 + rnd() * 0.65, 0.6);
+      cx = Math.cos(a) * Math.cos(e) * rr; cz = Math.sin(a) * Math.cos(e) * rr;
+      cyy = crownY + Math.sin(e) * rr * 0.8;
+      s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    }
     const rect = rects ? rects[Math.floor(rnd() * rects.length)] : null;
     // camera-agnostic: two crossed cards per clump
     const t = rnd() * Math.PI, tilt = rects ? (rnd() - 0.5) * 0.9 : 0;
@@ -371,7 +388,18 @@ export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, tr
     const stems = [0, 1, 2].map((i) => barkGeometry(0.004, 0.002, crownY * 0.8, 4, [0.2, 0.1, 0.07]).rotateZ((i - 1) * 0.25));
     return mergeGeometries([mergeGeometries(stems), foliage], true);
   }
-  return mergeGeometries([barkGeometry(trunkR, trunkR * 0.5, trunkH, 6, [0.36, 0.34, 0.3]), foliage], true);
+  const wood = [barkGeometry(trunkR, trunkR * 0.5, trunkH, 6, [0.24, 0.23, 0.2])];
+  // limbs from the upper trunk out to each lobe
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3(), q = new THREE.Quaternion();
+  for (const lb of L) {
+    const y0 = trunkH * (0.55 + rnd() * 0.3);
+    dir.set(lb[0], lb[1] - y0, lb[2]);
+    const len = dir.length() * 0.85;
+    dir.normalize();
+    q.setFromUnitVectors(up, dir);
+    wood.push(barkGeometry(trunkR * 0.55, trunkR * 0.18, len, 5, [0.24, 0.23, 0.2]).applyQuaternion(q).translate(0, y0, 0));
+  }
+  return mergeGeometries([mergeGeometries(wood), foliage], true);
 }
 
 /** Tuft: three crossed grass cards (with `rects`, each shows a different baked clump). */

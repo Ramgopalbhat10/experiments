@@ -117,6 +117,8 @@ export class VolumetricClouds {
     this.renderer = renderer;
     this.atmo = atmo;
     this.scale = scale;
+    // log depth unless the renderer has a reversed depth buffer (set by Post each frame)
+    this.logDepth = !(renderer.state?.buffers?.depth?.getReversed?.() || false);
     this.frame = 0;
     this.shadowEvery = shadowSize > 200 ? 1 : 3;
     const quad = new THREE.BufferGeometry();
@@ -496,23 +498,44 @@ export class VolumetricClouds {
     }
   }
 
-  /** Raymarch at reduced resolution, then composite over the HDR scene target. */
-  render(target, depthTexture, camera, depthState) {
-    const r = this.renderer;
-    if (this.rt.width !== Math.ceil(target.width * this.scale)) this.setSize(target.width, target.height);
-    const m = this.marchMat.uniforms;
+  _march(rt, depthTexture, camera) {
+    const r = this.renderer, m = this.marchMat.uniforms;
     m.tDepth.value = depthTexture;
     m.uNear.value = camera.near;
     m.uFar.value = camera.far;
-    m.uLog.value = depthState.log ? 1 : 0;
+    m.uLog.value = this.logDepth ? 1 : 0;
     m.uProj.value.set(camera.projectionMatrix.elements[0], camera.projectionMatrix.elements[5]);
     m.uCamWorld.value.copy(camera.matrixWorld);
     m.uCamPos.value.copy(camera.position);
-    m.uRes.value.set(this.rt.width, this.rt.height);
+    m.uRes.value.set(rt.width, rt.height);
     m.uFrame.value = this.frame % 64;
     this.mesh.material = this.marchMat;
-    r.setRenderTarget(this.rt);
+    r.setRenderTarget(rt);
     r.render(this.scene, this.cam);
+  }
+
+  _composite(target, clouds, lowRT, depthTexture, camera) {
+    const r = this.renderer, c = this.compMat.uniforms;
+    c.tClouds.value = clouds;
+    c.tDepth.value = depthTexture;
+    c.uNear.value = camera.near;
+    c.uFar.value = camera.far;
+    c.uLog.value = this.logDepth ? 1 : 0;
+    c.uLowRes.value.set(lowRT.width, lowRT.height);
+    this.mesh.material = this.compMat;
+    r.setRenderTarget(target);
+    const ac = r.autoClear;
+    r.autoClear = false;
+    r.render(this.scene, this.cam);
+    r.autoClear = ac;
+  }
+
+  /** Raymarch at reduced resolution, accumulate over frames, then composite over the HDR scene target. */
+  render(target, depthTexture, camera, depthState) {
+    const r = this.renderer;
+    this.logDepth = depthState.log;
+    if (this.rt.width !== Math.ceil(target.width * this.scale)) this.setSize(target.width, target.height);
+    this._march(this.rt, depthTexture, camera);
     // temporal accumulation, reset on camera cuts
     const dir = camera.getWorldDirection(this._dir || (this._dir = new THREE.Vector3()));
     const cut = camera.position.distanceTo(this.prevPos) > 40 || dir.dot(this.prevDir) < 0.985;
@@ -522,7 +545,7 @@ export class VolumetricClouds {
     q.uPrevVP.value.copy(this.prevVP);
     q.uCamWorld.value.copy(camera.matrixWorld);
     q.uCamPos.value.copy(camera.position);
-    q.uProj.value.copy(m.uProj.value);
+    q.uProj.value.copy(this.marchMat.uniforms.uProj.value);
     q.uRes.value.set(this.rt.width, this.rt.height);
     // a running average after a cut, settling into an exponential history
     this.since = cut ? 0 : (this.since || 0) + 1;
@@ -534,18 +557,18 @@ export class VolumetricClouds {
     this.prevVP.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.prevPos.copy(camera.position);
     this.prevDir.copy(dir);
-    const c = this.compMat.uniforms;
-    c.tClouds.value = dst.texture;
-    c.tDepth.value = depthTexture;
-    c.uNear.value = camera.near;
-    c.uFar.value = camera.far;
-    c.uLog.value = m.uLog.value;
-    c.uLowRes.value.set(this.rt.width, this.rt.height);
-    this.mesh.material = this.compMat;
-    r.setRenderTarget(target);
-    const ac = r.autoClear;
-    r.autoClear = false;
-    r.render(this.scene, this.cam);
-    r.autoClear = ac;
+    this._composite(target, dst.texture, this.rt, depthTexture, camera);
+  }
+
+  /** Clouds in a lake's planar reflection: a quick quarter-resolution pass, no history. */
+  renderReflection(target, camera) {
+    if (!target.depthTexture) return;
+    const w = Math.max(1, Math.ceil(target.width * 0.25)), h = Math.max(1, Math.ceil(target.height * 0.25));
+    if (!this.reflRT) this.reflRT = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, count: 2 });
+    else if (this.reflRT.width !== w || this.reflRT.height !== h) this.reflRT.setSize(w, h);
+    const prev = this.renderer.getRenderTarget();
+    this._march(this.reflRT, target.depthTexture, camera);
+    this._composite(target, this.reflRT.textures[0], this.reflRT, target.depthTexture, camera);
+    this.renderer.setRenderTarget(prev);
   }
 }

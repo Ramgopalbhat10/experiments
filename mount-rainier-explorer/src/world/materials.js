@@ -136,9 +136,11 @@ export function stylize(material, atmo, opts = {}) {
       surfColor = `diffuseColor.rgb *= surfTri(vWorldPos, 1.1, 1.2, 1.0);`;
     }
     if (surf) surfNormal = 'normal = normalize(normal + (viewMatrix * vec4(gSurfP, 0.0)).xyz);';
+    // the sun's irradiance (set per frame in main.js) for hooks that light things themselves
+    const lightPars = /uLightColor/.test(opts.lightsEnd || '') && !/uLightColor/.test(opts.fragmentPars || '') ? 'uniform vec3 uLightColor;' : '';
     fs = fs.replace(
       '#include <common>',
-      `#include <common>\nvarying vec3 vWorldPos;\n${NOISE_GLSL}\n${ATMO_PARS}\n${surfPars}\n${opts.fragmentPars || ''}`,
+      `#include <common>\nvarying vec3 vWorldPos;\n${NOISE_GLSL}\n${ATMO_PARS}\n${surfPars}\n${lightPars}\n${opts.fragmentPars || ''}`,
     );
     fs = fs.replace('#include <color_fragment>', `#include <color_fragment>\n${opts.colorFragment || ''}\n${surfColor}`);
     fs = fs.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>\n${opts.normalFragment || ''}\n${surfNormal}`);

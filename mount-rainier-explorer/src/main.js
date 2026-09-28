@@ -455,6 +455,7 @@ async function boot() {
 
   const post = new Post(renderer, { ao: QUALITY[quality].ao && params.get('ao') !== '0' });
   post.clouds = vclouds;
+  lakes.clouds = vclouds;
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
@@ -638,14 +639,16 @@ async function boot() {
     sunUV.copy(camera.position).addScaledVector(sd, 1000).project(camera);
     const facing = camDir.dot(sd);
     const rays = facing > 0 && sd.y > -0.03 && !atmo.moon ? Math.min(1, facing * 1.3) * (0.35 + 0.65 * (1 - Math.min(1, sd.y * 2.5))) : 0;
+    // the shafts and god rays were tuned against the old fixed exposure: keep their share of the frame
+    const expRef = 1.85 / exposure;
     post.render(scene, camera, t, {
       overlay: view.overlay, scope: view.scope,
-      sun: { uv: sunScreen.set(sunUV.x * 0.5 + 0.5, sunUV.y * 0.5 + 0.5), strength: rays, color: atmo.sunColor },
+      sun: { uv: sunScreen.set(sunUV.x * 0.5 + 0.5, sunUV.y * 0.5 + 0.5), strength: rays * Math.sqrt(expRef), color: atmo.sunColor },
       grade: { warm: 1 - Math.min(1, Math.max(0, (atmo.sunElevation - 6) / 30)) * 0.7, night: u.uNight.value, exposure, wb },
       // sunlight scattering through the trees: strongest in the misty morning and low sun
       shafts: params.get('shafts') === '0' || atmo.moon ? null : {
         light: sun,
-        strength: THREE.MathUtils.smoothstep(atmo.sunElevation, -1, 5) * (0.7 + 1.1 * u.uMist.value) * SHAFTS,
+        strength: THREE.MathUtils.smoothstep(atmo.sunElevation, -1, 5) * (0.7 + 1.1 * u.uMist.value) * SHAFTS * expRef,
       },
     });
 

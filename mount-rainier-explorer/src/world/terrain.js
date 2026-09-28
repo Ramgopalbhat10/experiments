@@ -65,6 +65,7 @@ uniform float uSatGain, uSatMix;
 // --- photo-scanned ground detail (near the camera) ---------------------------
 float gNear = 0.0;     // how much scanned detail is visible here (0 far away)
 vec3 gP = vec3(0.0);   // world-space normal perturbation from the detail maps
+float gSnowSpec = 0.0; // how much of this ground is snow or ice (for the sun's sheen and glints)
 struct Det { vec3 c; vec3 p; };
 #ifdef USE_DETAIL
 uniform highp sampler2DArray uDetC;
@@ -196,7 +197,8 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
 
   vec3 canopy = mix(srgb(vec3(0.075, 0.17, 0.12)), srgb(vec3(0.12, 0.22, 0.13)), n1);
   canopy = mix(canopy, srgb(vec3(0.14, 0.22, 0.13)), smoothstep(1300.0, 1800.0, h) * 0.6);
-  vec3 floorCol = mix(srgb(vec3(0.32, 0.26, 0.17)), srgb(vec3(0.25, 0.28, 0.15)), n2) * (0.8 + 0.4 * n3);
+  // needle duff and moss under the conifers
+  vec3 floorCol = mix(srgb(vec3(0.30, 0.22, 0.14)), srgb(vec3(0.20, 0.26, 0.11)), smoothstep(0.35, 0.75, n2)) * (0.75 + 0.4 * n3);
   vec3 forest = mix(floorCol, canopy, smoothstep(uTreeFar * 0.55, uTreeFar * 0.95, camDist));
 
   // vegetation cover thins out with altitude however green the satellite says it is
@@ -311,6 +313,7 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
   c = mix(c, DET(snowCol, dSnow, 0.6), snow);
   P = mix(P, dSnow.p, snow);
   c = mix(c, DET(ice, dSnow, 0.4), glacier * 0.85);
+  gSnowSpec = clamp(max(snow, glacier * 0.85 * (1.0 - debris)), 0.0, 1.0);
   P = mix(P, dSnow.p * 0.6, glacier * 0.85);
 #ifdef USE_SAT
   {
@@ -498,6 +501,17 @@ export class Terrain {
           #endif
           normal = normalize((viewMatrix * vec4(tn, 0.0)).xyz);
         `,
+        lightsEnd: /* glsl */ `
+          if (gSnowSpec > 0.01) {
+            // snow and ice: a soft sheen toward the sun and, close up, glints off single crystals
+            vec3 Vw = normalize(cameraPosition - vWorldPos);
+            vec3 Nw = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+            float nh = max(dot(Nw, normalize(Vw + uSunDir)), 0.0);
+            float sheen = pow(nh, 40.0) * 0.45 + pow(nh, 6.0) * 0.06;
+            float nearG = 1.0 - smoothstep(30.0, 300.0, length(vWorldPos - cameraPosition));
+            float glint = step(0.9965, hash12(floor(vWorldPos.xz * 7.0) + floor(vWorldPos.y * 7.0) * 3.1)) * pow(nh, 10.0) * 28.0 * nearG;
+            reflectedLight.directDiffuse *= 1.0 + gSnowSpec * (sheen + glint) * 3.2;
+          }`,
         colorFragment: /* glsl */ `
           if (uHole.x < uHole.z && all(greaterThan(vWorldPos.xz, uHole.xy)) && all(lessThan(vWorldPos.xz, uHole.zw))) discard;
           {
