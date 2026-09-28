@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { ATMO_PARS, NOISE_GLSL } from '../shaders/common.glsl.js';
 
-/** Gradient sky dome with sun disc, painterly cloud bands and stars. */
+/** Sky dome: the physically based sky, the sun's and moon's discs, the Milky Way. */
 export class Sky {
   constructor(atmo) {
     const geo = new THREE.SphereGeometry(1, 48, 24);
     this.material = new THREE.ShaderMaterial({
-      uniforms: { ...atmo.uniforms, uGalPole: { value: new THREE.Vector3(0, 1, 0) }, uGalCenter: { value: new THREE.Vector3(1, 0, 0) } },
+      uniforms: { ...atmo.uniforms, uPaintClouds: { value: 0 }, uGalPole: { value: new THREE.Vector3(0, 1, 0) }, uGalCenter: { value: new THREE.Vector3(1, 0, 0) } },
       vertexShader: /* glsl */ `
         #include <common>
         #include <logdepthbuf_pars_vertex>
@@ -22,17 +22,21 @@ export class Sky {
         #include <logdepthbuf_pars_fragment>
         ${NOISE_GLSL}
         ${ATMO_PARS}
-        uniform float uStars;
-        uniform vec3 uGalPole, uGalCenter;
+        uniform float uStars, uPaintClouds;
+        uniform vec3 uGalPole, uGalCenter, uSunDisk;
         varying vec3 vDir;
         void main() {
           #include <logdepthbuf_fragment>
           vec3 d = normalize(vDir);
           vec3 col = skyColor(d);
-          // sun / moon disc
+          // the sun's disc, limb-darkened; the moon's by night
           float sd = dot(d, uSunDir);
-          float disc = smoothstep(0.99955, 0.99975, sd);
-          col = mix(col, uSunColor * 6.0 + vec3(1.0, 0.9, 0.8), disc * (1.0 - uNight));
+          const float SUN_R = 0.0068;
+          if (sd > cos(SUN_R)) {
+            float x = clamp(length(cross(d, uSunDir)) / SUN_R, 0.0, 1.0);
+            float limb = 1.0 - 0.6 * (1.0 - sqrt(1.0 - x * x));
+            col += uSunDisk * limb * smoothstep(1.0, 0.85, x) * (1.0 - uNight);
+          }
           vec3 moonDir = normalize(vec3(-uSunDir.x, max(0.35, -uSunDir.y), -uSunDir.z));
           float md = smoothstep(0.99965, 0.9998, dot(d, moonDir));
           col = mix(col, vec3(0.9, 0.92, 1.0), md * uNight);
@@ -49,7 +53,7 @@ export class Sky {
             col += mw * uStars * smoothstep(-0.05, 0.2, d.y);
           }
           // Firewatch clouds: flat, posterised shapes with a lit rim toward the sun
-          if (d.y > -0.02) {
+          if (uPaintClouds > 0.0 && d.y > -0.02) {
             vec2 cp = d.xz / (d.y + 0.14);
             vec2 drift = vec2(uTime * 0.003, uTime * 0.001);
             float n = fbm5(vec2(cp.x * 0.9, cp.y * 2.2) + drift) * 0.75 + fbm3(cp * 0.4 + 5.0) * 0.4;

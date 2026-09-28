@@ -1,7 +1,9 @@
-// GLSL shared by every stylised material: noise, sky gradient, aerial fog and
-// the baked terrain sun-occlusion lookup. The look leans on Firewatch: flat
-// painterly albedo, a strong sky gradient and fog that dissolves distant
-// ridges into the colour of the horizon.
+import { PA_VIEW_GLSL } from '../world/physatmo.js';
+
+// GLSL shared by every material: noise, the sky (physatmo's sky-view LUT plus a
+// moonlit palette by night), aerial perspective from the atmosphere's froxel
+// volume, valley mist, and the sun occlusion of the baked terrain shadow and
+// the cloud layer.
 
 export const NOISE_GLSL = /* glsl */ `
 float hash12(vec2 p) {
@@ -44,6 +46,7 @@ uniform vec3 uSunColor;
 uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uGroundSky;
+uniform vec3 uNightZenith, uNightHorizon, uNightGround;
 uniform vec3 uFogTint;
 uniform float uFogDensity;
 uniform float uFogFalloff;
@@ -55,16 +58,20 @@ uniform vec2 uWorld;          // x = half size (m), y = full size (m)
 uniform float uShadowStrength;
 uniform float uMist;          // valley mist strength (thicker at dawn and dusk)
 uniform sampler2D uHeightF;   // the park heightfield, for height above the ground
+uniform sampler2D uCloudShadow;
+uniform vec4 uCloudShadowP;
+${PA_VIEW_GLSL}
 
-vec3 skyColor(vec3 dir) {
+// the moonlit palette sky that takes over once the sun is well down
+vec3 nightSky(vec3 dir) {
   float y = dir.y;
-  float t = pow(clamp(y, 0.0, 1.0), 0.5);
-  vec3 col = mix(uHorizon, uZenith, t);
-  col = mix(col, uGroundSky, smoothstep(0.0, -0.3, y));
-  float sd = max(dot(dir, uSunDir), 0.0);
-  float glow = pow(sd, 5.0) * 0.45 + pow(sd, 48.0) * 0.6;
-  col += uSunColor * glow * (1.0 - 0.85 * uNight) * smoothstep(-0.25, 0.05, uSunDir.y);
-  return col;
+  vec3 col = mix(uNightHorizon, uNightZenith, pow(clamp(y, 0.0, 1.0), 0.5));
+  return mix(col, uNightGround, smoothstep(0.0, -0.3, y));
+}
+
+// physically based sky (sky-view LUT) plus the night palette
+vec3 skyColor(vec3 dir) {
+  return uSunE * paSkyView(dir) + nightSky(dir) * uNight;
 }
 
 float fogAmount(vec3 wpos) {
@@ -94,15 +101,34 @@ float mistAmount(vec3 wpos, float dist) {
   return clamp(uMist * layer * bank * (0.35 + 0.65 * low) * smoothstep(120.0, 900.0, dist), 0.0, 0.85);
 }
 
+// shadow of the cloud layer: the map is indexed where the sun ray from wpos
+// crosses the cloud base (xy centre, z = 1 / span, w = base height)
+float cloudShadowAt(vec3 wpos) {
+  if (uCloudShadowP.z <= 0.0) return 1.0;
+  float k = (uCloudShadowP.w - wpos.y) / max(uSunDir.y, 0.08);
+  vec2 uv = (wpos.xz + uSunDir.xz * k - uCloudShadowP.xy) * uCloudShadowP.z + 0.5;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+  return texture2D(uCloudShadow, uv).r;
+}
+
+// Aerial perspective: the light scattered into the view ray between the eye
+// and the surface, and what survives of the surface's own light (the
+// atmosphere's froxel volume). At night the palette's haze takes over.
 vec3 applyFog(vec3 col, vec3 wpos) {
   vec3 dv = wpos - cameraPosition;
   float dist = length(dv);
   vec3 d = dv / max(dist, 1e-3);
-  vec3 fc = skyColor(normalize(vec3(d.x, max(d.y, 0.0) * 0.35 + 0.015, d.z))) * uFogTint;
-  vec3 c = mix(col, fc, fogAmount(wpos));
+  vec4 ap = paAerial(wpos);
+  // the air under a cloud is in its shadow too, so shadowed slopes stay dark rather than washing out
+  vec3 c = col * ap.a + ap.rgb * uSunE * mix(1.0, cloudShadowAt(wpos), 0.55);
+  if (uNight > 0.0) {
+    vec3 fc = nightSky(normalize(vec3(d.x, max(d.y, 0.0) * 0.35 + 0.015, d.z))) * uFogTint;
+    c = mix(c, mix(c, fc, fogAmount(wpos)), uNight);
+  }
   float mist = mistAmount(wpos, dist);
   if (mist > 0.0) {
     // mist is lit by the sky and glows warm where the sun rakes through it
+    vec3 fc = skyColor(normalize(vec3(d.x, max(d.y, 0.0) * 0.35 + 0.015, d.z)));
     float toSun = pow(max(dot(d, uSunDir), 0.0), 3.0);
     vec3 mc = mix(fc * 1.08, vec3(dot(fc, vec3(0.333))) * 1.12, 0.35) + uSunColor * 0.12 * toSun * (1.0 - uNight);
     c = mix(c, mc, mist);
@@ -111,9 +137,10 @@ vec3 applyFog(vec3 col, vec3 wpos) {
 }
 
 float terrainShadowAt(vec3 wpos) {
+  float cs = cloudShadowAt(wpos);
   vec2 uv = (wpos.xz + uWorld.x) / uWorld.y;
-  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
-  return mix(1.0, texture2D(uTerrainShadow, uv).r, uShadowStrength);
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return cs;
+  return mix(1.0, texture2D(uTerrainShadow, uv).r, uShadowStrength) * cs;
 }
 `;
 

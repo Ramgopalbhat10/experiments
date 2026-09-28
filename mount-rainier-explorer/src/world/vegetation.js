@@ -69,6 +69,8 @@ export class Vegetation {
     this.lastF = new THREE.Vector3(1e9, 0, 1e9);
     this.paths = paths;
     this.atmo = atmo;
+    // medium and high quality add a far sun-shadow cascade that the distant trees cast into
+    this.farShadows = quality !== 'low';
     this.group = new THREE.Group();
     this.group.name = 'vegetation';
     this.cache = new Map();
@@ -167,7 +169,8 @@ export class Vegetation {
         key: 'impostor', vertexPars: 'attribute float aFoliage;', colorVertex: tinted, normalFragment: keepNormal, colorFragment: keepAlpha,
       });
       mat.alphaToCoverage = true;
-      return mk(I.geometry, cap, mat, false);
+      // distant trees cast into the far shadow cascade (medium and high quality)
+      return mk(I.geometry, cap, mat, this.farShadows);
     };
 
     const q = this.q;
@@ -252,9 +255,9 @@ export class Vegetation {
     swap('firNear', mk(G.douglas, q.nearCap, mats));
     swap('firNear2', mk(G.hemlock, q.nearCap, mats));
     swap('spireNear', mk(G.spire, q.nearCap * 2, mats));
-    // mid-distance trees stand outside the ±70 m shadow map: skip their shadow pass
-    swap('firMid', mk(G.douglasMid, q.nearCap * 2, mats, false));
-    swap('spireMid', mk(G.spireMid, q.nearCap * 3, mats, false));
+    // mid-distance trees stand outside the ±70 m shadow map: only the far cascade needs them
+    swap('firMid', mk(G.douglasMid, q.nearCap * 2, mats, this.farShadows));
+    swap('spireMid', mk(G.spireMid, q.nearCap * 3, mats, this.farShadows));
     swap('firFar', imp(G.douglas, [capBark, capNeedle], 0.34, q.farCap));
     swap('spireFar', imp(G.spire, [capBark, capNeedle], 0.28, q.farCap));
     this.photoTrees = true;

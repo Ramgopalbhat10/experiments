@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 /**
- * Final grade: filmic tone curve, Firewatch-style split toning (warm
- * highlights, teal-violet shadows), a touch of bloom around bright sky,
+ * Final grade: daylight white balance and an exposure that follows the
+ * light, AgX tone mapping with a mild contrast look, bloom around bright sky,
  * vignette and fine grain. The scene renders into an MSAA HDR target first.
  */
 export class Post {
@@ -239,6 +239,7 @@ export class Post {
         uAspect: { value: 1 },
         uTime: { value: 0 },
         uExposure: { value: 1.85 },
+        uWB: { value: new THREE.Vector3(1, 1, 1) },   // white balance (daylight: the noon sun reads white)
         uWarm: { value: 0.5 },      // golden-hour warmth of the highlights (0..1), set per frame
         uNight: { value: 0 },
         uGrain: { value: 0.026 },
@@ -247,16 +248,33 @@ export class Post {
       fragmentShader: /* glsl */ `
         uniform sampler2D tDiffuse, tBloom, tRays, tShafts;
         uniform float uTime, uExposure, uWarm, uNight, uGrain, uRays, uScope, uAspect, uShafts;
+        uniform vec3 uWB;
         uniform vec3 uRayColor;
         varying vec2 vUv;
-        // Stephen Hill's fitted ACES (RRT + ODT)
-        vec3 aces(vec3 x) {
-          const mat3 m1 = mat3(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777);
-          const mat3 m2 = mat3(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602);
-          vec3 v = m1 * x;
-          vec3 a = v * (v + 0.0245786) - 0.000090537;
-          vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-          return clamp(m2 * (a / b), 0.0, 1.0);
+        // AgX (Troy Sobotka; Blender, Filament and three.js use it): a log
+        // encoding and sigmoid in a wider gamut, so bright saturated colours
+        // (a deep blue sky, a sunset) roll off toward white without skewing hue
+        vec3 agx(vec3 color) {
+          const mat3 toRec2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
+          const mat3 toSRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
+          const mat3 inset = mat3(vec3(0.856627153315983, 0.137318972929847, 0.11189821299995),
+                                  vec3(0.0951212405381588, 0.761241990602591, 0.0767994186031903),
+                                  vec3(0.0482516061458583, 0.101439036467562, 0.811302368396859));
+          const mat3 outset = mat3(vec3(1.1271005818144368, -0.1413297634984383, -0.14132976349843826),
+                                   vec3(-0.11060664309660323, 1.157823702216272, -0.11060664309660294),
+                                   vec3(-0.016493938717834573, -0.016493938717834257, 1.2519364065950405));
+          const float minEv = -12.47393, maxEv = 4.026069;
+          color = inset * (toRec2020 * color);
+          color = clamp((log2(max(color, 1e-10)) - minEv) / (maxEv - minEv), 0.0, 1.0);
+          vec3 x2 = color * color, x4 = x2 * x2;
+          color = 15.5 * x4 * x2 - 40.14 * x4 * color + 31.96 * x4 - 6.868 * x2 * color + 0.4298 * x2 + 0.1191 * color - 0.00232;
+          // look: a little more contrast and colour than AgX's neutral base
+          float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
+          color = pow(max(color, 0.0), vec3(1.32));
+          color = l + 1.38 * (color - l);
+          color = outset * color;
+          color = pow(max(color, 0.0), vec3(2.2));
+          return clamp(toSRGB * color, 0.0, 1.0);
         }
         float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
         vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -268,21 +286,15 @@ export class Post {
           c += texture2D(tBloom, uv).rgb * 0.5;
           c += texture2D(tRays, uv).r * uRays * uRayColor * 1.3;
           c += texture2D(tShafts, uv).r * uShafts * uRayColor;
-          c *= uExposure;
+          c *= uExposure * uWB;
           // white balance: warm highlights toward golden hour, cool shadows
           float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-          c = mix(c, c * vec3(1.07, 1.0, 0.88), smoothstep(0.05, 0.8, lum) * uWarm);
-          c = mix(c, c * vec3(0.9, 1.0, 1.07), 1.0 - smoothstep(0.0, 0.12, lum));
+          c = mix(c, c * vec3(1.04, 1.0, 0.93), smoothstep(0.05, 0.8, lum) * uWarm);
           // night: dim areas lose colour and drift blue; firelight stays warm
           c = mix(c, vec3(lum) * vec3(0.72, 0.88, 1.22), uNight * 0.55 * (1.0 - smoothstep(0.02, 0.35, lum)));
-          vec3 m = aces(c);
-          // restrained filmic grade: teal in the shadows, amber in the highlights, gentle S-curve
+          vec3 m = agx(c);
           float l = dot(m, vec3(0.299, 0.587, 0.114));
-          m += vec3(0.005, 0.012, 0.024) * (1.0 - smoothstep(0.0, 0.4, l));
-          m = mix(m, m * vec3(1.05, 0.99, 0.88), smoothstep(0.4, 1.0, l));
-          m = mix(vec3(l), m, 1.08);
           m = clamp(m, 0.0, 1.0);
-          m = mix(m, m * m * (3.0 - 2.0 * m), 0.32);
           float vig = 1.0 - smoothstep(0.35, 1.05, length(cc * vec2(1.05, 1.25)));
           m *= mix(0.72, 1.0, vig);
           if (uScope > 0.5) {
@@ -326,6 +338,11 @@ export class Post {
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
     if (this.ao) this._ambientOcclusion(camera);
+    // volumetric clouds over the scene (they read its resolved depth)
+    if (this.clouds) {
+      const reversed = r.state?.buffers?.depth?.getReversed?.() || false;
+      this.clouds.render(this.rt, this.rt.depthTexture, camera, { log: !reversed });
+    }
     const sh = opts.shafts;
     const shaftOn = sh && sh.strength > 0.01 && sh.light.castShadow && sh.light.shadow.map;
     if (shaftOn) this._shafts(camera, sh);
@@ -361,6 +378,8 @@ export class Post {
     if (opts.grade) {
       this.grade.uniforms.uWarm.value = opts.grade.warm;
       this.grade.uniforms.uNight.value = opts.grade.night;
+      if (opts.grade.exposure) this.grade.uniforms.uExposure.value = opts.grade.exposure;
+      if (opts.grade.wb) this.grade.uniforms.uWB.value.copy(opts.grade.wb);
     }
     this.grade.uniforms.uAspect.value = aspect;
     r.setRenderTarget(null);

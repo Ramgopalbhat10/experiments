@@ -37,6 +37,10 @@ export class Atmosphere {
       uZenith: { value: new THREE.Color() },
       uHorizon: { value: new THREE.Color() },
       uGroundSky: { value: new THREE.Color() },
+      // the palette sky, kept for the night (the physical sky handles day and twilight)
+      uNightZenith: { value: new THREE.Color() },
+      uNightHorizon: { value: new THREE.Color() },
+      uNightGround: { value: new THREE.Color() },
       uFogTint: { value: new THREE.Color(1, 1, 1) },
       uFogDensity: { value: 0.00006 },
       uFogFalloff: { value: 0.0008 },
@@ -51,7 +55,11 @@ export class Atmosphere {
       uSnowline: { value: 2350 },
       uMist: { value: 0.5 },
       uHeightF: { value: null },
+      // cloud shadows on the ground (VolumetricClouds fills these in; z = 0 turns them off)
+      uCloudShadow: { value: new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1) },
+      uCloudShadowP: { value: new THREE.Vector4(0, 0, 0, 0) },
     };
+    this.uniforms.uCloudShadow.value.needsUpdate = true;
     this.sunColor = new THREE.Color();
     this.sunIntensity = 1;
     this.hemiSky = new THREE.Color();
@@ -97,6 +105,9 @@ export class Atmosphere {
     u.uZenith.value.copy(a.zenith).lerp(b.zenith, t);
     u.uHorizon.value.copy(a.horizon).lerp(b.horizon, t);
     u.uGroundSky.value.copy(a.ground).lerp(b.ground, t);
+    u.uNightZenith.value.copy(u.uZenith.value);
+    u.uNightHorizon.value.copy(u.uHorizon.value);
+    u.uNightGround.value.copy(u.uGroundSky.value);
     u.uFogTint.value.copy(a.tint).lerp(b.tint, t);
     u.uFogDensity.value = a.fog + (b.fog - a.fog) * t;
     u.uStars.value = a.stars + (b.stars - a.stars) * t;

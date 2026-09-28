@@ -331,7 +331,8 @@ vec3 terrainAlbedo(vec3 wp, vec3 n, float camDist) {
       float sl = dot(sat, vec3(0.2126, 0.7152, 0.0722));
       float cl = dot(c, vec3(0.2126, 0.7152, 0.0722));
       // the satellite saw summer: autumn meadows keep our reds and golds, shaded by its pattern
-      float keepHue = a3 * (1.0 - fst) * (0.35 + 0.65 * fall) * step(0.5, uSeason) * step(uSeason, 1.5);
+      // (above the shrub band too: by late September the high meadows are cured tan, not summer green)
+      float keepHue = a3 * (1.0 - fst) * mix(0.8, 1.0, fall) * step(0.5, uSeason) * step(uSeason, 1.5);
       vec3 target = mix(sat, c * clamp(sl / max(cl, 1e-3), 0.6, 1.6), keepHue);
       // snow is blown out in the imagery: keep ours (and winter's snow cover)
       // (where the satellite saw grey, the ice is dirty or debris-covered: let it show)

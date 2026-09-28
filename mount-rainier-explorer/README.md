@@ -26,7 +26,8 @@ Any static file server works. Options go in the URL:
 | `view` | `?view=third` | Start behind the hiker instead of first person |
 | `detail`, `props`, `sat`, `relief` | `?props=0` | Turn off the scanned ground textures, the scanned models and photo foliage, the satellite colour, or the 10 m lidar relief |
 | `shafts` | `?shafts=2` | Light-shaft strength (`0` turns them off) |
-| `puffs` | `?puffs=1` | Add the cumulus billboards around the summit |
+| `clouds`, `cover` | `?clouds=0`, `?cover=0.8` | Turn the volumetric clouds off, or set how much of the sky they fill (0–1, default 0.55) |
+| `puffs` | `?puffs=1` | Add the old cumulus billboards around the summit |
 
 ## Controls
 
@@ -61,14 +62,14 @@ Gamepads and touch screens (virtual joystick) also work.
 - 45 curated destinations with descriptions, discovery tracking, and a ranger on the radio with a line about each one.
 
 **Matched to the real place**
-- Fall colour follows the real ecology. Huckleberry, heather and mountain ash grow thickest along the trails through the subalpine band (about 1,350–1,950 m), with grassy openings between them. Lower down the meadows turn vine-maple gold, and higher up they give way to cured grass, pumice and rubble, as at Sunrise. Near and mid-distance shrubs and the far terrain share one colour function, so the hand-off is seamless.
-- Distant peaks read as brown and grey andesite, with talus streaked down the fall line, rust staining, and individual stones close up. Far meadows are muted to rust and olive rather than saturated patches.
+- Fall colour follows the real ecology. Huckleberry, heather and mountain ash carpet whole slopes of the subalpine band (about 1,350–2,000 m) in bush-sized clumps and drifts, with the odd grassy opening. Lower down the meadows turn vine-maple gold, and higher up they give way to cured grass, pumice and rubble, as at Sunrise. Near and mid-distance shrubs and the far terrain share one colour mosaic, so the hand-off is seamless.
+- Distant peaks read as brown and grey andesite, with talus streaked down the fall line, rust staining, and individual stones close up. The satellite finds the rock cleavers on the mountain, and the early-summer snow in its imagery melts out by September.
 - Dense subalpine fir and mountain hemlock "tree islands" on a 4 m placement grid, plus lone firs standing in the meadows, as at Paradise and Spray Park. Conifers use three LODs: full branch sprays, a lighter mid-distance mesh, and impostors.
 - Named waterfalls are set pieces: a gorge carved into the terrain, a craggy face of broken andesite ledges (wet and dark where the water runs, mossy on the ledges), thin strands dropping ledge to ledge, a plunge pool, and a footbridge wherever a trail crosses above the lip (Myrtle Falls under the Skyline Trail bridge).
 - Paved trails (the Skyline loop) are weathered asphalt with stone edges and post-and-rope lines; dirt trails have packed tread and edge rocks.
 - OSM buildings have stone foundations, plank siding, pitched gable roofs (footprints split into wings whose roofs cross like real cross-gables), dormer rows on the lodges, fascia and soffits, stone chimneys, and varied window rows (sky reflected in the glass, warm light at night). The fire lookouts share the same scanned siding, stone, shingles and glass.
 - Lakes have shelving shores, boulders and sedges at the waterline. You arrive on a low shore with open water toward the mountain.
-- The sky is a September-afternoon blue with high cirrus. The high cone is dark reddish andesite against the glaciers.
+- Fair-weather cumulus build over the ranges and on the lee of the summit, as on a September afternoon at Paradise. The high cone is dark reddish andesite against the glaciers.
 - By default you start at the Myrtle Falls viewpoint at 3:30 PM in autumn.
 
 **Look (photo-real materials)**
@@ -76,7 +77,10 @@ Gamepads and touch screens (virtual joystick) also work.
 - Conifers are built from branch sprays baked from a scanned fir sapling's real needles: Douglas fir with open crowns and dead lower limbs, drooping hemlocks, and narrow subalpine fir spires, with bark-textured trunks, mid-distance meshes and impostors rendered from the same trees.
 - Huckleberry, vine maple and deciduous crowns use leaf clumps baked from a scanned shrub; the season's palette colours the real leaves (crimson huckleberry, gold vine maple).
 - Ground, trails, roads and buildings use scanned textures (grass, forest floor, cliff, talus, snow, gravel; plank siding, stone, shingles). Beyond the near field the ground takes its colour from Sentinel‑2 imagery with the satellite's own shading divided out.
-- A filmic grade (fitted ACES, teal shadows, amber highlights), valley mist that pools in low ground, and volumetric light shafts marched through the sun's shadow map. Height fog blends into the horizon, and a baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
+- A physically based atmosphere (Hillaire 2020: Rayleigh and Mie scattering, ozone, multiple scattering): the sky, the colour of the sunlight and sky light, and the aerial perspective that turns distant ridges blue come from one model, from noon through golden hour and twilight to the moonlit night.
+- Volumetric clouds raymarched through 3D Perlin-Worley noise with sunlit tops, flat grey bases and silver linings, temporally accumulated, and casting moving shadows across the terrain.
+- Two sun-shadow cascades: a crisp map around the hiker and a far one about 2 km across, so forests and fir clumps shade the slopes (medium and high quality).
+- An exposure that follows the light like a photographer's, daylight white balance and AgX tone mapping, valley mist that pools in low ground, and volumetric light shafts marched through the sun's shadow map. A baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
 - Glacier crevasses and debris-covered snouts, snags, and a weathered-rock shader on the waterfall ledges.
 - Screen-space ambient occlusion (depth only, half resolution, medium and high quality) grounds shrubs, trees and rocks. Conifers are self-shadowed inside the crown.
 - Real night sky: bright-star catalogue and constellations rotated by local sidereal time for the in-game date, plus a Milky Way along the true galactic plane.
@@ -127,16 +131,16 @@ python3 compose.py frames rainier_trailer.mp4      # titles, edit, H.264 + AAC a
 ```
 index.html            HUD, panels, import map
 src/main.js           boot, renderer, frame loop
-src/world/            heightfield, terrain (clipmap), atmosphere, sky, stars,
-                      foliage + vegetation, paths, water, waterfalls, structures
+src/world/            heightfield, terrain (clipmap), atmosphere (palette + physatmo), sky, stars,
+                      volclouds, foliage + vegetation, paths, water, waterfalls, structures
 src/player/           character, controller (3rd/1st person, stargazing)
 src/gameplay/         game (gear, energy, radio, camp menu), camp, viewmodel (hands),
                       ranger + jev (the Jev-powered radio)
 src/ui/               HUD, paper map
 src/data/             places, radio lines, ranger line library
 src/audio.js          ambience + radio music
-src/post.js           HDR grade, SSAO, bloom, god rays, volumetric light shafts
-                      (shadow-map ray march), binocular mask
+src/post.js           HDR grade (AgX), SSAO, cloud composite, bloom, god rays, volumetric light
+                      shafts (shadow-map ray march), binocular mask
 src/trailer/          ?trailer: shot list, live player and title overlay
 tools/build_data.py   bakes assets/ from the source datasets
 tools/trailer/        offline trailer render, score synthesis, edit/encode

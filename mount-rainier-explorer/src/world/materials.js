@@ -20,6 +20,41 @@ import { ATMO_PARS, NOISE_GLSL } from '../shaders/common.glsl.js';
  *   surface        'rock' | 'bark': layer photo-scanned detail (see setSurfaceDetail) onto
  *                  the colour and normal; rock needs ROCK_GLSL in fragmentPars
  */
+/*
+ * Two sun-shadow cascades. The scene has two directional lights with the
+ * sun's colour: light 0 carries the crisp near shadow map around the hiker,
+ * light 1 a coarse map ~2 km across that distant trees cast into. Every lit
+ * material takes the sun from whichever cascade covers the fragment, blending
+ * across the near map's edge, so the sunlight is never counted twice.
+ */
+{
+  const chunk = THREE.ShaderChunk.lights_fragment_begin;
+  const loopStart = '\t#pragma unroll_loop_start\n\tfor ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {';
+  const shadowLine = 'vDirectionalShadowCoord[ i ] ) : 1.0;\n\t\t#endif';
+  const i0 = chunk.indexOf(loopStart), i1 = chunk.indexOf(shadowLine, i0);
+  if (i0 > 0 && i1 > i0) {
+    const pre = `
+	#if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 1
+	vec3 sunNearC = vDirectionalShadowCoord[ 0 ].xyz / vDirectionalShadowCoord[ 0 ].w;
+	vec2 sunNearE = min( sunNearC.xy, 1.0 - sunNearC.xy );
+	float sunCascadeNear = smoothstep( 0.0, 0.12, min( sunNearE.x, sunNearE.y ) );
+	#endif
+`;
+    const post = `
+		#if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 1
+		#if UNROLLED_LOOP_INDEX == 0
+		directLight.color *= sunCascadeNear;
+		#elif UNROLLED_LOOP_INDEX == 1
+		directLight.color *= 1.0 - sunCascadeNear;
+		#endif
+		#endif`;
+    const end = i1 + shadowLine.length;
+    THREE.ShaderChunk.lights_fragment_begin = chunk.slice(0, i0) + pre + chunk.slice(i0, end) + post + chunk.slice(end);
+  } else {
+    console.warn('sun cascades: lights_fragment_begin layout changed; far shadows disabled');
+  }
+}
+
 let surfaceDetail = null;
 /** Scanned textures for rock and bark materials; call before creating them. */
 export function setSurfaceDetail(detail) { surfaceDetail = detail; }
