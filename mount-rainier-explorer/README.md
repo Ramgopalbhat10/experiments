@@ -57,7 +57,7 @@ Gamepads and touch screens (virtual joystick) also work.
 **World (real data)**
 - Terrain from USGS 3DEP elevation (20 m grid) plus a 10 m layer of fine relief from the lidar-derived 3DEP tiles (gullies, moraines, rock steps, road cuts), drawn as a geometry-clipmap LOD with bicubic heights, CDLOD morphing and skirts. You can see the whole mountain from anywhere in the park.
 - Land cover (forest, meadow, rock, snow) classified from Sentinel‑2 imagery. Glaciers, lakes, rivers, trails, roads, buildings and waterfalls come from OpenStreetMap.
-- 350+ lakes sit at their surveyed levels with shallow shores. The nearest lake gets a real planar reflection, so Reflection Lakes and Tipsoo mirror the mountain.
+- 350+ lakes sit at their surveyed levels with shallow shores that shelve into dark, deeper water. The nearest lake gets a real planar reflection (clouds included), so Reflection Lakes and Tipsoo mirror the mountain.
 - 90+ named waterfalls with animated sheets and mist, fire lookouts (Tolmie, Fremont, Gobblers Knob, Shriner, High Rock) whose windows glow at night, and OSM buildings (Paradise Inn, Longmire, Sunrise).
 - 45 curated destinations with descriptions, discovery tracking, and a ranger on the radio with a line about each one.
 
@@ -81,7 +81,8 @@ Gamepads and touch screens (virtual joystick) also work.
 - Volumetric clouds raymarched through 3D Perlin-Worley noise with sunlit tops, flat grey bases and silver linings, temporally accumulated, and casting moving shadows across the terrain.
 - Two sun-shadow cascades: a crisp map around the hiker and a far one about 2 km across, so forests and fir clumps shade the slopes (medium and high quality).
 - An exposure that follows the light like a photographer's, daylight white balance and AgX tone mapping, valley mist that pools in low ground, and volumetric light shafts marched through the sun's shadow map. A baked terrain shadow lets the mountain cast shadows for kilometres at sunset.
-- Glacier crevasses and debris-covered snouts, snags, and a weathered-rock shader on the waterfall ledges.
+- Glacier crevasse fields where the ice steepens, dirty lower ice and debris-covered snouts; snow and ice catch a sheen toward the sun and glints close up. Snags, and a weathered-rock shader on the waterfall ledges.
+- Conifer needles let light through when the sun is behind them and scatter it inside the crown; broadleaf crowns grow in lobes on real limbs. The forest floor is needle duff and moss.
 - Screen-space ambient occlusion (depth only, half resolution, medium and high quality) grounds shrubs, trees and rocks. Conifers are self-shadowed inside the crown.
 - Real night sky: bright-star catalogue and constellations rotated by local sidereal time for the in-game date, plus a Milky Way along the true galactic plane.
 

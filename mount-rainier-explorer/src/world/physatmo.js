@@ -33,7 +33,7 @@ export const PA_GLSL = /* glsl */ `
 #define PA_RT 6460.0
 #define PA_PI 3.14159265
 uniform sampler2D uTransLUT, uMSLUT;
-uniform vec3 uRayleighS, uOzoneA;
+uniform vec3 uRayleighS, uOzoneA, uRayTint;
 uniform float uMieS, uMieE, uMieG;
 float paUnitToSub(float u, float n) { return 0.5 / n + u * (1.0 - 1.0 / n); }
 // nearest non-negative hit of a sphere centred at the origin, -1 if none
@@ -94,11 +94,12 @@ vec3 paIntegrate(vec3 ro, vec3 rd, vec3 sunDir, float tLimit, float spp, bool va
     float dM = exp(-h / 1.2);
     float sM = uMieS * dM;
     vec3 ext = sR + uMieE * dM + uOzoneA * max(0.0, 1.0 - abs(h - 25.0) / 15.0);
-    vec3 scat = sR + sM;
+    vec3 sRt = sR * uRayTint;
+    vec3 scat = sRt + sM;
     vec3 sampT = exp(-ext * dt);
     float muS = dot(sunDir, P / r);
     float earth = paRaySphere(P, sunDir, PA_RG) >= 0.0 ? 0.0 : 1.0;
-    vec3 S = earth * paTrans(r, muS) * (sR * phR + sM * phM) + paMS(r, muS) * scat;
+    vec3 S = earth * paTrans(r, muS) * (sRt * phR + sM * phM) + paMS(r, muS) * scat;
     L += thr * (S - S * sampT) / max(ext, vec3(1e-7));
     thr *= sampT;
   }
@@ -152,6 +153,9 @@ export class PhysicalAtmosphere {
       mieS: 3.996e-3 * haze, mieE: 4.44e-3 * haze, mieH: 1.2, g: 0.8,
       ozo: [0.65e-3, 1.881e-3, 0.085e-3],
       albedo: 0.15,
+      // Rayleigh scattering computed at three wavelengths overstates red once it lands in sRGB
+      // (the sky and far haze drift violet); trim the scattered, not the extinguished, light
+      tint: [0.8, 0.95, 1.0],
     };
     this.apN = apN;
     this.apMax = apMaxKm;
@@ -179,6 +183,7 @@ export class PhysicalAtmosphere {
       uMSLUT: { value: tex(this.ms, MSN, MSN) },
       uRayleighS: { value: new THREE.Vector3(...this.p.ray) },
       uOzoneA: { value: new THREE.Vector3(...this.p.ozo) },
+      uRayTint: { value: new THREE.Vector3(...this.p.tint) },
       uMieS: { value: this.p.mieS },
       uMieE: { value: this.p.mieE },
       uMieG: { value: this.p.g },
@@ -346,7 +351,7 @@ export class PhysicalAtmosphere {
               const px = dx * t, py = r + dy * t, pz = dz * t;
               const pr = Math.sqrt(px * px + py * py + pz * pz), h = Math.max(0, pr - RG);
               const dr = Math.exp(-h / p.rayH), dm = Math.exp(-h / p.mieH), dO = Math.max(0, 1 - Math.abs(h - 25) / 15);
-              const s0 = p.ray[0] * dr + p.mieS * dm, s1 = p.ray[1] * dr + p.mieS * dm, s2 = p.ray[2] * dr + p.mieS * dm;
+              const s0 = p.ray[0] * p.tint[0] * dr + p.mieS * dm, s1 = p.ray[1] * p.tint[1] * dr + p.mieS * dm, s2 = p.ray[2] * p.tint[2] * dr + p.mieS * dm;
               const e0 = p.ray[0] * dr + p.mieE * dm + p.ozo[0] * dO, e1 = p.ray[1] * dr + p.mieE * dm + p.ozo[1] * dO, e2 = p.ray[2] * dr + p.mieE * dm + p.ozo[2] * dO;
               const t0 = Math.exp(-e0 * dt), t1 = Math.exp(-e1 * dt), t2 = Math.exp(-e2 * dt);
               const mu = (sx * px + sy * py) / pr;
@@ -380,7 +385,7 @@ export class PhysicalAtmosphere {
 
   /** Sky radiance (per unit sun) seen from radius r along (dx, dy, dz), CPU, for the scene's ambient light. */
   _skyL(r, dx, dy, dz, sun, out) {
-    const p = this.p, Ts = this._tmp, M = [0, 0, 0];
+    const p = this.p, Ts = this._tmp, M = this._tmpM || (this._tmpM = [0, 0, 0]), th = this._tmpTh || (this._tmpTh = [0, 0, 0]);
     const tB = PhysicalAtmosphere._raySphere(0, r, 0, dx, dy, dz, RG), tT = PhysicalAtmosphere._raySphere(0, r, 0, dx, dy, dz, RT);
     const tMax = tB >= 0 ? tB : tT;
     out[0] = out[1] = out[2] = 0;
@@ -389,7 +394,8 @@ export class PhysicalAtmosphere {
     const phR = 3 / (16 * Math.PI) * (1 + cosT * cosT);
     const g = p.g, d = 1 + g * g - 2 * g * cosT, phM = (1 - g * g) / (4 * Math.PI * d * Math.sqrt(d));
     const NS = 12;
-    let t = 0, th0 = 1, th1 = 1, th2 = 1;
+    let t = 0;
+    th[0] = th[1] = th[2] = 1;
     for (let s = 0; s < NS; s++) {
       const a0 = s / NS, a1 = (s + 1) / NS;
       const t0 = a0 * a0 * tMax, t1 = a1 * a1 * tMax;
@@ -402,16 +408,14 @@ export class PhysicalAtmosphere {
       const shadow = PhysicalAtmosphere._raySphere(px, py, pz, sun[0], sun[1], sun[2], RG) >= 0 ? 0 : 1;
       this.transAt(pr, mu, Ts);
       this._msAt(pr, mu, M);
-      const th = [th0, th1, th2];
       for (let c = 0; c < 3; c++) {
-        const sR = p.ray[c] * dr, sM = p.mieS * dm;
+        const sR = p.ray[c] * dr, sM = p.mieS * dm, sRt = sR * p.tint[c];
         const e = sR + p.mieE * dm + p.ozo[c] * dO;
         const st = Math.exp(-e * dt);
-        const S = shadow * Ts[c] * (sR * phR + sM * phM) + M[c] * (sR + sM);
+        const S = shadow * Ts[c] * (sRt * phR + sM * phM) + M[c] * (sRt + sM);
         out[c] += th[c] * (S - S * st) / e;
         th[c] *= st;
       }
-      th0 = th[0]; th1 = th[1]; th2 = th[2];
     }
     return out;
   }
@@ -449,13 +453,14 @@ export class PhysicalAtmosphere {
     r.setRenderTarget(prevRT);
 
     // sun colour at the camera and the sky's light on level ground
-    const sd = this.atmo.sunDir, sun = [sd.x, sd.y, sd.z];
+    const sd = this.atmo.sunDir, sun = this._sun || (this._sun = [0, 0, 0]);
+    sun[0] = sd.x; sun[1] = sd.y; sun[2] = sd.z;
     this.transAt(R, sd.y, this.sunT);
     // the sun sinks below the true horizon (with a soft edge for its disc)
     const horizon = -Math.sqrt(Math.max(0, 1 - (RG / R) ** 2));
     const vis = THREE.MathUtils.smoothstep(sd.y, horizon - 0.006, horizon + 0.006);
     for (let c = 0; c < 3; c++) this.sunT[c] *= vis;
-    const E = this.skyUp, L = [0, 0, 0];
+    const E = this.skyUp, L = this._tmpL || (this._tmpL = [0, 0, 0]);
     E[0] = E[1] = E[2] = 0;
     const NT = 5, NP = 8;
     for (let a = 0; a < NT; a++) {
@@ -468,8 +473,8 @@ export class PhysicalAtmosphere {
       }
     }
     // zenith and horizon (90 degrees from the sun) for shaders that want a quick sky tint
-    this.zenithL = this._skyL(R, 0, 1, 0, sun, [0, 0, 0]);
+    this.zenithL = this._skyL(R, 0, 1, 0, sun, this.zenithL || [0, 0, 0]);
     const hx = -sd.z, hz = sd.x, hl = Math.hypot(hx, hz) || 1;
-    this.horizonL = this._skyL(R, hx / hl * 0.998, 0.06, hz / hl * 0.998, sun, [0, 0, 0]);
+    this.horizonL = this._skyL(R, hx / hl * 0.998, 0.06, hz / hl * 0.998, sun, this.horizonL || [0, 0, 0]);
   }
 }

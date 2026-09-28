@@ -297,8 +297,11 @@ export class PathNetwork {
   }
 
   update(focus, radius = 2) {
-    // unlit lines: follow the daylight by hand so ropes don't glow at night
-    this.ropeMat.color.copy(this.ropeBase).multiplyScalar(1 - 0.92 * this.atmo.uniforms.uNight.value);
+    // unlit lines: shade them by hand with the light that falls on the ground, so they sit in
+    // the scene at any exposure instead of glowing at dusk
+    const u = this.atmo.uniforms, luma = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    const k = u.uLightColor ? (luma(u.uLightColor.value) * 0.5 + luma(u.uAmbient.value)) / Math.PI : 1 - 0.92 * u.uNight.value;
+    this.ropeMat.color.copy(this.ropeBase).multiplyScalar(k);
     const cx = Math.floor(focus.x / CHUNK), cz = Math.floor(focus.z / CHUNK);
     for (let dz = -radius; dz <= radius; dz++) {
       for (let dx = -radius; dx <= radius; dx++) {
