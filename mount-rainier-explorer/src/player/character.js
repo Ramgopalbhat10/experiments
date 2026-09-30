@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lambert } from '../world/materials.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 /**
  * A low-poly hiker in the Firewatch vein: khaki shirt, rolled sleeves,
@@ -10,7 +11,7 @@ export class Character {
   constructor(atmo) {
     this.root = new THREE.Group();
     this.root.name = 'hiker';
-    const mat = (hex) => lambert(atmo, { color: new THREE.Color(hex), flatShading: true }, { key: 'char' });
+    const mat = (hex) => lambert(atmo, { color: new THREE.Color(hex) }, { key: 'charsmooth' });
     const M = {
       shirt: mat('#c8894a'),
       shirtDark: mat('#a86d38'),
@@ -26,7 +27,8 @@ export class Character {
     };
     const cast = (m) => { m.castShadow = true; m.receiveShadow = true; return m; };
     const box = (w, h, d, m) => cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m));
-    const cyl = (rt, rb, h, m, s = 8) => cast(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, s), m));
+    const cyl = (rt, rb, h, m, s = 8) => cast(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, Math.max(s, 14)), m));
+    const cap = (r, h, m) => cast(new THREE.Mesh(new THREE.CapsuleGeometry(r, h, 4, 12), m));
 
     const body = (this.body = new THREE.Group());
     body.position.y = 0.95;
@@ -39,8 +41,8 @@ export class Character {
     const torso = (this.torso = new THREE.Group());
     torso.position.y = 0.12;
     body.add(torso);
-    const chest = cyl(0.2, 0.17, 0.52, M.shirt, 7);
-    chest.scale.set(1, 1, 0.68);
+    const chest = cap(0.17, 0.3, M.shirt);
+    chest.scale.set(1.1, 1, 0.72);
     chest.position.y = 0.26;
     torso.add(chest);
     const collar = cyl(0.09, 0.16, 0.08, M.shirtDark, 7);
@@ -54,7 +56,7 @@ export class Character {
     torso.add(pocketR);
 
     // backpack + bedroll
-    const pack = box(0.32, 0.44, 0.18, M.pack);
+    const pack = cast(new THREE.Mesh(new RoundedBoxGeometry(0.32, 0.44, 0.18, 3, 0.05), M.pack));
     pack.position.set(0, 0.3, -0.2);
     torso.add(pack);
     const lid = box(0.3, 0.1, 0.2, M.band);
@@ -74,11 +76,11 @@ export class Character {
     const head = (this.head = new THREE.Group());
     head.position.y = 0.66;
     torso.add(head);
-    const skull = cast(new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), M.skin));
+    const skull = cast(new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 16), M.skin));
     skull.scale.set(1, 1.12, 1.02);
     skull.position.y = 0.07;
     head.add(skull);
-    const beard = cast(new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 1), M.hair));
+    const beard = cast(new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), M.hair));
     beard.scale.set(1.05, 0.7, 0.9);
     beard.position.set(0, 0.0, 0.03);
     head.add(beard);
@@ -97,13 +99,13 @@ export class Character {
       const pivot = new THREE.Group();
       pivot.position.set(x, y, 0);
       parent.add(pivot);
-      const upper = cyl(r, r * 0.9, len, upperMat, 6);
+      const upper = cap(r, len - r * 2, upperMat);
       upper.position.y = -len / 2;
       pivot.add(upper);
       const knee = new THREE.Group();
       knee.position.y = -len;
       pivot.add(knee);
-      const lower = cyl(r * 0.9, r * 0.75, len, lowerMat, 6);
+      const lower = cap(r * 0.85, len - r * 1.7, lowerMat);
       lower.position.y = -len / 2;
       knee.add(lower);
       if (endGeo) {
@@ -113,10 +115,10 @@ export class Character {
       }
       return { pivot, knee };
     };
-    this.armL = limb(torso, -0.25, 0.5, M.shirt, M.skin, 0.28, 0.055, M.skin, new THREE.IcosahedronGeometry(0.05, 0));
-    this.armR = limb(torso, 0.25, 0.5, M.shirt, M.skin, 0.28, 0.055, M.skin, new THREE.IcosahedronGeometry(0.05, 0));
-    this.legL = limb(body, -0.1, -0.05, M.shorts, M.sock, 0.44, 0.075, M.boot, new THREE.BoxGeometry(0.12, 0.1, 0.26));
-    this.legR = limb(body, 0.1, -0.05, M.shorts, M.sock, 0.44, 0.075, M.boot, new THREE.BoxGeometry(0.12, 0.1, 0.26));
+    this.armL = limb(torso, -0.25, 0.5, M.shirt, M.skin, 0.28, 0.055, M.skin, new THREE.SphereGeometry(0.05, 10, 8));
+    this.armR = limb(torso, 0.25, 0.5, M.shirt, M.skin, 0.28, 0.055, M.skin, new THREE.SphereGeometry(0.05, 10, 8));
+    this.legL = limb(body, -0.1, -0.05, M.shorts, M.sock, 0.44, 0.075, M.boot, new RoundedBoxGeometry(0.12, 0.1, 0.26, 2, 0.035));
+    this.legR = limb(body, 0.1, -0.05, M.shorts, M.sock, 0.44, 0.075, M.boot, new RoundedBoxGeometry(0.12, 0.1, 0.26, 2, 0.035));
 
     this.phase = 0;
     this.blend = 0;

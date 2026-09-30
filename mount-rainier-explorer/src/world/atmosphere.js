@@ -4,13 +4,13 @@ import { clamp, smoothstep } from '../core/noise.js';
 // Palettes keyed by sun elevation (degrees). Colours are authored in sRGB and
 // lean on Firewatch's graded skies: teal days, tangerine golden hours, violet dusks.
 const KEYS = [
-  { el: -18, zenith: '#070b1c', horizon: '#18203d', ground: '#0c1020', sun: '#6d7fb8', sunI: 0.30, hemiSky: '#27335a', hemiGround: '#141522', hemiI: 1.16, fog: 0.00007, tint: '#9aa6d8', stars: 1 },
-  { el: -8, zenith: '#1c2350', horizon: '#6b4a6e', ground: '#262036', sun: '#8a7cc0', sunI: 0.21, hemiSky: '#4c4a7a', hemiGround: '#231d2e', hemiI: 1.26, fog: 0.00008, tint: '#c7a8c9', stars: 0.6 },
-  { el: -2, zenith: '#2a3f6e', horizon: '#f0845a', ground: '#3b2a3c', sun: '#ff8a55', sunI: 0.77, hemiSky: '#7a6a9c', hemiGround: '#3a2832', hemiI: 1.58, fog: 0.00009, tint: '#ffd2b8', stars: 0.15 },
-  { el: 4, zenith: '#3f6f9e', horizon: '#ffa24f', ground: '#6b4a4a', sun: '#ffb070', sunI: 2.21, hemiSky: '#8fa0c0', hemiGround: '#5b3e32', hemiI: 1.78, fog: 0.00008, tint: '#ffe0c4', stars: 0 },
-  { el: 12, zenith: '#3f8cb8', horizon: '#ffd08a', ground: '#7d6a5c', sun: '#ffd09a', sunI: 2.55, hemiSky: '#9fc0d8', hemiGround: '#6a5a44', hemiI: 1.89, fog: 0.00007, tint: '#fff0e0', stars: 0 },
-  { el: 28, zenith: '#2f8fc4', horizon: '#cfe6dc', ground: '#8aa0a8', sun: '#fff0d8', sunI: 2.80, hemiSky: '#a8cde6', hemiGround: '#70694f', hemiI: 1.99, fog: 0.000055, tint: '#ffffff', stars: 0 },
-  { el: 60, zenith: '#2a86c8', horizon: '#bfe0e0', ground: '#8aa0a8', sun: '#fff7ea', sunI: 2.98, hemiSky: '#a2cbe8', hemiGround: '#6e6a52', hemiI: 2.10, fog: 0.00005, tint: '#ffffff', stars: 0 },
+  { el: -18, zenith: '#070b1c', horizon: '#18203d', ground: '#0c1020', sun: '#7a8cc4', sunI: 0.42, hemiSky: '#324476', hemiGround: '#161a2a', hemiI: 1.72, fog: 0.00007, tint: '#9aa6d8', stars: 1 },
+  { el: -8, zenith: '#1c2350', horizon: '#6b4a6e', ground: '#262036', sun: '#8a7cc0', sunI: 0.21, hemiSky: '#4c4a7a', hemiGround: '#231d2e', hemiI: 1.45, fog: 0.00008, tint: '#c7a8c9', stars: 0.6 },
+  { el: -2, zenith: '#2a3f6e', horizon: '#f0845a', ground: '#3b2a3c', sun: '#ff8a55', sunI: 0.77, hemiSky: '#7a6a9c', hemiGround: '#3a2832', hemiI: 2.05, fog: 0.00009, tint: '#ffd2b8', stars: 0.15 },
+  { el: 4, zenith: '#3f6f9e', horizon: '#ffa24f', ground: '#6b4a4a', sun: '#ffb070', sunI: 2.03, hemiSky: '#8fa0c0', hemiGround: '#5b3e32', hemiI: 2.58, fog: 0.00008, tint: '#ffe0c4', stars: 0 },
+  { el: 12, zenith: '#3a7fc6', horizon: '#ffd08a', ground: '#7d6a5c', sun: '#ffd09a', sunI: 2.62, hemiSky: '#9fc0d8', hemiGround: '#6a5a44', hemiI: 2.74, fog: 0.00007, tint: '#fff0e0', stars: 0 },
+  { el: 28, zenith: '#2474d2', horizon: '#b4d6ee', ground: '#8aa0a8', sun: '#fff0d8', sunI: 2.90, hemiSky: '#a8cde6', hemiGround: '#70694f', hemiI: 2.89, fog: 0.000055, tint: '#ffffff', stars: 0 },
+  { el: 60, zenith: '#1f6bcf', horizon: '#a9d0ee', ground: '#8aa0a8', sun: '#fff7ea', sunI: 3.04, hemiSky: '#a2cbe8', hemiGround: '#6e6a52', hemiI: 3.04, fog: 0.00005, tint: '#ffffff', stars: 0 },
 ];
 for (const k of KEYS) {
   for (const f of ['zenith', 'horizon', 'ground', 'sun', 'hemiSky', 'hemiGround', 'tint']) k[f] = new THREE.Color(k[f]);
@@ -18,7 +18,7 @@ for (const k of KEYS) {
 
 export const SEASONS = {
   summer: { label: 'Summer (wildflowers)', decl: 18, snowline: 2600, value: 0 },
-  autumn: { label: 'Autumn (fall colour)', decl: -2, snowline: 2350, value: 1 },
+  autumn: { label: 'Autumn (fall colour)', decl: -2, snowline: 2700, value: 1 },
   winter: { label: 'Winter', decl: -20, snowline: 800, value: 2 },
 };
 
@@ -26,7 +26,7 @@ const LAT = 46.85 * Math.PI / 180;
 
 export class Atmosphere {
   constructor() {
-    this.hours = 17.9;            // late-September golden hour
+    this.hours = 15.5;            // mid-September afternoon at Paradise
     this.timeScale = 0;           // game minutes per real second (0 = frozen)
     this.season = 'autumn';
     this.sunDir = new THREE.Vector3();
@@ -37,6 +37,10 @@ export class Atmosphere {
       uZenith: { value: new THREE.Color() },
       uHorizon: { value: new THREE.Color() },
       uGroundSky: { value: new THREE.Color() },
+      // the palette sky, kept for the night (the physical sky handles day and twilight)
+      uNightZenith: { value: new THREE.Color() },
+      uNightHorizon: { value: new THREE.Color() },
+      uNightGround: { value: new THREE.Color() },
       uFogTint: { value: new THREE.Color(1, 1, 1) },
       uFogDensity: { value: 0.00006 },
       uFogFalloff: { value: 0.0008 },
@@ -49,7 +53,13 @@ export class Atmosphere {
       uShadowStrength: { value: 1 },
       uSeason: { value: 1 },
       uSnowline: { value: 2350 },
+      uMist: { value: 0.5 },
+      uHeightF: { value: null },
+      // cloud shadows on the ground (VolumetricClouds fills these in; z = 0 turns them off)
+      uCloudShadow: { value: new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1) },
+      uCloudShadowP: { value: new THREE.Vector4(0, 0, 0, 0) },
     };
+    this.uniforms.uCloudShadow.value.needsUpdate = true;
     this.sunColor = new THREE.Color();
     this.sunIntensity = 1;
     this.hemiSky = new THREE.Color();
@@ -95,10 +105,16 @@ export class Atmosphere {
     u.uZenith.value.copy(a.zenith).lerp(b.zenith, t);
     u.uHorizon.value.copy(a.horizon).lerp(b.horizon, t);
     u.uGroundSky.value.copy(a.ground).lerp(b.ground, t);
+    u.uNightZenith.value.copy(u.uZenith.value);
+    u.uNightHorizon.value.copy(u.uHorizon.value);
+    u.uNightGround.value.copy(u.uGroundSky.value);
     u.uFogTint.value.copy(a.tint).lerp(b.tint, t);
     u.uFogDensity.value = a.fog + (b.fog - a.fog) * t;
     u.uStars.value = a.stars + (b.stars - a.stars) * t;
     u.uNight.value = 1 - smoothstep(-10, 2, el);
+    // mist pools in the valleys around dawn and dusk and burns off by midday
+    const morning = this.hours < 12 ? 1 : 0.65;
+    u.uMist.value = (0.25 + 0.75 * (1 - smoothstep(4, 22, el))) * morning;
     this.sunColor.copy(a.sun).lerp(b.sun, t);
     this.sunIntensity = a.sunI + (b.sunI - a.sunI) * t;
     this.hemiSky.copy(a.hemiSky).lerp(b.hemiSky, t);

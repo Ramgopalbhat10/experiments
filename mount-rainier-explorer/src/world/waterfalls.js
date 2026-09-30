@@ -73,7 +73,7 @@ const MIST_VS = /* glsl */ `
     vec4 mv = viewMatrix * wp;
     gl_Position = projectionMatrix * mv;
     gl_PointSize = uPx * (5.0 + 12.0 * t) * uScale / -mv.z;
-    vA = sin(t * 3.14159) * 0.12;
+    vA = sin(t * 3.14159) * 0.06;
     #include <logdepthbuf_vertex>
   }`;
 
@@ -94,7 +94,8 @@ const MIST_FS = /* glsl */ `
   }`;
 
 export class Waterfalls {
-  constructor(features, hf, paths, atmo) {
+  constructor(features, hf, paths, atmo, cascades = null) {
+    this.cascades = cascades;
     this.group = new THREE.Group();
     this.group.name = 'waterfalls';
     this.list = [];
@@ -108,18 +109,28 @@ export class Waterfalls {
       clipping: true,
     });
     this.mistMat = new THREE.ShaderMaterial({
-      uniforms: { ...atmo.uniforms, uScale: { value: 1 }, uPx: { value: 28 } },
+      uniforms: { ...atmo.uniforms, uScale: { value: 1 }, uPx: { value: 20 } },
       vertexShader: MIST_VS,
       fragmentShader: MIST_FS,
       transparent: true,
       depthWrite: false,
     });
     const pos = [], uv = [], idx = [];
+    const named = features.points.filter((q) => q.k === 'waterfall' && q.n);
     for (const p of features.points) {
       if (p.k !== 'waterfall') continue;
+      // unnamed nodes right next to a named fall are duplicates of it
+      if (!p.n && named.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 250)) continue;
       const drop = DROPS[p.n] || 14;
       const wf = this._trace(p, drop, hf, paths);
       if (!wf) continue;
+      // named falls get a carved gorge, basalt ledges and cascading strands
+      const set = cascades ? cascades.add({ name: p.n || 'Waterfall', x: p.x, z: p.z, drop }, wf) : null;
+      if (set) {
+        this._mist(set.bottom, Math.min(2, 0.6 + drop / 40));
+        this.list.push({ name: p.n, x: p.x, z: p.z, y: set.bottom[1] + drop, drop, bottom: set.bottom, mist: this.group.children[this.group.children.length - 1] });
+        continue;
+      }
       const base = pos.length / 3;
       const W = wf.width;
       let along = 0;
@@ -150,6 +161,7 @@ export class Waterfalls {
       this.group.add(mist);
       this.list.push({ name: p.n, x: p.x, z: p.z, y: wf.pts[0][1], drop, bottom, mist });
     }
+    this.group.add(...(cascades ? [cascades.group] : []));
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('aUv', new THREE.Float32BufferAttribute(uv, 2));
@@ -159,6 +171,21 @@ export class Waterfalls {
     this.mesh.renderOrder = 6;
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
+  }
+
+  _mist(bottom, scale) {
+    const n = 40;
+    const mg = new THREE.BufferGeometry();
+    const seeds = new Float32Array(n);
+    for (let i = 0; i < n; i++) seeds[i] = Math.random();
+    mg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    mg.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+    const mist = new THREE.Points(mg, this.mistMat);
+    mist.position.set(bottom[0], bottom[1], bottom[2]);
+    mist.frustumCulled = false;
+    mist.visible = false;
+    mist.renderOrder = 7;
+    this.group.add(mist);
   }
 
   /** Follow the OSM stream downhill from the waterfall node until the drop is reached. */
@@ -224,11 +251,12 @@ export class Waterfalls {
     }
     if (pts.length < 4) return null;
     const width = near && near.line.kind === 1 ? 9 : drop > 60 ? 5 : 3.5;
-    return { pts, width };
+    return { pts, width, poly };
   }
 
   update(camera, dt) {
     const cp = camera.position;
+    this.cascades?.update(camera);
     for (const w of this.list) {
       const d = Math.hypot(w.bottom[0] - cp.x, w.bottom[2] - cp.z);
       w.dist = d;

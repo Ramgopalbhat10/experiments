@@ -54,12 +54,16 @@ export class Lakes {
         });
       }
     }
+    this._shores(hf);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx);
     g.computeBoundingSphere();
 
     this.reflRT = new THREE.WebGLRenderTarget(512, 512, { type: THREE.HalfFloatType, samples: 0 });
+    // depth for the clouds pass (VolumetricClouds.renderReflection), which stops its rays at the scene
+    this.reflRT.depthTexture = new THREE.DepthTexture(512, 512, THREE.FloatType);
+    this.clouds = null;
     this.reflCam = new THREE.PerspectiveCamera();
     this.texMat = new THREE.Matrix4();
     this.clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -125,12 +129,16 @@ export class Lakes {
             vec4 c = uTexMat * vec4(wp + vec3(N.x, 0.0, N.z) * 2.0, 1.0);
             refl = mix(refl, texture2D(uRefl, c.xy / c.w).rgb, useRefl);
           }
+          // without a planar reflection, fake the dark forested shore mirrored just below the horizon
+          float treeline = (1.0 - smoothstep(0.015, 0.11 + 0.04 * vnoise(vec2(atan(R.x, R.z) * 30.0, 0.0)), R.y)) * (1.0 - useRefl);
+          refl = mix(refl, vec3(0.025, 0.045, 0.04) * (uAmbient + uLightColor * 0.3), treeline * 0.85);
           float sh = terrainShadowAt(wp);
-          vec3 deep = vec3(0.012, 0.05, 0.06);
-          vec3 shallow = vec3(0.06, 0.16, 0.13);
-          vec3 body = mix(shallow, deep, smoothstep(0.3, 5.0, depth));
+          // mountain lakes are dark and clear: the shallows show green-brown only right at the shore
+          vec3 deep = vec3(0.008, 0.03, 0.035);
+          vec3 shallow = vec3(0.045, 0.09, 0.07);
+          vec3 body = mix(shallow, deep, smoothstep(0.15, 2.0, depth));
           body *= uAmbient + uLightColor * sh * 0.4;
-          vec3 col = mix(body, refl, clamp(fres * 1.1 + 0.18, 0.0, 1.0));
+          vec3 col = mix(body, refl, clamp(fres * 1.05 + 0.05, 0.0, 1.0));
           col += pow(max(dot(reflect(-uSunDir, N), V), 0.0), 350.0) * uLightColor * 2.5 * sh;
           float shore = 1.0 - smoothstep(0.0, 0.45, depth);
           col = mix(col, vec3(0.85) * (uAmbient + uLightColor * sh), shore * 0.25 * vnoise(wp.xz * 2.0 + uTime));
@@ -149,6 +157,31 @@ export class Lakes {
     this.mesh.name = 'lakes';
     this.mesh.renderOrder = 5;
     this.mesh.frustumCulled = false;
+  }
+
+  /** Build a gently rising shore around every lake: no dry ground below the waterline. */
+  _shores(hf) {
+    for (const L of this.lakes) {
+      const m = 50;
+      hf.carve(L.minX - m, L.minZ - m, L.maxX + m, L.maxZ + m, (x, z, h) => {
+        if (h >= L.level + 0.4) return h;
+        const inside = pointInPoly(x, z, L.contour) && !L.holes.some((q) => pointInPoly(x, z, q));
+        if (!inside && this.levelAt(x, z) !== null) return h;   // inside a neighbouring pond
+        let d = Infinity;
+        const r = L.contour;
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const ax = r[j].x, az = r[j].y, bx = r[i].x, bz = r[i].y;
+          const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez || 1;
+          const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / l2));
+          d = Math.min(d, Math.hypot(ax + ex * t - x, az + ez * t - z));
+        }
+        // inside: shelve up toward the edge so the waterline sits within the polygon, and
+        // deepen the bed away from the shore (the DEM only has the lake's flat surface)
+        if (inside) return d < 12 ? Math.max(h, L.level - 0.7 + (12 - d) * 0.1) : Math.min(h, L.level - Math.min(9, 0.7 + (d - 12) * 0.12));
+        if (d > m) return h;
+        return Math.max(h, L.level + 0.4 + d * 0.04);
+      });
+    }
   }
 
   /** Water surface level at (x, z) or null if not inside a lake. */
@@ -210,6 +243,8 @@ export class Lakes {
     r.setRenderTarget(this.reflRT);
     r.clear();
     r.render(scene, cam);
+    r.clippingPlanes = prevClip;
+    this.clouds?.renderReflection(this.reflRT, cam);
     r.setRenderTarget(prevRT);
     hide.forEach((o, i) => (o.visible = vis[i]));
     this.mesh.visible = true;

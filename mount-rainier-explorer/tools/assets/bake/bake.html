@@ -1,0 +1,112 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/addons/":"/three/examples/jsm/"}}</script>
+</head><body style="margin:0;background:#000">
+<script type="module">
+// Card baker: renders parts of a Poly Haven scan orthographically into
+// colour, tangent-space normal and depth images (see bake_cards.mjs).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, alpha: true });
+renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.localClippingEnabled = true;
+document.body.appendChild(renderer.domElement);
+const cache = new Map();
+
+async function load(url) {
+  if (!cache.has(url)) cache.set(url, await new GLTFLoader().loadAsync(url));
+  return cache.get(url);
+}
+
+// shot: { model, pick: [indices of top-level nodes] | null, clip: {axis:'x', from, to} (fractions of the bbox),
+//         euler: [x, y, z] (degrees, applied to the picked group), view: 'top'|'side', w, h, pad }
+window.bake = async (shot) => {
+  const gltf = await load(shot.model);
+  const src = gltf.scene;
+  const group = new THREE.Group();
+  const kids = shot.pick ? shot.pick.map((i) => src.children[i]) : src.children;
+  kids.forEach((k, i) => {
+    const c = k.clone(true);
+    if (shot.stack) {
+      // several plants on one spot, each spun about its own axis: a denser card
+      const holder = new THREE.Group();
+      holder.add(c);
+      c.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(c);
+      c.position.x -= (b.min.x + b.max.x) / 2;
+      c.position.z -= (b.min.z + b.max.z) / 2;
+      c.position.y -= b.min.y;
+      holder.rotation.y = ((shot.stack.spin?.[i] ?? i * 70) * Math.PI) / 180;
+      holder.scale.setScalar(shot.stack.scale?.[i] ?? 1);
+      holder.position.y = shot.stack.lift?.[i] ?? 0;
+      group.add(holder);
+    } else group.add(c);
+  });
+  // clip a slice out of a model holding several plants side by side
+  let planes = [];
+  const box0 = new THREE.Box3().setFromObject(group);
+  if (shot.clip) {
+    const a = shot.clip.axis, lo = box0.min[a] + (box0.max[a] - box0.min[a]) * shot.clip.from, hi = box0.min[a] + (box0.max[a] - box0.min[a]) * shot.clip.to;
+    const n = new THREE.Vector3(); n[a] = 1;
+    planes = [new THREE.Plane(n.clone(), -lo), new THREE.Plane(n.clone().negate(), hi)];
+  }
+  const e = (shot.euler || [0, 0, 0]).map((d) => (d * Math.PI) / 180);
+  const pivot = new THREE.Group();
+  pivot.add(group);
+  pivot.rotation.set(e[0], e[1], e[2]);
+  const scene = new THREE.Scene();
+  scene.add(pivot);
+  pivot.updateMatrixWorld(true);
+  // clipping planes live in world space: transform them with the pivot
+  const worldPlanes = planes.map((p) => p.clone().applyMatrix4(pivot.matrixWorld));
+  // bounds of the visible part only
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  group.traverse((o) => {
+    if (!o.isMesh) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      if (worldPlanes.every((p) => p.distanceToPoint(v) >= 0)) box.expandByPoint(v);
+    }
+  });
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const W = shot.w, H = shot.h, pad = shot.pad ?? 0.04;
+  renderer.setSize(W, H);
+  // camera looks down -y (top) or along -z (side); image x = world x
+  let cam, spanU, spanV;
+  if (shot.view === 'top') { spanU = size.x; spanV = size.z; } else { spanU = size.x; spanV = size.y; }
+  const aspect = W / H;
+  let halfU = spanU / 2 * (1 + pad * 2), halfV = spanV / 2 * (1 + pad * 2);
+  if (halfU / halfV > aspect) halfV = halfU / aspect; else halfU = halfV * aspect;
+  if (shot.anchor === 'left') c.x = box.min.x - spanU * pad + halfU;   // the base of a spray sits on the card's left edge
+  const depth = Math.max(size.x, size.y, size.z) * 4;
+  cam = new THREE.OrthographicCamera(-halfU, halfU, halfV, -halfV, 0.001, depth * 2);
+  if (shot.view === 'top') { cam.position.set(c.x, box.max.y + depth / 2, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, c.y, c.z); }
+  else { cam.position.set(c.x, c.y, box.max.z + depth / 2); cam.lookAt(c.x, c.y, c.z); }
+  cam.updateMatrixWorld();
+
+  const passes = {};
+  const orig = new Map();
+  group.traverse((o) => { if (o.isMesh) orig.set(o, o.material); });
+  const shade = (kind) => {
+    for (const [o, m] of orig) {
+      const common = { side: THREE.DoubleSide, clippingPlanes: worldPlanes };
+      if (kind === 'color') o.material = new THREE.MeshBasicMaterial({ ...common, map: m.map });
+      else if (kind === 'normal') o.material = new THREE.MeshNormalMaterial({ ...common, normalMap: m.normalMap });
+      else o.material = new THREE.MeshDepthMaterial({ ...common, depthPacking: THREE.RGBADepthPacking });
+    }
+  };
+  for (const kind of ['color', 'normal', 'depth']) {
+    shade(kind);
+    renderer.setClearColor(kind === 'depth' ? 0xffffff : 0x000000, kind === 'depth' ? 1 : 0);
+    renderer.outputColorSpace = kind === 'color' ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
+    renderer.render(scene, cam);
+    passes[kind] = renderer.domElement.toDataURL('image/png');
+  }
+  return { ...passes, span: [halfU * 2, halfV * 2] };
+};
+window.ready = true;
+</script></body></html>

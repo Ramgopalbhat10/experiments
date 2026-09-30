@@ -1,0 +1,15 @@
+{
+  "name": "rainier-explorer-asset-tools",
+  "private": true,
+  "type": "module",
+  "description": "Builds assets/models and foliage cards from Poly Haven scans (see build_models.mjs, bake/bake_cards.mjs)",
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "gl-matrix": "^3.4.3",
+    "meshoptimizer": "^1.3.0",
+    "playwright-core": "1.63.0",
+    "three": "0.186.0"
+  }
+}

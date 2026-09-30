@@ -68,10 +68,11 @@ export class Heightfield {
     this.half = meta.size / 2;
   }
 
-  async load(base, progress = () => {}) {
-    const [t, lc] = await Promise.all([
+  async load(base, progress = () => {}, { detail = true } = {}) {
+    const [t, lc, dt] = await Promise.all([
       decodePNG(`${base}/terrain.png`, (p) => progress(0, p)),
       decodePNG(`${base}/landcover.png`, (p) => progress(1, p)),
+      detail ? decodePNG(`${base}/detail.webp`).catch(() => null) : null,
     ]);
     const n = this.res * this.res;
     const heights = (this.heights = new Float32Array(n));
@@ -88,14 +89,52 @@ export class Heightfield {
     this._buildNormals();
     this._buildRiparian();
     this._buildTextures();
+    if (dt) this._buildDetail(dt);
   }
 
-  _buildNormals() {
+  /**
+   * Fine relief: USGS 3DEP at ~10 m minus our 20 m surface (tools/build_detail.py),
+   * added to every height on the CPU and in the terrain shader. None under lakes.
+   */
+  _buildDetail(img) {
+    const D = (this.dRes = img.w), n = D * D;
+    this.dCell = this.size / D;
+    const d = (this.detail = new Uint8Array(n));
+    const R = this.res, k = R / D;
+    for (let j = 0; j < D; j++) {
+      for (let i = 0; i < D; i++) {
+        const lake = this.flags[Math.floor(j * k) * R + Math.floor(i * k)] & FLAG_LAKE;
+        d[j * D + i] = lake ? 128 : img.data[(j * D + i) * 4];
+      }
+    }
+    const tex = new THREE.DataTexture(d, D, D, THREE.RedFormat, THREE.UnsignedByteType);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+    this.detailTex = tex;
+  }
+
+  /** Fine-relief offset (m) at a world point, bilinear like the GPU's filtering. */
+  detailAt(x, z) {
+    const d = this.detail;
+    if (!d) return 0;
+    const D = this.dRes;
+    const gx = clamp((x + this.half) / this.dCell - 0.5, 0, D - 1.001);
+    const gz = clamp((z + this.half) / this.dCell - 0.5, 0, D - 1.001);
+    const ix = Math.floor(gx), iz = Math.floor(gz);
+    const fx = gx - ix, fz = gz - iz;
+    const i00 = iz * D + ix;
+    const a = d[i00], b = d[i00 + 1], c = d[i00 + D], e = d[i00 + D + 1];
+    return (((a + (b - a) * fx) * (1 - fz) + (c + (e - c) * fx) * fz) - 128) * 0.1;
+  }
+
+  _buildNormals(z0 = 0, z1 = this.res - 1, x0 = 0, x1 = this.res - 1) {
     const R = this.res, h = this.heights, c = this.cell;
-    const nrm = (this.normals = new Uint8Array(R * R * 4));
-    for (let z = 0; z < R; z++) {
+    const nrm = this.normals || (this.normals = new Uint8Array(R * R * 4));
+    for (let z = z0; z <= z1; z++) {
       const zu = Math.max(z - 1, 0) * R, zd = Math.min(z + 1, R - 1) * R, zr = z * R;
-      for (let x = 0; x < R; x++) {
+      for (let x = x0; x <= x1; x++) {
         const xl = Math.max(x - 1, 0), xr = Math.min(x + 1, R - 1);
         const dx = (h[zr + xr] - h[zr + xl]) / (2 * c);
         const dz = (h[zd + x] - h[zu + x]) / (2 * c);
@@ -159,6 +198,37 @@ export class Heightfield {
     this.normalTex = nt;
   }
 
+  /**
+   * Edit terrain inside a world-space box: fn(x, z, h) -> new height.
+   * Updates the CPU copy, the GPU height texture and the normals.
+   */
+  carve(minX, minZ, maxX, maxZ, fn) {
+    const R = this.res, c = this.cell;
+    const i0 = clamp(Math.floor((minX + this.half) / c), 0, R - 1), i1 = clamp(Math.ceil((maxX + this.half) / c), 0, R - 1);
+    const j0 = clamp(Math.floor((minZ + this.half) / c), 0, R - 1), j1 = clamp(Math.ceil((maxZ + this.half) / c), 0, R - 1);
+    const D = this.dRes, k = D / R;
+    let flat = false;
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const x = (i + 0.5) * c - this.half, z = (j + 0.5) * c - this.half;
+        const h0 = this.heights[j * R + i], h1 = fn(x, z, h0);
+        this.heights[j * R + i] = h1;
+        // shaped ground (shores, gorges) keeps the shape it was given: no fine relief on top
+        if (this.detail && Math.abs(h1 - h0) > 0.02) {
+          flat = true;
+          for (let dj = -1; dj <= k; dj++) for (let di = -1; di <= k; di++) {
+            const y = clamp(j * k + dj, 0, D - 1), xx = clamp(i * k + di, 0, D - 1);
+            this.detail[y * D + xx] = 128;
+          }
+        }
+      }
+    }
+    if (flat) this.detailTex.needsUpdate = true;
+    this._buildNormals(Math.max(0, j0 - 1), Math.min(R - 1, j1 + 1), Math.max(0, i0 - 1), Math.min(R - 1, i1 + 1));
+    this.heightTex.needsUpdate = true;
+    this.normalTex.needsUpdate = true;
+  }
+
   inside(x, z, margin = 0) {
     return Math.abs(x) < this.half - margin && Math.abs(z) < this.half - margin;
   }
@@ -170,7 +240,7 @@ export class Heightfield {
     return this.heights[iz * R + ix];
   }
 
-  /** Bicubic (Catmull-Rom) height; identical to the GLSL used by the terrain. */
+  /** Bicubic (Catmull-Rom) height plus fine relief; identical to the terrain shader. */
   heightAt(x, z) {
     const gx = (x + this.half) / this.cell - 0.5;
     const gz = (z + this.half) / this.cell - 0.5;
@@ -183,7 +253,7 @@ export class Heightfield {
       h += WZ[j] * (this._texel(ix - 1, zz) * WX[0] + this._texel(ix, zz) * WX[1] +
         this._texel(ix + 1, zz) * WX[2] + this._texel(ix + 2, zz) * WX[3]);
     }
-    return h;
+    return h + this.detailAt(x, z);
   }
 
   _idx(x, z) {

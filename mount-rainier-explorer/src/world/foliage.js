@@ -46,7 +46,7 @@ export function branchTexture() {
         const s = k / steps;
         const px = x + (ex - x) * s, py = stem(x) + (ey - stem(x)) * s;
         const top = side < 0;                                 // upper side catches light
-        const v = Math.floor((top ? 185 : 120) + r() * 70 - s * 25);
+        const v = Math.floor((top ? 170 : 95) + r() * 70 + s * 30);
         g.strokeStyle = `rgb(${v},${v},${v})`;
         g.lineWidth = 3 + r() * 2;
         for (const nd of [-1, 1]) {
@@ -214,28 +214,173 @@ export function coniferGeometry({ whorls = 13, crownBase = 0.12, radius = 0.25, 
   }
   // cards are drawn from the base (u = 0) out to the tip; rotate uv so u runs along the branch
   const foliage = finish(P, N, U, F);
+  // self-shadowing: needles near the trunk and on the lower, shaded whorls are
+  // darker, so the crown reads as a solid volume rather than a pile of cards
+  {
+    const c = foliage.attributes.color.array;
+    for (let i = 0; i < P.length / 3; i++) {
+      const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+      const t = Math.min(1, Math.max(0, (y - crownBase) / (1 - crownBase)));
+      const rMax = radius * Math.pow(1 - t * 0.92, taper) + 0.03;
+      const out = Math.min(1, Math.hypot(x, z) / rMax);
+      const k = (0.5 + 0.55 * out * out) * (0.78 + 0.3 * t);
+      c[i * 3] = k; c[i * 3 + 1] = k; c[i * 3 + 2] = k * 0.97;
+    }
+  }
   const bark = barkGeometry(trunkR, trunkR * 0.25, 0.95);
   return mergeGeometries([bark, foliage], true);
 }
 
-/** Broad-leaf crown (alder, cottonwood, vine maple) from leaf-clump cards. */
-export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false }) {
+/**
+ * Conifer built from photo-baked branch sprays (tools/assets/bake): a tapered
+ * trunk carrying whorls of drooping sprays, each branch one flat spray and
+ * one hanging one so the crown has depth from every side, with umbrella-like
+ * whorl cards filling the layers and a young-fir silhouette for the leader.
+ * Unit height; groups 0 = bark, 1 = sprays. `cards` is loadCards().fir.
+ *
+ * profile(t) gives the crown radius at relative crown height t (0 base .. 1 top).
+ */
+export function sprayConiferGeometry(cards, {
+  whorls = 18, crownBase = 0.15, radius = 0.2, perWhorl = 5, droop = 0.35, upturn = 0.15,
+  trunkR = 0.012, seed = 1, profile = (t) => 1 - t, width = 1.1, layers = 0.5, stubs = 0,
+}) {
+  const rnd = mulberry32(seed);
+  const P = [], N = [], U = [], F = [], C = [];
+  const sprays = cards.by('fir_spray'), whorl = cards.by('fir_whorl'), side = cards.by('fir_side');
+  const cy = (crownBase + 1) / 2;
+  const push = (p, uv, ao) => {
+    P.push(p[0], p[1], p[2]);
+    canopyNormal(p[0], p[1], p[2], cy, N);
+    U.push(uv[0], uv[1]);
+    F.push(Math.min(1, Math.hypot(p[0], p[2]) * 6) * Math.min(1, p[1] * 1.4));
+    C.push(ao, ao, ao * 0.97);
+  };
+  const tri = (a, b, c) => { for (const v of [a, b, c]) push(v.p, v.uv, v.ao); };
+  const aoAt = (x, y, z) => {
+    const t = Math.min(1, Math.max(0, (y - crownBase) / (1 - crownBase)));
+    const rMax = radius * Math.max(0.05, profile(t)) + 0.02;
+    const out = Math.min(1, Math.hypot(x, z) / rMax);
+    return (0.42 + 0.58 * Math.pow(out, 1.3)) * (0.72 + 0.34 * t);
+  };
+  // a spray bent in three segments: out from the trunk, drooping, the tip lifting
+  const spray = (y, a, L, W, roll, rect) => {
+    const d = [Math.cos(a), 0, Math.sin(a)];
+    const sx = -d[2], sz = d[0];
+    const drop = droop * (0.6 + rnd() * 0.8);
+    const pts = [[d[0] * trunkR, y, d[2] * trunkR]];
+    const angs = [drop * 0.55, drop * 1.2, drop * 0.6 - upturn];
+    for (let k = 0; k < 3; k++) {
+      const q = pts[k], seg = L / 3, e = angs[k];
+      pts.push([q[0] + d[0] * seg * Math.cos(e), q[1] - seg * Math.sin(e), q[2] + d[2] * seg * Math.cos(e)]);
+    }
+    // the card's cross axis: horizontal side vector rolled around the branch
+    const cr = Math.cos(roll), sr = Math.sin(roll);
+    const ax = [sx * cr * W / 2, sr * W / 2, sz * cr * W / 2];
+    const [u0, v0, uw, vh] = rect.uv;
+    const vx = (k, side) => {
+      const p = pts[k];
+      const q = [p[0] + ax[0] * side, p[1] + ax[1] * side, p[2] + ax[2] * side];
+      return { p: q, uv: [u0 + uw * (k / 3), v0 + vh * (side > 0 ? 1 : 0)], ao: aoAt(q[0], q[1], q[2]) };
+    };
+    for (let k = 0; k < 3; k++) {
+      const a0 = vx(k, -1), b0 = vx(k + 1, -1), b1 = vx(k + 1, 1), a1 = vx(k, 1);
+      tri(a0, b0, b1); tri(a0, b1, a1);
+    }
+  };
+  for (let w = 0; w < whorls; w++) {
+    const t = w / (whorls - 1);
+    const y = crownBase + (0.965 - crownBase) * t + (rnd() - 0.5) * 0.012;
+    const R = radius * Math.max(0.04, profile(t)) * (0.85 + rnd() * 0.3) + 0.012;
+    const n = Math.max(3, Math.round(perWhorl * (1 - t * 0.35)));
+    for (let b = 0; b < n; b++) {
+      const a = (b / n) * Math.PI * 2 + w * 2.39 + (rnd() - 0.5) * 0.7;
+      const rect = sprays[Math.floor(rnd() * sprays.length)];
+      const L = R * (1.0 + rnd() * 0.25);
+      const W = L * (rect.size[1] / rect.size[0]) * width;
+      spray(y, a, L, W, (rnd() - 0.5) * 0.6, rect);                               // flat
+      if (rnd() < 0.85) spray(y - 0.004, a + (rnd() - 0.5) * 0.3, L * 0.92, W * 0.9, Math.PI / 2 + (rnd() - 0.5) * 0.7, rect);  // hanging
+    }
+    // a whorl umbrella every other layer fills the crown seen from below and above
+    if (whorl.length && rnd() < layers) {
+      const rect = whorl[Math.floor(rnd() * whorl.length)];
+      const [u0, v0, uw, vh] = rect.uv;
+      const r0 = R * 1.05, rot = rnd() * Math.PI * 2, sag = droop * R * 0.7;
+      const c = { p: [0, y + 0.004, 0], uv: [u0 + uw / 2, v0 + vh / 2], ao: aoAt(0, y, 0) };
+      const corner = (k) => {
+        const ang = rot + (k * Math.PI) / 2;
+        const px = Math.cos(ang) * r0 * Math.SQRT2 * 0.8, pz = Math.sin(ang) * r0 * Math.SQRT2 * 0.8;
+        const uvs = [[u0 + uw, v0 + vh], [u0, v0 + vh], [u0, v0], [u0 + uw, v0]][k];
+        return { p: [px, y - sag, pz], uv: uvs, ao: aoAt(px, y - sag, pz) };
+      };
+      for (let k = 0; k < 4; k++) tri(c, corner(k), corner((k + 1) % 4));
+    }
+  }
+  // leader: two crossed young-fir silhouettes at the very top
+  if (side.length) {
+    const rect = side[Math.floor(rnd() * side.length)];
+    const [u0, v0, uw, vh] = rect.uv;
+    const h = 0.1, wdt = h * rect.size[0] / rect.size[1];
+    for (const a of [0, Math.PI / 2]) {
+      const dx = Math.cos(a) * wdt / 2, dz = Math.sin(a) * wdt / 2, y0 = 0.9;
+      const q = (x, y, z, u, v) => ({ p: [x, y, z], uv: [u0 + uw * u, v0 + vh * v], ao: 0.95 });
+      const A = q(-dx, y0, -dz, 0, 0), B = q(dx, y0, dz, 1, 0), Cc = q(dx, y0 + h, dz, 1, 1), D = q(-dx, y0 + h, -dz, 0, 1);
+      tri(A, B, Cc); tri(A, Cc, D);
+    }
+  }
+  const foliage = finish(P, N, U, F);
+  foliage.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  // the trunk stops under the leader so it never pokes out of a thin crown top
+  const parts = [barkGeometry(trunkR, trunkR * 0.18, 0.9, 9, [0.15, 0.1, 0.07])];
+  // dead lower limbs of old growth: thin, drooping, broken off at odd lengths
+  for (let i = 0; i < stubs; i++) {
+    const y = 0.14 + rnd() * (crownBase - 0.12), a = rnd() * Math.PI * 2, l = 0.012 + rnd() * rnd() * 0.05;
+    parts.push(barkGeometry(trunkR * 0.1, trunkR * 0.03, l, 3, [0.16, 0.12, 0.09]).rotateZ(-1.9 - rnd() * 0.5).rotateY(a).translate(0, y, 0));
+  }
+  return mergeGeometries([mergeGeometries(parts), foliage], true);
+}
+
+/**
+ * Broad-leaf crown (alder, cottonwood, vine maple) from leaf-clump cards.
+ * With `rects` (leaf clumps baked from a real shrub scan) each card shows one
+ * clump; clumpScale sizes the cards relative to the crown so the leaves stay
+ * near their real size (many small clumps rather than a few big ones).
+ */
+export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, trunkR = 0.022, trunkH = 0.7, seed = 3, shrub = false, rects = null, clumpScale = 1, lobes = 0 }) {
   const rnd = mulberry32(seed);
   const P = [], N = [], U = [], F = [];
   const cy = crownY;
+  // an irregular crown: leaf clumps gather around a few lobes held out on limbs
+  const L = [];
+  for (let i = 0; i < lobes; i++) {
+    const a = (i / lobes) * Math.PI * 2 + (rnd() - 0.5) * 0.9, o = crownR * (0.35 + rnd() * 0.45);
+    L.push([Math.cos(a) * o, crownY + (rnd() - 0.4) * crownR * 0.9, Math.sin(a) * o, crownR * (0.5 + rnd() * 0.25)]);
+  }
+  if (lobes) L.push([0, crownY + crownR * 0.45, 0, crownR * 0.55]);
   for (let i = 0; i < clumps; i++) {
     const a = rnd() * Math.PI * 2, e = (rnd() - 0.3) * 1.2;
-    const rr = crownR * (0.5 + rnd() * 0.5);
-    const cx = Math.cos(a) * Math.cos(e) * rr, cz = Math.sin(a) * Math.cos(e) * rr;
-    const cyy = crownY + Math.sin(e) * rr * 0.8;
-    const s = crownR * (0.55 + rnd() * 0.45);
+    let cx, cz, cyy, s;
+    if (lobes) {
+      const lb = L[Math.floor(rnd() * L.length)];
+      const rr = lb[3] * Math.pow(0.3 + rnd() * 0.7, 0.5);
+      cx = lb[0] + Math.cos(a) * Math.cos(e) * rr; cz = lb[2] + Math.sin(a) * Math.cos(e) * rr;
+      cyy = lb[1] + Math.sin(e) * rr * 0.75;
+      s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    } else {
+      const rr = crownR * Math.pow(0.35 + rnd() * 0.65, 0.6);
+      cx = Math.cos(a) * Math.cos(e) * rr; cz = Math.sin(a) * Math.cos(e) * rr;
+      cyy = crownY + Math.sin(e) * rr * 0.8;
+      s = crownR * (0.55 + rnd() * 0.45) * clumpScale;
+    }
+    const rect = rects ? rects[Math.floor(rnd() * rects.length)] : null;
     // camera-agnostic: two crossed cards per clump
-    const t = rnd() * Math.PI;
+    const t = rnd() * Math.PI, tilt = rects ? (rnd() - 0.5) * 0.9 : 0;
+    const u0 = U.length;
     for (const k of [0, Math.PI / 2]) {
       const ax = [Math.cos(t + k) * s, 0, Math.sin(t + k) * s];
-      const up = [0, s * 0.85, 0];
-      card(P, N, U, F, [cx - ax[0] / 2, cyy - up[1] / 2, cz - ax[2] / 2], ax, up, cy);
+      const up = [-Math.sin(t + k) * s * tilt * 0.85, s * 0.85, Math.cos(t + k) * s * tilt * 0.85];
+      card(P, N, U, F, [cx - ax[0] / 2 - up[0] / 2, cyy - up[1] / 2, cz - ax[2] / 2 - up[2] / 2], ax, up, cy);
     }
+    if (rect) for (let j = u0; j < U.length; j += 2) { U[j] = rect.uv[0] + U[j] * rect.uv[2]; U[j + 1] = rect.uv[1] + U[j + 1] * rect.uv[3]; }
   }
   const foliage = finish(P, N, U, F);
   if (shrub) {
@@ -243,18 +388,30 @@ export function broadleafGeometry({ clumps = 22, crownY = 0.62, crownR = 0.3, tr
     const stems = [0, 1, 2].map((i) => barkGeometry(0.004, 0.002, crownY * 0.8, 4, [0.2, 0.1, 0.07]).rotateZ((i - 1) * 0.25));
     return mergeGeometries([mergeGeometries(stems), foliage], true);
   }
-  return mergeGeometries([barkGeometry(trunkR, trunkR * 0.5, trunkH, 6, [0.36, 0.34, 0.3]), foliage], true);
+  const wood = [barkGeometry(trunkR, trunkR * 0.5, trunkH, 6, [0.24, 0.23, 0.2])];
+  // limbs from the upper trunk out to each lobe
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3(), q = new THREE.Quaternion();
+  for (const lb of L) {
+    const y0 = trunkH * (0.55 + rnd() * 0.3);
+    dir.set(lb[0], lb[1] - y0, lb[2]);
+    const len = dir.length() * 0.85;
+    dir.normalize();
+    q.setFromUnitVectors(up, dir);
+    wood.push(barkGeometry(trunkR * 0.55, trunkR * 0.18, len, 5, [0.24, 0.23, 0.2]).applyQuaternion(q).translate(0, y0, 0));
+  }
+  return mergeGeometries([mergeGeometries(wood), foliage], true);
 }
 
-/** Tuft: three crossed grass cards. */
-export function tuftGeometry() {
+/** Tuft: three crossed grass cards (with `rects`, each shows a different baked clump). */
+export function tuftGeometry(rects = null) {
   const P = [], N = [], U = [], F = [];
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI;
     const ax = [Math.cos(a), 0, Math.sin(a)];
     const o = [-ax[0] / 2, 0, -ax[2] / 2];
     const v = [o, [o[0] + ax[0], 0, o[2] + ax[2]], [o[0] + ax[0], 1, o[2] + ax[2]], [o[0], 1, o[2]]];
-    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const r = rects ? rects[i % rects.length].uv : [0, 0, 1, 1];
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, w]) => [r[0] + u * r[2], r[1] + w * r[3]]);
     for (const k of [0, 1, 2, 0, 2, 3]) {
       P.push(...v[k]); N.push(0, 1, 0); U.push(...uv[k]); F.push(v[k][1]);
     }
@@ -312,18 +469,27 @@ export function logGeometry() {
  * Pre-render a tree into a texture for distant crossed-billboard impostors.
  */
 export function makeImpostor(renderer, geometry, materials, { width, height = 1 }) {
+  // never narrower than the crown itself, or the spires are clipped to spikes
+  const pos = geometry.attributes.position;
+  let rMax = 0;
+  for (let i = 0; i < pos.count; i++) rMax = Math.max(rMax, Math.abs(pos.getX(i)), Math.abs(pos.getZ(i)));
+  width = Math.max(width, rMax * 2 * 1.04);
   const rt = new THREE.WebGLRenderTarget(256, 512, { samples: 4 });
   rt.texture.generateMipmaps = true;
   rt.texture.minFilter = THREE.LinearMipmapLinearFilter;
   rt.texture.colorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
-  const mesh = new THREE.Mesh(geometry, materials);
+  // bake albedo only: the impostor material lights it in the scene like the
+  // near trees (with its rounded canopy normals), so baked light would double
+  const unlit = (m) => new THREE.MeshBasicMaterial({
+    map: m.map || null, color: m.color, vertexColors: m.vertexColors, alphaTest: m.alphaTest, side: m.side,
+  });
+  const mats = Array.isArray(materials) ? materials.map(unlit) : unlit(materials);
+  const mesh = new THREE.Mesh(geometry, mats);
   scene.add(mesh);
   const cam = new THREE.OrthographicCamera(-width / 2, width / 2, height, 0, 0.1, 10);
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
-  // bake side light into the impostor so it reads as a rounded crown
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.6), new THREE.DirectionalLight(0xffffff, 1.4));
   const prev = renderer.getRenderTarget();
   const prevClear = renderer.getClearAlpha();
   renderer.setRenderTarget(rt);
@@ -332,6 +498,7 @@ export function makeImpostor(renderer, geometry, materials, { width, height = 1 
   renderer.render(scene, cam);
   renderer.setRenderTarget(prev);
   renderer.setClearAlpha(prevClear);
+  for (const m of [mats].flat()) m.dispose();
 
   const P = [], N = [], U = [], F = [];
   for (const a of [0, Math.PI / 3, (2 * Math.PI) / 3]) {

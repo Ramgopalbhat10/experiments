@@ -222,3 +222,55 @@ body.viewfinder #viewfinder { display: block; }
   #hotbar { bottom: 8px; transform: translateX(-50%) scale(0.8); }
   #energy { top: 130px; left: 10px; }
 }
+
+/* --- ?trailer: live launch trailer overlay -------------------------------- */
+.trailer-link { display: none; margin-top: 14px; color: var(--cream, #fff1dc); opacity: 0.8; font: 500 14px 'Work Sans', sans-serif; letter-spacing: 0.08em; text-decoration: none; }
+.trailer-link:hover { opacity: 1; text-decoration: underline; }
+#loading.done .trailer-link { display: block; animation: rise 0.8s ease; }
+.trailer-mode .trailer-link { display: none !important; }
+.trailer-mode.trailer-on, .trailer-mode .trailer.on { cursor: none; }
+.trailer { position: fixed; inset: 0; pointer-events: none; z-index: 60; display: none; }
+.trailer.on { display: block; }
+.tr-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.32) 100%); }
+.tr-black { position: absolute; inset: 0; background: #000; opacity: 1; }
+.tr-msg { position: absolute; left: 0; right: 0; bottom: 8vh; text-align: center; color: #d9cbb4; font: 500 1.05vw 'Work Sans', sans-serif; letter-spacing: 0.25em; text-transform: uppercase; }
+.tr-loc { position: absolute; left: 5vw; bottom: 7.5vw; opacity: 0; padding-left: 1.15vw; color: #fff; text-shadow: 0 0.1vw 0.6vw rgba(0,0,0,0.65); }
+.tr-loc i { position: absolute; left: 0; top: 0.2vw; bottom: 0.2vw; width: 0.21vw; background: #e8703a; }
+.tr-loc b { display: block; font: 500 1.77vw 'Oswald', sans-serif; letter-spacing: 0.21vw; }
+.tr-loc span { display: block; margin-top: 0.35vw; font: 600 0.9vw 'Work Sans', sans-serif; letter-spacing: 0.21vw; color: #ebe1d2; }
+.tr-statement { position: absolute; left: 0; right: 0; top: 47%; transform: translateY(-50%); text-align: center; opacity: 0; color: #fff; text-shadow: 0 0.15vw 1vw rgba(0,0,0,0.7); }
+.tr-statement b { display: block; font: 500 3.5vw 'Oswald', sans-serif; text-transform: uppercase; white-space: nowrap; }
+.tr-statement small { display: block; margin-bottom: 1.4vw; font: 600 1.15vw 'Work Sans', sans-serif; letter-spacing: 0.36vw; text-transform: uppercase; color: #ffd6aa; }
+.tr-caption { position: absolute; left: 0; right: 0; top: 37%; transform: translateY(-50%); padding: 2.4vw 0; text-align: center; opacity: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.42) 35%, rgba(0,0,0,0.42) 65%, transparent); }
+.tr-caption b { font: 500 2.4vw 'Oswald', sans-serif; letter-spacing: 0.52vw; text-transform: uppercase; color: #fff; }
+.tr-end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; color: #fff4e2; --te: 0; --sub: 0; }
+.tr-end h1 { margin: 0; font: 700 7.8vw/1 'Oswald', sans-serif; letter-spacing: calc(1.77vw + 0.52vw * var(--te)); padding-left: calc(1.77vw + 0.52vw * var(--te)); }
+.tr-end > i { display: block; height: 0.16vw; width: calc(12.5vw * min(1, var(--te) * 3.75)); background: #e8703a; margin: 1.6vw 0 2.2vw; }
+.tr-end p { margin: 0; font: italic 400 1.9vw 'Work Sans', sans-serif; color: #ebe1d2; opacity: var(--sub); }
+.tr-end small { margin-top: 1.4vw; font: 600 1.25vw 'Work Sans', sans-serif; letter-spacing: 0.42vw; text-transform: uppercase; color: #e8703a; opacity: var(--sub); }
+.tr-actions { margin-top: 3vw; display: flex; gap: 14px; opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+.tr-end.done .tr-actions { opacity: 1; pointer-events: auto; }
+.tr-end.done { cursor: default; }
+
+/* --- ranger radio (Jev) ------------------------------------------------------- */
+#radio-cmd { position: fixed; left: 50%; bottom: 118px; transform: translate(-50%, 12px); width: min(620px, calc(100vw - 32px)); z-index: 30;
+  background: rgba(30, 22, 18, 0.92); border: 1px solid rgba(243, 230, 200, 0.18); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+#radio-cmd.open { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.rc-head { display: flex; align-items: center; gap: 8px; font: 600 11px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: #cdb892; margin-bottom: 8px; }
+.rc-head i { width: 8px; height: 8px; border-radius: 50%; background: #7bd36a; box-shadow: 0 0 8px #7bd36a; }
+#radio-form { display: flex; gap: 8px; }
+#radio-input { flex: 1; min-width: 0; font: 15px var(--body); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(243, 230, 200, 0.25); background: rgba(0, 0, 0, 0.35); color: var(--paper); outline: none; }
+#radio-input:focus { border-color: var(--ember-2); }
+.radio-open #subtitle { opacity: 0 !important; }
+.rc-hint { margin-top: 8px; font-size: 11.5px; line-height: 1.5; opacity: 0.6; }
+#radio-status { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 29; font: 600 12px var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: #cdb892;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+#radio-status.show { opacity: 0.9; animation: radio-pulse 1s ease-in-out infinite; }
+@keyframes radio-pulse { 50% { opacity: 0.45; } }
+.panel input[type=password] { font: 14px var(--body); width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(43, 29, 20, 0.3); background: rgba(255, 255, 255, 0.55); color: var(--ink); letter-spacing: normal; text-transform: none; }
+.jev-row { display: flex; align-items: center; gap: 8px; margin: -6px 0 6px; flex-wrap: wrap; }
+.jev-row .btn { padding: 6px 12px; font-size: 12px; }
+#jev-status { font-size: 12px; opacity: 0.8; }
+#jev-status[data-ok="1"] { color: #3f7a3a; opacity: 1; }

@@ -148,11 +148,14 @@ export class Game {
   ready() { return $('intro').classList.contains('gone') && !this.map.open && !this.hud.panel; }
 
   toggleView() {
-    const first = this.controller.mode !== 'first';
+    this.setView(this.controller.mode !== 'first');
+  }
+
+  setView(first, quiet = false) {
     this.controller.setMode(first ? 'first' : 'third');
     document.body.classList.toggle('fp', first);
     document.body.classList.toggle('viewfinder', first && this.item === 'camera');
-    this.toast(first ? 'First person' : 'Third person');
+    if (!quiet) this.toast(first ? 'First person' : 'Third person');
   }
 
   use() {
@@ -286,6 +289,7 @@ export class Game {
   onDiscover(p) {
     if (this.saidPlace.has(p.id) || !PLACE_LINES[p.id]) return;
     this.saidPlace.add(p.id);
+    this.ranger?.onDiscover(p);
     setTimeout(() => this.subtitle('Ranger (radio)', PLACE_LINES[p.id][0]), 2500);
     this.chatterTimer = 150;
   }
@@ -333,7 +337,7 @@ export class Game {
     // radio chatter
     if (this.subTimer > 0) { this.subTimer -= dt; if (this.subTimer <= 0) $('subtitle').classList.remove('show'); }
     this.chatterTimer -= dt;
-    if (this.chatterTimer <= 0) {
+    if (this.chatterTimer <= 0 && !this.ranger?.jev.enabled) {
       this.chatterTimer = 150 + Math.random() * 150;
       this.subtitle('Ranger (radio)', GENERIC_LINES[Math.floor(Math.random() * GENERIC_LINES.length)]);
     }
