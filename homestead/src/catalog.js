@@ -28,7 +28,7 @@ export const CATALOG = [
   item('stove','Range cooker','kitchen','Four burners and an inset oven',{size:[.75,.9,.65]}),
   item('fridge','Refrigerator','kitchen','A modern stainless steel fridge',{size:[.8,1.9,.7]}),
   item('island','Kitchen island','kitchen','A generous stone-topped gathering space',{size:[2,.92,.95]}),
-  item('bed','Oak bed','bedroom','Layered linen and a timber headboard',{size:[1.8,1.1,2.2]}),
+  item('bed','Oak bed','bedroom','Carved timber bed with layered linen',{size:[1.8,1.55,2.2]}),
   item('nightstand','Bedside table','bedroom','A little home for your evening essentials',{size:[.5,.52,.45]}),
   item('wardrobe','Wardrobe','bedroom','Tall oak doors and brass pulls',{size:[1.6,2.2,.6]}),
   item('desk','Writing desk','bedroom','A quiet place to make something',{size:[1.4,.76,.6]}),

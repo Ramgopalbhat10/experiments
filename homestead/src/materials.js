@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-const textures=new Map(), materials=new Map(), loading=[];
-export const texturesReady=()=>Promise.all(loading);
+import { loadTexture,assetsReady } from './assets.js';
+const textures=new Map(), materials=new Map();
+export const texturesReady=assetsReady;
 const photographed=new Set(['oak','plaster','fabric','grass','concrete','stone']);
 const density={oak:1,plaster:1.5,fabric:3,grass:.5,concrete:1,stone:.65};
 let seed=42;
@@ -8,8 +9,7 @@ const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
 export function texture(kind,channel='color') {
   const key=kind+channel;if(textures.has(key))return textures.get(key);
   if(photographed.has(kind)){
-    let finish;loading.push(new Promise(resolve=>finish=resolve));
-    const t=new THREE.TextureLoader().load(`/textures/${kind}-${channel}.jpg`,finish,undefined,finish);
+    const t=loadTexture(`/textures/${kind}-${channel}.jpg`,{color:channel==='color',channel});
     if(channel==='color')t.colorSpace=THREE.SRGBColorSpace;
     t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.setScalar(density[kind]);t.anisotropy=8;textures.set(key,t);return t;
   }

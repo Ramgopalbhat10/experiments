@@ -5,12 +5,14 @@ import { starterProject } from './starter.js';
 import { Player } from './player.js';
 import { Building } from './building.js';
 import { createUI } from './ui.js';
-import { generateThumbnails } from './thumbnails.js';
+import { Feedback } from './feedback.js';
+import { invalidateObjectTemplates } from './objects.js';
 import { loadDetailedModels } from './models.js';
-import { texturesReady } from './materials.js';
-import { CATALOG, HOTBAR } from './catalog.js';
 
-await loadDetailedModels();
+import { assetsReady as texturesReady } from './assets.js';
+import { HOTBAR } from './catalog.js';
+
+
 export const game={};
 const STORAGE='homestead-project-v1';
 let toastTimer;
@@ -19,11 +21,12 @@ try {
   let project,loadMessage;
   try{const saved=localStorage.getItem(STORAGE);project=saved?new Project(JSON.parse(saved)):new Project(starterProject());}
   catch{project=new Project(starterProject());loadMessage='Your stored save couldn’t be read. The example home is ready; import a backup to continue.';}
-  const world=createWorld(document.getElementById('world'));let ui,builder,saveTimer;
+  const world=createWorld(document.getElementById('world'));const feedback=new Feedback();let ui,builder,saveTimer;
+  try{world.setQuality(localStorage.getItem('homestead-quality')||'auto');}catch{world.setQuality('auto');}
   const player=new Player(world.camera,world.renderer.domElement,locked=>ui?.lock(locked));player.reset();
   function save(show=false){try{localStorage.setItem(STORAGE,project.serialize());ui?.saved(true);if(show)notify('Your home is saved on this device.');}catch{ui?.saved(false);if(show)notify('Local storage is unavailable. Export your project to keep it.');}}
   function changed(){ui?.update(project,builder);clearTimeout(saveTimer);saveTimer=setTimeout(()=>save(),180);}
-  builder=new Building(world,project,changed,notify);
+  builder=new Building(world,project,changed,notify);builder.onSpatialChange=()=>player.invalidateSpatial();builder.onFeedback=kind=>feedback.play(kind);builder.onAim=state=>ui?.placement(state);
   function level(delta){builder.setHeight(builder.height+delta);ui.level(builder.height);notify(builder.height?`Building at ${builder.height} m`:'Building at ground level');}
   ui=createUI({
     item(id){builder.setItem(id);ui.update(project,builder);},
@@ -31,13 +34,16 @@ try {
     color(color){builder.color=color;},finish(finish,color){builder.finish=finish;builder.color=color;},
     async walk(){try{await player.enter();}catch(err){notify(err.message);}},release(){player.leave();},
     save(){save(true);},undo(){builder.undo();},paint(){builder.paintSelected();},move(){builder.moveSelected();},remove(){builder.remove();},level,
+    quality(mode){world.setQuality(mode);ui.quality(world.quality);try{localStorage.setItem('homestead-quality',mode);}catch{}},sound(enabled){feedback.setEnabled(enabled);try{localStorage.setItem('homestead-sound',String(enabled));}catch{}},
     grid(){world.grid.visible=!world.grid.visible;return world.grid.visible;},light(mode){world.lighting(mode);},notify,
     cancel(){builder.cancelMove();builder.setMode('select');ui.setMode('select',false);ui.update(project,builder);},
     export(){save();const blob=new Blob([project.serialize()],{type:'application/json'});const link=document.createElement('a');const url=URL.createObjectURL(blob);link.href=url;link.download='my-homestead.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);notify('Your project is ready to take with you.');},
     import(text){try{const data=JSON.parse(text);project.replace(data);builder.cancelMove();builder.selected=null;builder.sync();player.reset();ui.title('My Homestead');save();notify('Welcome back. Your home has been imported.');}catch(error){notify(error instanceof SyntaxError?'This file isn’t valid JSON. Your current home is safe.':error.message);}},
     reset(kind){builder.cancelMove();project.replace(kind==='blank'?{version:1,objects:[]}:starterProject());builder.selected=null;builder.sync();player.reset();builder.setHeight(0);ui.level(0);ui.title(kind==='blank'?'A New Beginning':'The Cedar House');save();notify(kind==='blank'?'A blank canvas. Make yourself at home.':'The Cedar House is ready to explore.');},
   });
-  Object.assign(game,{world,project,player,builder,ui});
+  Object.assign(game,{world,project,player,builder,ui});ui.quality(world.quality);try{feedback.enabled=localStorage.getItem('homestead-sound')==='true';}catch{}ui.sound(feedback.enabled);
+  const pending=new Set();let detailTimer;function refreshDetails(){const items=new Set(pending);pending.clear();for(const item of items)invalidateObjectTemplates(item);builder.sync(items);}
+  game.assetsReady=loadDetailedModels({renderer:world.renderer,onProgress:progress=>ui.loading(progress),onLoaded:item=>{pending.add(item);clearTimeout(detailTimer);detailTimer=setTimeout(refreshDetails,80);}}).then(async result=>{await texturesReady();clearTimeout(detailTimer);if(pending.size)refreshDetails();return result;});
   ui.update(project,builder);save();
   if(loadMessage)notify(loadMessage);
   const canvas=world.renderer.domElement;
@@ -58,12 +64,10 @@ try {
     if(e.code==='Slash'&&!player.locked){e.preventDefault();ui.search();}
     if(e.code==='Escape'&&builder.moving){builder.cancelMove();builder.setMode('select');ui.setMode('select',false);ui.update(project,builder);}
   });
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){player.keys.clear();save();}});addEventListener('pagehide',()=>save());
-  let last=performance.now(),bearingTime=0;
-  function tick(now){const dt=Math.min((now-last)/1000,.05);last=now;player.update(dt,project.objects);builder.aim(player.locked);world.render();if(now-bearingTime>250){ui.compass(player.yaw);bearingTime=now;}requestAnimationFrame(tick);}
-  requestAnimationFrame(tick);
-  await texturesReady();
-  generateThumbnails(CATALOG,(id,url)=>ui.thumbnail(id,url),world.scene.environment).catch(()=>notify('Catalog previews are unavailable; every piece is still ready to build.'));
+  let animationFrame,last=performance.now(),bearingTime=0,statsTime=0;
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){player.clearMotion?.();player.keys.clear();cancelAnimationFrame(animationFrame);save();}else{last=performance.now();animationFrame=requestAnimationFrame(tick);}});addEventListener('pagehide',()=>save());
+  function tick(now){if(document.hidden)return;const dt=Math.max(0,(now-last)/1000);last=now;player.advance(dt,project.objects);builder.aim(player.locked);if(!builder.preview?.visible)ui.placement(null);world.render(dt);if(now-bearingTime>250){ui.compass(player.yaw);bearingTime=now;}if(now-statsTime>1000){ui.performance(world.stats);ui.quality(world.quality);statsTime=now;}animationFrame=requestAnimationFrame(tick);}
+  animationFrame=requestAnimationFrame(tick);
 } catch(error) {
   console.error(error);const el=document.getElementById('failure');el.hidden=false;el.innerHTML='<h1>Let’s make room for your world.</h1><p>Homestead needs a browser with WebGL enabled.<br>Try a current desktop browser with hardware acceleration turned on.</p>';
 }

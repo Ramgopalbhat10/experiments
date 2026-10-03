@@ -1,0 +1,34 @@
+{
+  "asset": "electric_stove",
+  "source": "https://polyhaven.com/a/electric_stove",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "files_api": "https://api.polyhaven.com/files/electric_stove",
+  "source_files": {
+    "include": {
+      "electric_stove.bin": {
+        "size": 462956,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/electric_stove/electric_stove.bin",
+        "md5": "9846b43c4af868f79a95635fb9bd354d"
+      },
+      "textures/electric_stove_nor_gl_1k.jpg": {
+        "size": 427043,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/electric_stove/electric_stove_nor_gl_1k.jpg",
+        "md5": "611bcfac2fc0eb84c8727bee1d2bfc15"
+      },
+      "textures/electric_stove_arm_1k.jpg": {
+        "size": 677547,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/electric_stove/electric_stove_arm_1k.jpg",
+        "md5": "f6dd650e669f6cb8f767265a3cf80f95"
+      },
+      "textures/electric_stove_diff_1k.jpg": {
+        "size": 446916,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/electric_stove/electric_stove_diff_1k.jpg",
+        "md5": "dd6ba5a62587e4172853321ec58388fe"
+      }
+    },
+    "size": 31234,
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/electric_stove/electric_stove_1k.gltf",
+    "md5": "1ec96abe416e022f792ace742d33947a"
+  }
+}
