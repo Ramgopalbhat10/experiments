@@ -1,0 +1,63 @@
+export const CATEGORIES = [
+  {id:'structure',name:'Build',icon:'wall'}, {id:'living',name:'Living',icon:'sofa'},
+  {id:'kitchen',name:'Kitchen',icon:'counter'}, {id:'bedroom',name:'Bedroom',icon:'bed'},
+  {id:'bathroom',name:'Bath',icon:'bath'}, {id:'decor',name:'Décor',icon:'lamp'},
+  {id:'garden',name:'Garden',icon:'tree'},
+];
+const item = (id,name,category,description,extra={}) => ({id,name,category,description,grid:0.25,...extra});
+export const CATALOG = [
+  item('foundation','Foundation','structure','A solid concrete base. 3 × 3 m',{grid:3,slot:'floor',size:[3,.2,3]}),
+  item('floor','Floor panel','structure','Warm oak underfoot. 3 × 3 m',{grid:3,slot:'floor',size:[3,.2,3]}),
+  item('wall','Solid wall','structure','A clean canvas for your home. 3 × 2.8 m',{grid:3,slot:'wall',size:[3,2.8,.18]}),
+  item('window-wall','Window wall','structure','Let the outside in. 3 × 2.8 m',{grid:3,slot:'wall',size:[3,2.8,.18]}),
+  item('doorway','Doorway','structure','An open, welcoming entrance',{grid:3,slot:'wall',size:[3,2.8,.18]}),
+  item('glass-wall','Glass wall','structure','Floor-to-ceiling views',{grid:3,slot:'wall',size:[3,2.8,.12]}),
+  item('roof','Roof panel','structure','A flat, overhanging roof module',{grid:3,slot:'roof',size:[3.2,.24,3.2]}),
+  item('gable-roof','Pitched roof','structure','A classic double-pitch roof',{grid:3,slot:'roof',size:[3.2,1.3,3.2]}),
+  item('stairs','Staircase','structure','Twelve timber steps to the next floor',{grid:3,size:[1.3,2.8,3]}),
+  item('door','Oak door','structure','A handcrafted door with brass hardware',{size:[1,2.3,.12]}),
+  item('sofa','Tufted sofa','living','Buttoned leather, stitched upholstery, and a carved timber frame',{size:[2.4,.85,1]}),
+  item('armchair','Lounge chair','living','A timber lounge chair with softly creased leather cushions',{size:[.9,.9,.9]}),
+  item('coffee-table','Coffee table','living','Crafted timber with softened edges and visible grain',{size:[1.3,.42,.7]}),
+  item('dining-table','Dining table','living','Gather around natural oak',{size:[1.8,.76,.9]}),
+  item('chair','Dining chair','living','Oak frame with a woven seat',{size:[.48,.9,.52]}),
+  item('bookcase','Bookcase','living','Open shelves, books, and collected objects',{size:[1.3,1.9,.35]}),
+  item('console','Media console','living','Low walnut storage and a framed screen',{size:[1.8,1.4,.4]}),
+  item('counter','Kitchen counter','kitchen','Stone worktop and oak cabinetry',{size:[1.5,.9,.65]}),
+  item('sink','Kitchen sink','kitchen','Inset basin with a brushed brass tap',{size:[1.5,.9,.65]}),
+  item('stove','Range cooker','kitchen','Four burners and an inset oven',{size:[.75,.9,.65]}),
+  item('fridge','Refrigerator','kitchen','A modern stainless steel fridge',{size:[.8,1.9,.7]}),
+  item('island','Kitchen island','kitchen','A generous stone-topped gathering space',{size:[2,.92,.95]}),
+  item('bed','Oak bed','bedroom','Layered linen and a timber headboard',{size:[1.8,1.1,2.2]}),
+  item('nightstand','Bedside table','bedroom','A little home for your evening essentials',{size:[.5,.52,.45]}),
+  item('wardrobe','Wardrobe','bedroom','Tall oak doors and brass pulls',{size:[1.6,2.2,.6]}),
+  item('desk','Writing desk','bedroom','A quiet place to make something',{size:[1.4,.76,.6]}),
+  item('bath','Freestanding bath','bathroom','A sculpted tub for slow mornings',{size:[1.7,.62,.8]}),
+  item('vanity','Bathroom vanity','bathroom','Floating oak with a stone basin and mirror',{size:[1,.9,.5]}),
+  item('toilet','Toilet','bathroom','Clean ceramic with a concealed cistern',{size:[.5,.8,.7]}),
+  item('shower','Glass shower','bathroom','Walk-in glass with a rainfall head',{size:[1,2.2,1]}),
+  item('painting','Abstract painting','decor','Earthy shapes in a slender oak frame',{size:[1,.8,.06],mounted:true}),
+  item('rug','Woven rug','decor','A soft, textured foundation for a room',{size:[2.6,.025,1.8]}),
+  item('lamp','Floor lamp','decor','A linen shade and a warm glow',{size:[.45,1.6,.45]}),
+  item('pendant','Pendant light','decor','A sculptural suspended shade',{size:[.65,1,.65],mounted:true}),
+  item('plant','Indoor plant','decor','A leafy companion in a ceramic pot',{size:[.7,1.3,.7]}),
+  item('vase','Ceramic vase','decor','Hand-thrown clay and dried stems',{size:[.25,.6,.25]}),
+  item('tree','Garden tree','garden','Fine branching, photographed foliage, and textured bark',{size:[2.8,4,2.8]}),
+  item('shrub','Leafy shrub','garden','Naturally varied leaves and slender woody stems',{size:[1.1,.9,1.1]}),
+  item('planter','Raised planter','garden','Timber edges, greenery, and lavender',{size:[1.8,.65,.6]}),
+  item('fence','Timber fence','garden','A slatted boundary for your garden',{size:[3,1.2,.12]}),
+  item('path','Stone pavers','garden','A trio of warm limestone pavers',{size:[1,.08,2]}),
+  item('bench','Garden bench','garden','Simple oak for a moment outdoors',{size:[1.5,.85,.55]}),
+  item('pergola','Timber pergola','garden','Filtered light over an open terrace',{size:[12,2.95,3.2]}),
+];
+export const ITEM_MAP = Object.fromEntries(CATALOG.map(i=>[i.id,i]));
+export const FINISHES = [
+  {id:'plaster',name:'Lime plaster',color:'#e9e4d8'},
+  {id:'oak',name:'Natural oak',color:'#b98b59'},
+  {id:'brick',name:'Warm brick',color:'#b27659'},
+  {id:'concrete',name:'Soft concrete',color:'#b7b6ac'},
+  {id:'slate',name:'Dark slate',color:'#4a5356'},
+];
+export const COLORS = ['#e9e4d8','#c5c2ae','#b98b59','#b27659','#687b67','#556b77','#4a5356','#c6a877'];
+export const HOTBAR = ['foundation','wall','window-wall','doorway','roof','stairs','sofa','plant'];
+export const PLOT_LIMIT = 21;
