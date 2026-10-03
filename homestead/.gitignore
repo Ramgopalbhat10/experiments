@@ -1,0 +1,7 @@
+node_modules/
+dist/
+test-artifacts/
+recordings/capture-report.json
+recordings/playback-check.png
+*.mp4
+homestead-gameplay*.gif
