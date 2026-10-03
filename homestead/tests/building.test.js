@@ -36,3 +36,11 @@ test('paintings attach to the wall the player is aiming at',()=>{
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(3,2.8,.18),new THREE.MeshStandardMaterial());mesh.position.y=1.4;mesh.userData.owner=group;group.add(mesh);group.updateMatrixWorld();b.meshes=new Map([['wall',group]]);
   b.aim(false);assert.ok(b.candidate);assert.ok(Math.abs(b.candidate.position[2]-.155)<.01);assert.equal(b.candidate.rotation,0);
 });
+test('placement hides both the ghost and snapping guide when the pointer leaves or aim misses',()=>{
+ const b=fixture([]);b.guide=new THREE.Group();b.guide.visible=true;b.hovering=false;b.aim(false);assert.equal(b.preview.visible,false);assert.equal(b.guide.visible,false);
+ b.hovering=true;b.guide.visible=true;b.world.camera.position.set(0,8,10);b.world.camera.lookAt(0,20,0);b.world.camera.updateMatrixWorld();b.aim(false);assert.equal(b.guide.visible,false);
+});
+test('ordinary placement does not scan all records to find a nonexistent moving piece',()=>{
+ const b=fixture([record('floor','floor',[0,0,0])]);b.project.objects.find=()=>{throw new Error('Unexpected whole-project lookup while not moving');};
+ b.aim(false);assert.equal(b.candidate.position[1],.2);
+});

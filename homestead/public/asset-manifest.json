@@ -1,0 +1,417 @@
+{
+  "version": 1,
+  "textures": {
+    "/textures/concrete-color.jpg": {
+      "compressed": "/textures/concrete-color.ktx2",
+      "fallback": "/textures/concrete-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/concrete-normal.jpg": {
+      "compressed": "/textures/concrete-normal.ktx2",
+      "fallback": "/textures/concrete-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/concrete-rough.jpg": {
+      "compressed": "/textures/concrete-rough.ktx2",
+      "fallback": "/textures/concrete-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/textures/fabric-color.jpg": {
+      "compressed": "/textures/fabric-color.ktx2",
+      "fallback": "/textures/fabric-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/fabric-normal.jpg": {
+      "compressed": "/textures/fabric-normal.ktx2",
+      "fallback": "/textures/fabric-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/fabric-rough.jpg": {
+      "compressed": "/textures/fabric-rough.ktx2",
+      "fallback": "/textures/fabric-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/textures/grass-color.jpg": {
+      "compressed": "/textures/grass-color.ktx2",
+      "fallback": "/textures/grass-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/grass-normal.jpg": {
+      "compressed": "/textures/grass-normal.ktx2",
+      "fallback": "/textures/grass-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/grass-rough.jpg": {
+      "compressed": "/textures/grass-rough.ktx2",
+      "fallback": "/textures/grass-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/textures/oak-color.jpg": {
+      "compressed": "/textures/oak-color.ktx2",
+      "fallback": "/textures/oak-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/oak-normal.jpg": {
+      "compressed": "/textures/oak-normal.ktx2",
+      "fallback": "/textures/oak-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/oak-rough.jpg": {
+      "compressed": "/textures/oak-rough.ktx2",
+      "fallback": "/textures/oak-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/textures/plaster-color.jpg": {
+      "compressed": "/textures/plaster-color.ktx2",
+      "fallback": "/textures/plaster-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/plaster-normal.jpg": {
+      "compressed": "/textures/plaster-normal.ktx2",
+      "fallback": "/textures/plaster-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/plaster-rough.jpg": {
+      "compressed": "/textures/plaster-rough.ktx2",
+      "fallback": "/textures/plaster-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/textures/stone-color.jpg": {
+      "compressed": "/textures/stone-color.ktx2",
+      "fallback": "/textures/stone-color.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/textures/stone-normal.jpg": {
+      "compressed": "/textures/stone-normal.ktx2",
+      "fallback": "/textures/stone-normal.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/textures/stone-rough.jpg": {
+      "compressed": "/textures/stone-rough.ktx2",
+      "fallback": "/textures/stone-rough.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/GothicBed_01/textures/GothicBed_01_arm_1k.jpg": {
+      "compressed": "/models/GothicBed_01/textures/GothicBed_01_arm_1k.ktx2",
+      "fallback": "/models/GothicBed_01/textures/GothicBed_01_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/GothicBed_01/textures/GothicBed_01_diff_1k.jpg": {
+      "compressed": "/models/GothicBed_01/textures/GothicBed_01_diff_1k.ktx2",
+      "fallback": "/models/GothicBed_01/textures/GothicBed_01_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/GothicBed_01/textures/GothicBed_01_nor_gl_1k.jpg": {
+      "compressed": "/models/GothicBed_01/textures/GothicBed_01_nor_gl_1k.ktx2",
+      "fallback": "/models/GothicBed_01/textures/GothicBed_01_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/electric_stove/textures/electric_stove_arm_1k.jpg": {
+      "compressed": "/models/electric_stove/textures/electric_stove_arm_1k.ktx2",
+      "fallback": "/models/electric_stove/textures/electric_stove_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/electric_stove/textures/electric_stove_diff_1k.jpg": {
+      "compressed": "/models/electric_stove/textures/electric_stove_diff_1k.ktx2",
+      "fallback": "/models/electric_stove/textures/electric_stove_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/electric_stove/textures/electric_stove_nor_gl_1k.jpg": {
+      "compressed": "/models/electric_stove/textures/electric_stove_nor_gl_1k.ktx2",
+      "fallback": "/models/electric_stove/textures/electric_stove_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_arm_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_arm_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_arm_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_diff_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_diff_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_nor_gl_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_nor_gl_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_legs_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_arm_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_arm_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_arm_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_diff_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_diff_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_nor_gl_2k.jpg": {
+      "compressed": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_nor_gl_2k.ktx2",
+      "fallback": "/models/modern_arm_chair_01/textures/modern_arm_chair_01_pillow_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/modern_coffee_table_01/textures/modern_coffee_table_01_diff_2k.jpg": {
+      "compressed": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_diff_2k.ktx2",
+      "fallback": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/modern_coffee_table_01/textures/modern_coffee_table_01_nor_gl_2k.jpg": {
+      "compressed": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_nor_gl_2k.ktx2",
+      "fallback": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/modern_coffee_table_01/textures/modern_coffee_table_01_rough_2k.jpg": {
+      "compressed": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_rough_2k.ktx2",
+      "fallback": "/models/modern_coffee_table_01/textures/modern_coffee_table_01_rough_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_leaves_diff_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_leaves_diff_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_leaves_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_leaves_nor_gl_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_leaves_nor_gl_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_leaves_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_leaves_rough_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_leaves_rough_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_leaves_rough_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_pot_diff_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_pot_diff_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_pot_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_pot_nor_gl_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_pot_nor_gl_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_pot_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/potted_plant_01/textures/potted_plant_01_pot_rough_2k.jpg": {
+      "compressed": "/models/potted_plant_01/textures/potted_plant_01_pot_rough_2k.ktx2",
+      "fallback": "/models/potted_plant_01/textures/potted_plant_01_pot_rough_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/shrub_04/textures/shrub_04_arm_1k.jpg": {
+      "compressed": "/models/shrub_04/textures/shrub_04_arm_1k.ktx2",
+      "fallback": "/models/shrub_04/textures/shrub_04_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/shrub_04/textures/shrub_04_diff_1k.jpg": {
+      "compressed": "/models/shrub_04/textures/shrub_04_diff_1k.ktx2",
+      "fallback": "/models/shrub_04/textures/shrub_04_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/shrub_04/textures/shrub_04_nor_gl_1k.jpg": {
+      "compressed": "/models/shrub_04/textures/shrub_04_nor_gl_1k.ktx2",
+      "fallback": "/models/shrub_04/textures/shrub_04_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/sofa_02/textures/sofa_02_arm_2k.jpg": {
+      "compressed": "/models/sofa_02/textures/sofa_02_arm_2k.ktx2",
+      "fallback": "/models/sofa_02/textures/sofa_02_arm_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/sofa_02/textures/sofa_02_diff_2k.jpg": {
+      "compressed": "/models/sofa_02/textures/sofa_02_diff_2k.ktx2",
+      "fallback": "/models/sofa_02/textures/sofa_02_diff_2k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/sofa_02/textures/sofa_02_nor_gl_2k.jpg": {
+      "compressed": "/models/sofa_02/textures/sofa_02_nor_gl_2k.ktx2",
+      "fallback": "/models/sofa_02/textures/sofa_02_nor_gl_2k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/tree_small_02/textures/tree_small_02_arm_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_arm_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_branch_arm_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_branch_arm_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_branch_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_branch_diff_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_branch_diff_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_branch_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_branch_nor_gl_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_branch_nor_gl_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_branch_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/tree_small_02/textures/tree_small_02_diff_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_diff_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_leaves_arm_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_leaves_arm_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_leaves_arm_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_leaves_diff_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
+      "width": 1024,
+      "height": 1024,
+      "encoding": "ETC1S"
+    },
+    "/models/tree_small_02/textures/tree_small_02_leaves_nor_gl_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_leaves_nor_gl_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_leaves_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    },
+    "/models/tree_small_02/textures/tree_small_02_nor_gl_1k.jpg": {
+      "compressed": "/models/tree_small_02/textures/tree_small_02_nor_gl_1k.ktx2",
+      "fallback": "/models/tree_small_02/textures/tree_small_02_nor_gl_1k.jpg",
+      "width": 512,
+      "height": 512,
+      "encoding": "UASTC"
+    }
+  },
+  "models": {
+    "GothicBed_01": {
+      "compressed": "/models/GothicBed_01/compressed.gltf",
+      "fallback": "/models/GothicBed_01/model.gltf"
+    },
+    "electric_stove": {
+      "compressed": "/models/electric_stove/compressed.gltf",
+      "fallback": "/models/electric_stove/model.gltf"
+    },
+    "modern_arm_chair_01": {
+      "compressed": "/models/modern_arm_chair_01/compressed.gltf",
+      "fallback": "/models/modern_arm_chair_01/model.gltf"
+    },
+    "modern_coffee_table_01": {
+      "compressed": "/models/modern_coffee_table_01/compressed.gltf",
+      "fallback": "/models/modern_coffee_table_01/model.gltf"
+    },
+    "potted_plant_01": {
+      "compressed": "/models/potted_plant_01/compressed.gltf",
+      "fallback": "/models/potted_plant_01/model.gltf"
+    },
+    "shrub_04": {
+      "compressed": "/models/shrub_04/compressed.gltf",
+      "fallback": "/models/shrub_04/model.gltf"
+    },
+    "sofa_02": {
+      "compressed": "/models/sofa_02/compressed.gltf",
+      "fallback": "/models/sofa_02/model.gltf"
+    },
+    "tree_small_02": {
+      "compressed": "/models/tree_small_02/compressed.gltf",
+      "fallback": "/models/tree_small_02/model.gltf"
+    }
+  }
+}

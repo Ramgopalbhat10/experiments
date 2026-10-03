@@ -31,10 +31,13 @@ The production output is in `dist/`. All game assets and fonts are local; the ru
 - Aim at a wall to hang a painting; it aligns with the surface automatically. Rugs and furniture rest on floor surfaces at every building level.
 - **Ctrl / Command + Z** undoes changes. **Delete** removes a selected item. **B** toggles the catalog. **/** focuses catalog search.
 - In the project menu (**•••**), export/import JSON, start an empty plot, or restore the example house. Reset actions ask for confirmation and can be undone.
+- Open **Settings** to choose Auto, Low, Balanced, or High graphics, display render statistics, or enable quiet interaction sounds. Auto lowers resolution, contact occlusion and shadow resolution under sustained load, and cautiously restores detail when frame times recover.
 
 The catalog has 43 pieces across construction, living, kitchen, bedroom, bathroom, décor, and gardening. It includes flat and pitched roofs, stairs, doors, windows, furniture, fixtures, paintings, rugs, plants, fencing, and a pergola. Five finishes and preset/custom colors customize compatible surfaces. Daylight and golden-hour lighting are available.
 
 Projects autosave to this browser's local storage. Export a JSON copy to move between devices or retain separate homes. The plot is 42 × 42 m, with ground and two upper building levels and a 2,000-item limit. The scene combines detailed CC0 furniture models with procedural construction pieces and simplified collision. PBR texture maps, HDR reflections, contact occlusion, warm fixtures, and antialiasing improve close-up detail. Desktop keyboard/mouse controls are the primary supported gameplay; the catalog and menus also adapt to narrow screens.
+
+The scene is playable while detailed furniture downloads. Eight imported model types include the sleeping bed and stove; failed downloads retain the built-in model. Local compressed textures and geometry reduce asset size. Catalog previews are generated offline. Movement uses a fixed 120 Hz simulation with interpolation, acceleration, braking, stair smoothing and spatial collision queries. Repeated objects share geometry and render in spatial batches; landscape vegetation has distance-based detail and gentle wind. Room reflections update after edits and lighting changes, with a bounded capture budget.
 
 ## Verify
 
@@ -49,9 +52,15 @@ Browser interaction checks require Chromium and the dev server:
 npm run dev -- --port 5173
 # In another terminal:
 CHROME_PATH=/usr/bin/chromium npm run test:browser
+GAME_URL=http://127.0.0.1:5173 npm run test:upgrade
+GAME_URL=http://127.0.0.1:5173 npm run test:render
 ```
 
 `GAME_URL` changes the test URL. Browser tests cover real UI placement, selection, finish application, move/remove/undo, save reload, import/export, malformed imports, pointer-lock walking, and narrow-screen controls. They write screenshots into ignored `test-artifacts/`.
+
+The upgrade checks hold model requests to verify playable startup, preserve edits during streaming, and exercise picking and wall mounting on instanced geometry. Rendering checks cover all graphics settings, resize, finite reflection pixels and bounded resource use. See [performance measurements and local GPU instructions](docs/performance-report.md), [asset processing and licensing](docs/assets-upgrade.md), and [upgrade captures](screenshots/upgrade/). Cloud software rendering cannot establish the 60 FPS target on a desktop GPU.
+
+After changing catalog geometry or imported assets, run `GAME_URL=http://127.0.0.1:5173 npm run thumbnails` against Vite to regenerate all 43 WebP previews. Asset processing scripts run offline and are documented in the asset guide.
 
 ## Structure
 

@@ -10,6 +10,7 @@ try {
   await page.goto(process.env.GAME_URL||'http://127.0.0.1:5173');
   await page.waitForFunction(()=>Number(document.getElementById('object-count')?.textContent)>70);
   await page.waitForFunction(()=>document.querySelectorAll('.card-preview img').length===10);
+  await page.evaluate(async()=>{const {game}=await import(document.querySelector('script[src*="/src/main.js"]').src);if(game.assetsReady)await game.assetsReady;});
   await page.screenshot({path:'test-artifacts/desktop.png'});
   console.log('PASS: furnished world renders and catalog thumbnails load');
   await page.getByRole('button',{name:'Living',exact:true}).click();

@@ -8,8 +8,17 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.js",
-    "test:browser": "node tests/browser.mjs"
+    "test:browser": "node tests/browser.mjs",
+    "test:performance": "node tests/performance.mjs",
+    "test:upgrade": "node tests/upgrade-browser.mjs",
+    "test:render": "node tests/render-browser.mjs",
+    "thumbnails": "node scripts/generate-thumbnails.mjs"
   },
-  "dependencies": { "three": "^0.180.0" },
-  "devDependencies": { "vite": "^7.1.7", "playwright": "^1.55.1" }
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7",
+    "playwright": "^1.55.1"
+  }
 }

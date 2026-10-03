@@ -1,0 +1,47 @@
+{
+  "models": [
+    {
+      "item": "sofa",
+      "status": "loaded"
+    },
+    {
+      "item": "armchair",
+      "status": "loaded"
+    },
+    {
+      "item": "coffee-table",
+      "status": "loaded"
+    },
+    {
+      "item": "plant",
+      "status": "loaded"
+    },
+    {
+      "item": "tree",
+      "status": "loaded"
+    },
+    {
+      "item": "shrub",
+      "status": "loaded"
+    },
+    {
+      "item": "bed",
+      "status": "loaded"
+    },
+    {
+      "item": "stove",
+      "status": "loaded"
+    }
+  ],
+  "heldRequests": 54,
+  "checks": [
+    "progressive-ready",
+    "live-edit-preservation",
+    "static-thumbnails",
+    "instance-pick-paint-remove-undo",
+    "rotated-wall-mount",
+    "collision-invalidation",
+    "clear-momentum"
+  ],
+  "errors": []
+}

@@ -3,42 +3,45 @@
     "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
+  "extras": {
+    "homesteadOptimized": true
+  },
   "accessors": [
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 5256,
+      "count": 3612,
       "bufferView": 0,
       "byteOffset": 0
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 95730,
+      "count": 93642,
       "bufferView": 0,
-      "byteOffset": 10512
+      "byteOffset": 7224
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 9744,
+      "count": 9198,
       "bufferView": 0,
-      "byteOffset": 201972
+      "byteOffset": 194508
     },
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 64128,
+      "count": 37920,
       "bufferView": 0,
-      "byteOffset": 221460
+      "byteOffset": 212904
     },
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 1277,
+      "count": 931,
       "max": [
-        0.13674156367778778,
-        1.2667324542999268,
+        0.13569629192352295,
+        1.266586184501648,
         0.1757177859544754
       ],
       "min": [
@@ -52,21 +55,21 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 1277,
+      "count": 931,
       "bufferView": 1,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 1277,
+      "count": 931,
       "bufferView": 1,
       "byteOffset": 24
     },
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 22267,
+      "count": 21898,
       "max": [
         0.2112395167350769,
         0.5428022146224976,
@@ -83,21 +86,21 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 22267,
+      "count": 21898,
       "bufferView": 2,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 22267,
+      "count": 21898,
       "bufferView": 2,
       "byteOffset": 24
     },
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 2103,
+      "count": 2010,
       "max": [
         0.23252755403518677,
         0.53143310546875,
@@ -114,21 +117,21 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 2103,
+      "count": 2010,
       "bufferView": 3,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 2103,
+      "count": 2010,
       "bufferView": 3,
       "byteOffset": 24
     },
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 18385,
+      "count": 12636,
       "max": [
         0.24901919066905975,
         1.336457371711731,
@@ -145,14 +148,14 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 18385,
+      "count": 12636,
       "bufferView": 4,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 18385,
+      "count": 12636,
       "bufferView": 4,
       "byteOffset": 24
     }
@@ -161,34 +164,34 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 349716,
+      "byteLength": 288744,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteOffset": 349716,
-      "byteLength": 40864,
+      "byteOffset": 288744,
+      "byteLength": 29792,
       "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 390580,
-      "byteLength": 712544,
+      "byteOffset": 318536,
+      "byteLength": 700736,
       "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 1103124,
-      "byteLength": 67296,
+      "byteOffset": 1019272,
+      "byteLength": 64320,
       "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 1170420,
-      "byteLength": 588320,
+      "byteOffset": 1083592,
+      "byteLength": 404352,
       "byteStride": 32,
       "target": 34962
     }
@@ -262,7 +265,7 @@
   "buffers": [
     {
       "uri": "potted_plant_01.bin",
-      "byteLength": 1758740
+      "byteLength": 1487944
     }
   ],
   "materials": [

@@ -1,0 +1,669 @@
+{
+  "softwareRendering": true,
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "checks": [
+    {
+      "name": "ready",
+      "state": {
+        "quality": {
+          "mode": "auto",
+          "preset": "balanced",
+          "frameMs": 1201.3671568334269,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 1130,
+          "triangles": 1784320,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1201.3671568334269,
+          "cpuMs": 29.600000001490116,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "quality-low",
+      "state": {
+        "quality": {
+          "mode": "low",
+          "preset": "low",
+          "frameMs": 1652.1063673163542,
+          "pixelRatio": 0.85,
+          "ao": false,
+          "aoScale": 0.35,
+          "shadowSize": 1024
+        },
+        "stats": {
+          "preset": "low",
+          "pixelRatio": 0.85,
+          "calls": 331,
+          "triangles": 618219,
+          "geometries": 152,
+          "textures": 67,
+          "frameMs": 1652.1063673163542,
+          "cpuMs": 4.100000001490116,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1088,
+          612
+        ],
+        "composer": [
+          1088,
+          612
+        ],
+        "ao": [
+          381,
+          214
+        ],
+        "aoEnabled": false,
+        "shadowSize": 1024,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "quality-balanced",
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1877.602929799395,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1877.602929799395,
+          "cpuMs": 10.700000002980232,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "quality-high",
+      "state": {
+        "quality": {
+          "mode": "high",
+          "preset": "high",
+          "frameMs": 1722.6348441010362,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.65,
+          "shadowSize": 2048
+        },
+        "stats": {
+          "preset": "high",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1722.6348441010362,
+          "cpuMs": 12.899999998509884,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          832,
+          468
+        ],
+        "aoEnabled": true,
+        "shadowSize": 2048,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "quality-auto",
+      "state": {
+        "quality": {
+          "mode": "auto",
+          "preset": "high",
+          "frameMs": 1747.8224127885476,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.65,
+          "shadowSize": 2048
+        },
+        "stats": {
+          "preset": "high",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1747.8224127885476,
+          "cpuMs": 9.800000004470348,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          832,
+          468
+        ],
+        "aoEnabled": true,
+        "shadowSize": 2048,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "resize",
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1846.7602820040731,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1846.7602820040731,
+          "cpuMs": 10.700000002980232,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "name": "lighting-lifecycle",
+      "beforeTextures": 71,
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1675.3446281077668,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 1130,
+          "triangles": 1784320,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1675.3446281077668,
+          "cpuMs": 54.70000000298023,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "941c30a8-3f49-452b-a52e-6ee085485155",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    }
+  ],
+  "probePixels": [
+    {
+      "texture": "41ef5fd1-21ed-4a3a-b906-d7cbea6d6d20",
+      "nonfinitePixels": 0,
+      "width": 384,
+      "height": 512
+    },
+    {
+      "texture": "a1d8a08c-fef3-4aa4-b014-2aa82cae9103",
+      "nonfinitePixels": 0,
+      "width": 384,
+      "height": 512
+    },
+    {
+      "texture": "f47a8b9e-eaaf-4e52-8d59-231e08a384e3",
+      "nonfinitePixels": 0,
+      "width": 384,
+      "height": 512
+    }
+  ],
+  "captures": [
+    {
+      "view": "exterior",
+      "position": [
+        8,
+        1.85,
+        14
+      ],
+      "target": [
+        -2,
+        1.6,
+        -1
+      ],
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1677.685592089993,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1677.685592089993,
+          "cpuMs": 8.899999998509884,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "view": "living",
+      "position": [
+        -2.65,
+        1.85,
+        -0.9
+      ],
+      "target": [
+        -5.3,
+        0.8,
+        0.4
+      ],
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1671.2491204005405,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 207,
+          "triangles": 422851,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1671.2491204005405,
+          "cpuMs": 6.399999998509884,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "view": "kitchen",
+      "position": [
+        2.2,
+        1.85,
+        -2
+      ],
+      "target": [
+        3.95,
+        1,
+        -5.1
+      ],
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1625.9652285163422,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 192,
+          "triangles": 205839,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1625.9652285163422,
+          "cpuMs": 6.5,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "view": "bedroom",
+      "position": [
+        -2.85,
+        1.85,
+        -3.1
+      ],
+      "target": [
+        -5.5,
+        0.85,
+        -5.8
+      ],
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1625.9652285163422,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 98,
+          "triangles": 262409,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1625.9652285163422,
+          "cpuMs": 6.299999997019768,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "ecc6e682-c373-4db7-a088-819ef3ec7848",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    },
+    {
+      "view": "golden-exterior",
+      "position": [
+        8,
+        1.85,
+        14
+      ],
+      "target": [
+        -2,
+        1.6,
+        -1
+      ],
+      "state": {
+        "quality": {
+          "mode": "balanced",
+          "preset": "balanced",
+          "frameMs": 1581.9206700996756,
+          "pixelRatio": 1,
+          "ao": true,
+          "aoScale": 0.5,
+          "shadowSize": 1536
+        },
+        "stats": {
+          "preset": "balanced",
+          "pixelRatio": 1,
+          "calls": 616,
+          "triangles": 1058107,
+          "geometries": 152,
+          "textures": 71,
+          "frameMs": 1581.9206700996756,
+          "cpuMs": 12.300000004470348,
+          "reflections": {
+            "rooms": 3,
+            "probes": 3,
+            "pending": 0
+          }
+        },
+        "renderer": [
+          1280,
+          720
+        ],
+        "composer": [
+          1280,
+          720
+        ],
+        "ao": [
+          640,
+          360
+        ],
+        "aoEnabled": true,
+        "shadowSize": 1536,
+        "environment": "52353a0c-c6cc-40f4-a50d-7e657b9c5ad4",
+        "reflections": {
+          "rooms": 3,
+          "probes": 3,
+          "pending": 0
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

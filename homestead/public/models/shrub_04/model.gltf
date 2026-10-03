@@ -3,6 +3,9 @@
     "generator": "glTF-Transform v4.5.1",
     "version": "2.0"
   },
+  "extras": {
+    "homesteadOptimized": true
+  },
   "accessors": [
     {
       "type": "SCALAR",
