@@ -176,8 +176,7 @@ test('streamed bed and stove clones preserve saved paint colors without recolori
 test('the imported sleeping bed retains adult mattress length within the unchanged catalog footprint',async()=>{
   const {ITEM_MAP}=await import('../src/catalog.js');
   const document=JSON.parse(await readFile(new URL('models/GothicBed_01/model.gltf',publicRoot),'utf8'));
-  const position=document.accessors[document.meshes[0].primitives[0].attributes.POSITION];
-  const bounds=new THREE.Box3(new THREE.Vector3(...position.min),new THREE.Vector3(...position.max));
+  const bounds=new THREE.Box3();for(const primitive of document.meshes[0].primitives){const position=document.accessors[primitive.attributes.POSITION];bounds.union(new THREE.Box3(new THREE.Vector3(...position.min),new THREE.Vector3(...position.max)));}
   const size=bounds.getSize(new THREE.Vector3()),scale=models.modelScale(bounds,ITEM_MAP.bed.size);
   assert.equal(ITEM_MAP.bed.size[0],1.8);assert.equal(ITEM_MAP.bed.size[2],2.2);
   assert.ok(size.z*scale>=1.9,'full sleeping length must not shrink to a short seat');

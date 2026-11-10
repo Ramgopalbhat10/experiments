@@ -51,4 +51,11 @@ Approximate RGBA8 residency with mipmaps is 1 MiB for all three maps, versus abo
 
 Focused unit coverage includes effect tier/preference/scaling, init/render/resize failures, latched-off behavior, recovery of partial composites, visibility/state restoration, idempotent resource disposal, exposed/covered/courtyard window classification, failed probe replacement, periodic aligned brick channels and color spaces, bed primitive/material/UV closure, tint/cache isolation and all original LOD UV regressions.
 
-Preview captures use matching living, painted-bed, evening and grazing-brick views; High-quality SSAO/GTAO captures compare one effect at a time. Browser checks cover the native settings control, quality fallback and a 320px viewport. Existing gameplay, streaming/LOD and quality/reflection suites must still pass. Cloud SwiftShader frame intervals are relative diagnostics, not hardware GPU timings or a 60 FPS assessment.
+Preview captures use matching living, painted-bed, evening and grazing-brick views; High-quality SSAO/GTAO captures compare one effect at a time. Browser checks cover the native settings control, quality fallback and a 320px viewport. Existing gameplay, streaming/LOD and quality/reflection suites must still pass. Cloud SwiftShader frame intervals are relative diagnostics, not hardware GPU timings or a 60 FPS assessment. The capture harness pauses drawing to obtain stable screenshots; its manual frame intervals are not a valid before/after speed comparison. Use the same continuous-RAF performance runner for effect A/B comparisons:
+
+```sh
+BENCH_QUALITY=high BENCH_AO=ssao BENCH_VIEWS=starter-living BENCH_FRAMES=180 npm run test:performance
+BENCH_QUALITY=high BENCH_AO=gtao BENCH_VIEWS=starter-living BENCH_FRAMES=180 npm run test:performance
+```
+
+The runner records requested/active AO, resolution, renderer and software flag. `BENCH_SCREENSHOTS=0` permits data-only runs when software rendering stalls image capture; it does not change the measured rendering loop.
