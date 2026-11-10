@@ -40,6 +40,11 @@ test('placement hides both the ghost and snapping guide when the pointer leaves 
  const b=fixture([]);b.guide=new THREE.Group();b.guide.visible=true;b.hovering=false;b.aim(false);assert.equal(b.preview.visible,false);assert.equal(b.guide.visible,false);
  b.hovering=true;b.guide.visible=true;b.world.camera.position.set(0,8,10);b.world.camera.lookAt(0,20,0);b.world.camera.updateMatrixWorld();b.aim(false);assert.equal(b.guide.visible,false);
 });
+test('selecting a distant model promotes its representation before drawing selection bounds',()=>{
+ const low=new THREE.Group();low.userData.detail='low';const full=new THREE.Group();full.userData.detail='full';const meshes=new Map([['plant',low]]);let drawn=null,promotions=0;
+ const b={meshes,selected:'plant',lodChoices:new Map(),selectionBox:{visible:false,setFromObject:mesh=>drawn=mesh},updateLOD:()=>{promotions++;meshes.set('plant',full);}};
+ Building.prototype.updateSelection.call(b);assert.equal(promotions,1);assert.equal(drawn,full);assert.equal(b.selectionBox.visible,true);
+});
 test('ordinary placement does not scan all records to find a nonexistent moving piece',()=>{
  const b=fixture([record('floor','floor',[0,0,0])]);b.project.objects.find=()=>{throw new Error('Unexpected whole-project lookup while not moving');};
  b.aim(false);assert.equal(b.candidate.position[1],.2);

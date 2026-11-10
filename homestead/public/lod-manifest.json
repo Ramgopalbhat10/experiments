@@ -1,0 +1,53 @@
+{
+  "generator": "glTF Transform 4.2.1 / meshoptimizer 0.24.0",
+  "ratio": 0.2,
+  "error": 0.008,
+  "lockBorder": true,
+  "overrides": {
+    "potted_plant_01": {
+      "lockBorder": false
+    }
+  },
+  "models": [
+    {
+      "asset": "sofa_02",
+      "fullTriangles": 2728,
+      "lowTriangles": 670
+    },
+    {
+      "asset": "modern_arm_chair_01",
+      "fullTriangles": 8916,
+      "lowTriangles": 1780
+    },
+    {
+      "asset": "modern_coffee_table_01",
+      "fullTriangles": 4504,
+      "lowTriangles": 1208
+    },
+    {
+      "asset": "potted_plant_01",
+      "fullTriangles": 48124,
+      "lowTriangles": 16358
+    },
+    {
+      "asset": "tree_small_02",
+      "fullTriangles": 12702,
+      "lowTriangles": 7924
+    },
+    {
+      "asset": "shrub_04",
+      "fullTriangles": 4098,
+      "lowTriangles": 2632
+    },
+    {
+      "asset": "GothicBed_01",
+      "fullTriangles": 18745,
+      "lowTriangles": 5351
+    },
+    {
+      "asset": "electric_stove",
+      "fullTriangles": 13914,
+      "lowTriangles": 4792
+    }
+  ]
+}

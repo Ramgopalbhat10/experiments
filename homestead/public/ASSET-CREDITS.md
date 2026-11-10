@@ -34,6 +34,10 @@ The source geometry is grounded, centered and uniformly fitted within catalog di
 
 Both are **CC0 1.0**, verified against [Poly Haven's asset license](https://polyhaven.com/license). Original download URLs and MD5 checksums are recorded in each model's `PROVENANCE.json`. No live Poly Haven API request is made while playing.
 
+## Runtime detail variants (2026-11-10)
+
+Geometry-only `lod.gltf` / `lod-compressed.gltf` variants of the eight existing CC0 models are generated locally by `scripts/generate-lods.mjs`. Their full-detail originals and provenance are unchanged. LODs reuse the originals' photographed textures and runtime materials; no extra texture assets or runtime network sources were added. Simplification settings and triangle counts are in `lod-manifest.json`.
+
 ## Compression runtime
 
 `basis/basis_transcoder.js` and `basis/basis_transcoder.wasm` are the Basis Universal transcoder bundled with Three.js r180, [Binomial LLC](https://github.com/BinomialLLC/basis_universal), Apache 2.0; the license is in `basis/LICENSE`. Three.js GLTFLoader, KTX2Loader and MeshoptDecoder are bundled through the existing Three.js dependency (MIT). Offline mesh optimization uses glTF Transform and meshoptimizer; these are build tools, with no added runtime package dependency.

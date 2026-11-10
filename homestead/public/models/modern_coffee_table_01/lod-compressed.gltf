@@ -1,0 +1,196 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v4.2.1",
+    "version": "2.0"
+  },
+  "extras": {
+    "homesteadOptimized": true,
+    "homesteadLOD": true
+  },
+  "accessors": [
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 3624,
+      "normalized": false,
+      "byteOffset": 0,
+      "bufferView": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 1544,
+      "max": [
+        16381,
+        10649,
+        32767
+      ],
+      "min": [
+        -16381,
+        -10649,
+        -32767
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 1
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 1544,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 2
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 1544,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 3
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 7248,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 1264,
+          "mode": "TRIANGLES",
+          "byteStride": 2,
+          "count": 3624
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 7248,
+      "byteLength": 12352,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 1264,
+          "byteLength": 7275,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1544
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 19600,
+      "byteLength": 12352,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 8540,
+          "byteLength": 8265,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 1544
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 31952,
+      "byteLength": 6176,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 16808,
+          "byteLength": 5103,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 1544
+        }
+      }
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "lod-compressed-0.bin",
+      "byteLength": 21912
+    },
+    {
+      "byteLength": 38128,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
+    }
+  ],
+  "materials": [
+    {
+      "name": "modern_coffee_table_01",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cube.003",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2,
+            "TEXCOORD_0": 3
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "modern_coffee_table_01",
+      "translation": [
+        1.1920928955078125e-7,
+        0.19488486647605896,
+        0.0002459883689880371
+      ],
+      "scale": [
+        0.6000158190727234,
+        0.6000158190727234,
+        0.6000158190727234
+      ],
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "extensionsUsed": [
+    "EXT_meshopt_compression",
+    "KHR_mesh_quantization"
+  ],
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "KHR_mesh_quantization"
+  ]
+}

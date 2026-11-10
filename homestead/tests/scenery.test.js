@@ -9,6 +9,11 @@ test('scenery keeps independent spatial bounds and genuinely cheaper distant cro
 test('scenery LOD changes visibility without reallocating matrices or geometry',()=>{
   const s=createScenery(),camera=new THREE.PerspectiveCamera();const tile=s.tiles.find(t=>t.lods);const geo=tile.lods[0].children[0].geometry;camera.position.copy(tile.center);s.update(camera,1);assert.equal(tile.lods[0].visible,true);camera.position.copy(tile.center).add(new THREE.Vector3(110,0,0));s.update(camera,2);assert.equal(tile.lods[2].visible,true);assert.equal(tile.lods[0].visible,false);assert.equal(tile.lods[0].children[0].geometry,geo);s.dispose();
 });
+test('scenery reports caster changes with hysteresis and keeps cached shadows in a stable rest pose',()=>{
+ const s=createScenery(),camera=new THREE.PerspectiveCamera(),tile=s.tiles.find(t=>t.lods);camera.position.copy(tile.center);assert.equal(s.update(camera,1),true);
+ camera.position.copy(tile.center).add(new THREE.Vector3(43,0,0));s.update(camera,2);assert.equal(tile.level,0);camera.position.x=tile.center.x+47;assert.equal(s.update(camera,3),true);assert.equal(tile.level,1);
+ const mesh=tile.lods[0].children[0],shader={uniforms:{},vertexShader:'#include <begin_vertex>',fragmentShader:'#include <map_fragment>'};mesh.customDepthMaterial.onBeforeCompile(shader);s.update(camera,10);assert.equal(shader.uniforms.sceneryTime.value,0);s.dispose();
+});
 test('scenery disposes owned shared resources exactly once',()=>{
   const s=createScenery(),counts=new Map();s.group.traverse(o=>{if(o.geometry&&!counts.has(o.geometry)){counts.set(o.geometry,0);o.geometry.addEventListener('dispose',()=>counts.set(o.geometry,counts.get(o.geometry)+1));}});s.dispose();s.dispose();assert.ok([...counts.values()].every(n=>n===1));
 });
@@ -31,6 +36,13 @@ test('lighting clones are shared within a room, restored on replacement and neve
   lighting.dispose();assert.equal(c.material,source);assert.equal(sourceDisposed,0);geo.dispose();source.dispose();sky.geometry.dispose();sky.material.dispose();
 });
 
+test('LOD material refresh preserves unaffected clones and does not queue probe captures',async()=>{
+ const {createLighting}=await import('../src/lighting.js');const scene=new THREE.Scene(),projectGroup=new THREE.Group(),sky=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()),grid=new THREE.Group();scene.add(projectGroup);
+ const source=new THREE.MeshStandardMaterial(),geo=new THREE.BoxGeometry(),records=[{id:'floor',item:'floor',position:[0,0,0]},{id:'roof',item:'roof',position:[0,3,0]}];
+ const groups=Array.from({length:2},(_,i)=>{const group=new THREE.Group();group.userData.record={position:[i,0,0]};group.add(new THREE.Mesh(geo,source));projectGroup.add(group);return group;});
+ const pmrem={fromScene:()=>new THREE.WebGLRenderTarget(16,16)},lighting=createLighting({scene,renderer:{},projectGroup,sky,grid,pmrem});lighting.invalidate(records);const clone=groups[1].children[0].material,pending=lighting.stats.pending;
+ lighting.prepareRepresentations([groups[0]]);assert.equal(groups[0].children[0].material,source);projectGroup.remove(groups[0]);const replacement=new THREE.Group();replacement.userData.record={position:[0,0,0]};replacement.add(new THREE.Mesh(geo,source));projectGroup.add(replacement);lighting.refreshRepresentations();assert.equal(groups[1].children[0].material,clone);assert.equal(replacement.children[0].material,clone);assert.equal(lighting.stats.pending,pending);lighting.dispose();geo.dispose();source.dispose();sky.geometry.dispose();sky.material.dispose();
+});
 test('near scenery samples individual photographic leaves instead of solid crown shells',()=>{
   const s=createScenery(),tile=s.tiles.find(t=>t.lods),leaves=tile.lods[0].children[0],uv=leaves.geometry.attributes.uv;
   const width=Math.max(...uv.array.filter((_,i)=>i%2===0))-Math.min(...uv.array.filter((_,i)=>i%2===0));

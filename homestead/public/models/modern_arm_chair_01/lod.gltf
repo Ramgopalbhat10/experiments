@@ -1,0 +1,170 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v4.2.1",
+    "version": "2.0"
+  },
+  "extras": {
+    "homesteadOptimized": true,
+    "homesteadLOD": true
+  },
+  "accessors": [
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 3360,
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1980,
+      "bufferView": 0,
+      "byteOffset": 6720
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1156,
+      "max": [
+        0.4135356843471527,
+        0.8698092699050903,
+        0.41110995411872864
+      ],
+      "min": [
+        -0.4068087339401245,
+        0.000725900346878916,
+        -0.559924304485321
+      ],
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1156,
+      "bufferView": 1,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 1156,
+      "bufferView": 1,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 454,
+      "max": [
+        0.3583531975746155,
+        1.0225061178207397,
+        0.3835347592830658
+      ],
+      "min": [
+        -0.3537101149559021,
+        0.34748637676239014,
+        -0.5754517316818237
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 454,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 454,
+      "bufferView": 2,
+      "byteOffset": 24
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 10680,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 10680,
+      "byteLength": 36992,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 47672,
+      "byteLength": 14528,
+      "byteStride": 32,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "lod-0.bin",
+      "byteLength": 62200
+    }
+  ],
+  "materials": [
+    {
+      "name": "modern_arm_chair_01_legs",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {}
+    },
+    {
+      "name": "modern_arm_chair_01_pillow",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {}
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cube.007",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2,
+            "NORMAL": 3,
+            "TEXCOORD_0": 4
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 1
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "modern_arm_chair_01",
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "name": "blend_export.001",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

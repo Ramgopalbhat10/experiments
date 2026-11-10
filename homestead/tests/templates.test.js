@@ -30,6 +30,12 @@ test('spatial batches preserve different finishes and do not combine distant cel
  for(let i=0;i<6;i++){const g=new THREE.Group();g.userData={id:`p-${i}`,item:'wall'};g.position.set(i<3?i:15+i,0,0);g.add(new THREE.Mesh(geometry,material));root.add(g);meshes.set(g.userData.id,g);}
  const b=new ProjectInstances(root);b.sync(meshes);assert.equal(b.batches.length,2);assert.ok(b.batches.every(m=>m.boundingSphere));b.dispose();
 });
+test('partial LOD rebatching preserves unaffected spatial cells and their picking IDs',()=>{
+ const root=new THREE.Group(),meshes=new Map(),geometry=new THREE.BoxGeometry(),material=new THREE.MeshStandardMaterial();
+ for(let i=0;i<6;i++){const g=new THREE.Group();g.userData={id:`lod-${i}`,item:'plant'};g.position.set(i<3?i:20+i,0,0);const mesh=new THREE.Mesh(geometry,material);mesh.userData.owner=g;g.add(mesh);root.add(g);meshes.set(g.userData.id,g);}
+ const instances=new ProjectInstances(root);instances.sync(meshes);const unchanged=instances.batches.find(b=>b.userData.cell==='2,0,0'),changed=instances.batches.find(b=>b!==unchanged);assert.ok(unchanged&&changed);
+ instances.sync(meshes,()=>'outside',new Set(['0,0,0']));assert.ok(instances.batches.includes(unchanged));assert.ok(!instances.batches.includes(changed));assert.equal(instances.ownerFor({object:unchanged,instanceId:0}),meshes.get('lod-3'));assert.equal(instances.ownerFor({object:changed,instanceId:0}),undefined);instances.dispose();
+});
 test('retired templates dispose geometry only after the final live object releases it',()=>{
  const t=new ObjectTemplates();const a=t.clone('sofa:linen',factory),b=t.clone('sofa:linen',factory);let disposals=0;
  a.children[0].geometry.addEventListener('dispose',()=>disposals++);t.invalidate('sofa');assert.equal(disposals,0);

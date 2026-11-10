@@ -11,6 +11,7 @@ import { configureAssets, loadTexture } from './assets.js';
 import { QualityController } from './quality.js';
 import { createScenery, landscapeHeight } from './scenery.js';
 import { createLighting } from './lighting.js';
+import {SunShadows} from './shadows.js';
 
 export function createWorld(canvas) {
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,alpha:false,powerPreference:'high-performance'});
@@ -28,7 +29,8 @@ export function createWorld(canvas) {
   const sunPosition=new THREE.Vector3(-35,38,26);su.sunPosition.value.copy(sunPosition);
   const hemi=new THREE.HemisphereLight('#e2edff','#ac9f85',.48);scene.add(hemi);
   const sun=new THREE.DirectionalLight('#fff2df',3);sun.position.copy(sunPosition);sun.castShadow=true;
-  sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-30,right:30,top:30,bottom:-30,near:1,far:120});sun.shadow.bias=-.0002;sun.shadow.normalBias=.035;sun.shadow.radius=3;scene.add(sun);scene.add(sun.target);
+  sun.shadow.mapSize.set(2048,2048);scene.add(sun);scene.add(sun.target);
+  const sunShadows=new SunShadows(sun);
 
   const terrain=new THREE.PlaneGeometry(260,260,100,100);terrain.rotateX(-Math.PI/2);const pos=terrain.attributes.position;const colors=[];
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);pos.setY(i,landscapeHeight(x,z));const c=new THREE.Color().setHSL(.215+(Math.sin(x*.1)*.008),.22,.33+(Math.sin(x*.13+z*.11)*.025));colors.push(c.r,c.g,c.b);}
@@ -73,19 +75,22 @@ export function createWorld(canvas) {
   }
   applyQuality();addEventListener('resize',resize);
   let lightingRecords=[],elapsed=0;
-  function invalidateLighting(records){lightingRecords=records;roomLighting.invalidate(records);renderer.shadowMap.needsUpdate=true;}
+  function invalidateLighting(records){lightingRecords=records;sunShadows.invalidate(records);roomLighting.invalidate(records);renderer.shadowMap.needsUpdate=true;}
+  function refreshRepresentations(){roomLighting.refreshRepresentations();renderer.shadowMap.needsUpdate=true;}
   function lighting(mode){
     const evening=mode==='evening';sun.color.set(evening?'#ffb36c':'#fff2df');sun.intensity=evening?2.1:3;
-    sun.position.set(-35,evening?14:38,26);su.sunPosition.value.copy(sun.position);
+    sunPosition.set(-35,evening?14:38,26);su.sunPosition.value.copy(sunPosition);
     hemi.intensity=evening?.28:.48;scene.environmentIntensity=evening?.32:.5;
     renderer.toneMappingExposure=evening?1.15:1.1;renderer.shadowMap.needsUpdate=true;
     roomLighting.setEvening(evening,lightingRecords);
   }
-  const stats={preset:quality.preset,pixelRatio:renderer.getPixelRatio(),calls:0,triangles:0,geometries:0,textures:0,frameMs:0,cpuMs:0,get reflections(){return roomLighting.stats;}};
+  const stats={preset:quality.preset,pixelRatio:renderer.getPixelRatio(),calls:0,triangles:0,geometries:0,textures:0,frameMs:0,cpuMs:0,get reflections(){return roomLighting.stats;},get shadows(){return sunShadows.stats;}};
   function render(dt=0){
     const start=performance.now();if(qualityController.sample(dt))applyQuality();
     elapsed+=Number.isFinite(dt)&&dt>0?Math.min(dt,.1):0;
-    renderer.info.reset();scenery.update(camera,elapsed);roomLighting.update(dt);composer.render(dt);
+    renderer.info.reset();const sceneryChanged=scenery.update(camera,elapsed),fitChanged=sunShadows.update(camera,sunPosition);
+    if(sceneryChanged||fitChanged)renderer.shadowMap.needsUpdate=true;
+    roomLighting.update(dt);if(renderer.shadowMap.needsUpdate)sunShadows.stats.updates++;composer.render(dt);
     const info=renderer.info;Object.assign(stats,{preset:quality.preset,pixelRatio:renderer.getPixelRatio(),calls:info.render.calls,triangles:info.render.triangles,geometries:info.memory.geometries,textures:info.memory.textures,frameMs:quality.frameMs,cpuMs:performance.now()-start});
   }
   function setQuality(mode){qualityController.setMode(mode);applyQuality();return quality;}
@@ -97,5 +102,5 @@ export function createWorld(canvas) {
     grassMap.dispose();lawnMap.dispose();lawnNormal.dispose();leafMap.dispose();leafNormal.dispose();sun.shadow.map?.dispose();
     for(const pass of composer.passes)pass.dispose?.();ao.ssaoMaterial.dispose();ao.noiseTexture.dispose();composer.dispose();renderer.dispose();
   }
-  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setQuality,quality,stats,invalidateLighting,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
+  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setQuality,quality,stats,invalidateLighting,refreshRepresentations,prepareRepresentations:roomLighting.prepareRepresentations,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
 }

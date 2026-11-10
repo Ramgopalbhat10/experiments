@@ -44,8 +44,11 @@ export function createScenery({leafMap=null,leafNormal=null}={}){
   const own=r=>{resources.add(r);return r;};
   const bark=own(new THREE.MeshStandardMaterial({color:'#78664d',roughness:1})),foliage=own(wind(new THREE.MeshStandardMaterial({color:'#72864d',roughness:.92}),time));
   const leaves=own(wind(new THREE.MeshStandardMaterial({color:'#f4f1de',map:leafMap,normalMap:leafNormal,normalScale:new THREE.Vector2(.25,.25),side:THREE.DoubleSide,roughness:.9,alphaTest:.1}),time,false,true));
-  const depth=own(wind(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}),time,true));
-  const leafDepth=own(wind(new THREE.MeshDepthMaterial({map:leafMap,depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide}),time,true,true));
+  // Cache a stable rest-pose silhouette rather than recapturing tiny wind motion
+  // every frame. LOD changes still invalidate the sun map immediately.
+  const shadowTime={value:0};
+  const depth=own(wind(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}),shadowTime,true));
+  const leafDepth=own(wind(new THREE.MeshDepthMaterial({map:leafMap,depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide}),shadowTime,true,true));
   const trunk=own(new THREE.CylinderGeometry(.1,.19,2.3,7));trunk.translate(0,1.15,0);
   const crowns=[own(leafSprays(200)),own(leafSprays(100)),own(crown(2))],fenceGeo=own(new THREE.BoxGeometry(1,1,1)),fenceMat=own(new THREE.MeshStandardMaterial({color:'#a59470',roughness:.9}));
   const bushGeo=own(leafSprays(50,true));
@@ -70,10 +73,10 @@ export function createScenery({leafMap=null,leafNormal=null}={}){
     const fixed=records.filter(r=>r.type==='fence');if(fixed.length)tile.add(instances(fixed,fenceGeo,fenceMat));
     const bushes=records.filter(r=>r.type==='bush');if(bushes.length)tile.add(instances(bushes,bushGeo,leaves));
     const center=new THREE.Vector3();records.forEach(r=>center.add(new THREE.Vector3(...r.position)));center.divideScalar(records.length);
-    const info={group:tile,center};
+    const info={group:tile,center,level:1};
     if(trees.length){info.lods=crowns.map((geo,i)=>{const lod=new THREE.Group();lod.add(instances(trees,geo,i<2?leaves:foliage,i<2),instances(trees,trunk,bark,i<2));lod.visible=i===1;tile.add(lod);return lod;});}
     tiles.push(info);
   }
   let disposed=false;
-  return {group,tiles,geometryBudget:{near:crowns[0].index.count/3,far:crowns[2].index.count/3},update(camera,seconds){time.value=seconds;for(const tile of tiles){if(!tile.lods)continue;const d=Math.hypot(camera.position.x-tile.center.x,camera.position.z-tile.center.z),level=d<42?0:d<78?1:2;tile.lods.forEach((lod,i)=>{lod.visible=i===level;});}},dispose(){if(disposed)return;disposed=true;group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});for(const resource of resources)resource.dispose();group.clear();}};
+  return {group,tiles,geometryBudget:{near:crowns[0].index.count/3,far:crowns[2].index.count/3},update(camera,seconds){time.value=seconds;let shadowDirty=false;for(const tile of tiles){if(!tile.lods)continue;const d=Math.hypot(camera.position.x-tile.center.x,camera.position.z-tile.center.z),previous=tile.level,level=previous===0?(d>46?(d>82?2:1):0):previous===2?(d<74?(d<38?0:1):2):(d<38?0:d>82?2:1);if(level!==previous){tile.level=level;shadowDirty=true;tile.lods.forEach((lod,i)=>{lod.visible=i===level;});}}return shadowDirty;},dispose(){if(disposed)return;disposed=true;group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});for(const resource of resources)resource.dispose();group.clear();}};
 }

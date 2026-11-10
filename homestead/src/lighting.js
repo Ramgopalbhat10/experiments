@@ -32,13 +32,13 @@ function roomFor(record,rooms){
 /** Local reflection probes are rebuilt after edits, never as an animation effect. */
 export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
   let rooms=[],queue=[],clock=0,due=0,lastCapture=-Infinity,evening=false,signature='',children=[],outdoor=null,skyDirty=true,disposed=false,preparedSignature='',prepared=false;
-  const bindings=new Map(),clones=new Set(),probes=new Map(),windowLights=new THREE.Group();windowLights.name='Window bounce';scene.add(windowLights);
+  const bindings=new Map(),clones=new Set(),materialCache=new Map(),probes=new Map(),windowLights=new THREE.Group();windowLights.name='Window bounce';scene.add(windowLights);
   // Clamp local radiance at capture: nearby metallic/fixture highlights can overflow
   // a half-float cube, then contaminate its filtered mip chain with NaNs.
   const captureTarget=new THREE.WebGLCubeRenderTarget(128,{type:THREE.UnsignedByteType,generateMipmaps:false});
   const cubeCamera=new THREE.CubeCamera(.1,70,captureTarget),skyScene=new THREE.Scene();
   const reflectedSky=new THREE.Mesh(sky.geometry,sky.material);reflectedSky.scale.copy(sky.scale);skyScene.add(reflectedSky);
-  const restore=()=>{for(const [mesh,original] of bindings)mesh.material=original;bindings.clear();for(const material of clones)material.dispose();clones.clear();};
+  const restore=()=>{for(const [mesh,original] of bindings)mesh.material=original;bindings.clear();for(const material of clones)material.dispose();clones.clear();materialCache.clear();};
   function prepareRooms(records){
     // Restore source materials before instance batching consumes them.
     restore();preparedSignature=JSON.stringify(records);rooms=findRooms(records);prepared=true;
@@ -47,22 +47,8 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
   function invalidate(records,force=false){
     const next=JSON.stringify(records);if(!force&&!prepared&&next===signature&&children.length===projectGroup.children.length&&children.every((c,i)=>c===projectGroup.children[i]))return;
     signature=next;children=[...projectGroup.children];restore();if(!prepared||preparedSignature!==next)rooms=findRooms(records);prepared=false;queue=rooms.slice(0,4);due=clock+.45;
-    const activeIds=new Set(queue.map(r=>r.id));for(const [id,target] of probes)if(!activeIds.has(id)){target.dispose();probes.delete(id);}
-    const cache=new Map();
-    for(const group of projectGroup.children){
-      if(!group.visible)continue;const record=group.userData.record||(group.userData.roomPosition?{position:group.userData.roomPosition}:null);if(!record)continue;const room=roomFor(record,rooms);
-      group.traverse(mesh=>{
-        if(!mesh.isMesh)return;const original=mesh.material;
-        const adapt=source=>{
-          if(!source.isMeshStandardMaterial||!room)return source;
-          let byRoom=cache.get(source);if(!byRoom){byRoom=new Map();cache.set(source,byRoom);}const id=room?.id||'outdoors';if(byRoom.has(id))return byRoom.get(id);
-          const material=source.clone();material.userData={...source.userData,lightingRoom:room?.id||null};
-          if(room){material.envMap=probes.get(room.id)?.texture||outdoor?.texture||null;material.envMapIntensity=probes.has(room.id)? .75:.22;}
-          byRoom.set(id,material);clones.add(material);return material;
-        };
-        const adapted=Array.isArray(original)?original.map(adapt):adapt(original);if(adapted!==original){bindings.set(mesh,original);mesh.material=adapted;}
-      });
-    }
+    const activeIds=new Set(rooms.slice(0,4).map(r=>r.id));for(const [id,target] of probes)if(!activeIds.has(id)){target.dispose();probes.delete(id);}
+    assignMaterials();
     const ids=new Set(rooms.map(r=>r.id));for(const [id,target] of probes)if(!ids.has(id)){target.dispose();probes.delete(id);}
     windowLights.clear();
     // Short, soft fill at openings approximates sky bounce; direct sun still uses wall shadows.
@@ -71,6 +57,35 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
       const near={position:p.clone().addScaledVector(normal,.9).toArray()},far={position:p.clone().addScaledVector(normal,-.9).toArray()},a=roomFor(near,rooms),b=roomFor(far,rooms);if(!a&&!b)continue;
       const sign=a?1:-1,light=new THREE.SpotLight(evening?'#ffce98':'#e3eeff',evening?3:5,3.8,.9,1,2);light.position.copy(p).addScaledVector(normal,sign*.15);light.target.position.copy(p).addScaledVector(normal,sign*2);windowLights.add(light,light.target);
     }
+  }
+  function assignMaterials(){
+    for(const group of projectGroup.children){
+      if(!group.visible)continue;const record=group.userData.record||(group.userData.roomPosition?{position:group.userData.roomPosition}:null);if(!record)continue;const room=roomFor(record,rooms);
+      group.traverse(mesh=>{
+        if(!mesh.isMesh||bindings.has(mesh))return;const original=mesh.material;
+        const adapt=source=>{
+          if(!source.isMeshStandardMaterial||!room)return source;
+          let byRoom=materialCache.get(source);if(!byRoom){byRoom=new Map();materialCache.set(source,byRoom);}const id=room?.id||'outdoors';if(byRoom.has(id))return byRoom.get(id);
+          const material=source.clone();material.userData={...source.userData,lightingRoom:room?.id||null};
+          if(room){material.envMap=probes.get(room.id)?.texture||outdoor?.texture||null;material.envMapIntensity=probes.has(room.id)? .75:.22;}
+          byRoom.set(id,material);clones.add(material);return material;
+        };
+        const adapted=Array.isArray(original)?original.map(adapt):adapt(original);if(adapted!==original){bindings.set(mesh,original);mesh.material=adapted;}
+      });
+    }
+  }
+  function prepareRepresentations(groups){
+    for(const group of groups)group.traverse(mesh=>{if(bindings.has(mesh)){mesh.material=bindings.get(mesh);bindings.delete(mesh);}});
+  }
+  function refreshRepresentations(){
+    // Keep unaffected room clones and captures. Only collect removed bindings
+    // and adapt newly rendered representations; no room inference or recapture.
+    const active=new Set();projectGroup.traverse(mesh=>{if(mesh.isMesh)active.add(mesh);});
+    for(const [mesh,source] of bindings)if(!active.has(mesh)){mesh.material=source;bindings.delete(mesh);}
+    assignMaterials();
+    const used=new Set();for(const mesh of bindings.keys())for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])used.add(material);
+    for(const [source,byRoom] of materialCache){for(const [id,material] of byRoom)if(!used.has(material)){material.dispose();clones.delete(material);byRoom.delete(id);}if(!byRoom.size)materialCache.delete(source);}
+    children=[...projectGroup.children];
   }
   function setEvening(value,records){evening=value;skyDirty=true;for(const target of probes.values())target.dispose();probes.clear();invalidate(records,true);}
   function update(dt){
@@ -91,5 +106,5 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
     for(const material of clones)if(material.userData.lightingRoom===room.id){material.envMap=filtered.texture;material.envMapIntensity=.75;material.needsUpdate=true;}
     previous?.dispose();lastCapture=clock;
   }
-  return {prepareRooms,roomKey,invalidate,setEvening,update,get stats(){return {rooms:rooms.length,probes:probes.size,pending:queue.length};},dispose(){if(disposed)return;disposed=true;restore();for(const p of probes.values())p.dispose();probes.clear();captureTarget.dispose();outdoor?.dispose();windowLights.clear();scene.remove(windowLights);}};
+  return {prepareRooms,roomKey,prepareRepresentations,refreshRepresentations,invalidate,setEvening,update,get stats(){return {rooms:rooms.length,probes:probes.size,pending:queue.length};},dispose(){if(disposed)return;disposed=true;restore();for(const p of probes.values())p.dispose();probes.clear();captureTarget.dispose();outdoor?.dispose();windowLights.clear();scene.remove(windowLights);}};
 }
