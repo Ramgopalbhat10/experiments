@@ -14,9 +14,9 @@ export class SpatialIndex {
     this.records=records;this.dirty=false;this.cells.clear();this.rebuildCount++;
     for(const record of records) {
       const item=ITEM_MAP[record.item];
-      if(!item)continue;
-      const support=item.slot==='floor'||item.slot==='roof'||record.item==='stairs';
-      const solid=item.slot==='wall'||SOLIDS.has(record.item)||record.item==='tree';
+      if(!item||item.collision===false)continue;
+      const kind=item.kind||record.item,support=item.support!==false&&(item.slot==='floor'||item.slot==='roof'||kind==='stairs');
+      const solid=item.collision===true||item.slot==='wall'||SOLIDS.has(kind)||kind==='tree';
       if(!support&&!solid)continue;
       const [x,y,z]=record.position,rotation=record.rotation||0,cos=Math.cos(rotation),sin=Math.sin(rotation);
       const halfX=record.item==='tree'?.13:item.size[0]/2,halfZ=record.item==='tree'?.13:item.size[2]/2;

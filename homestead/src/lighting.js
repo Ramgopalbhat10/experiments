@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {ITEM_MAP} from './catalog.js';
+import {propertyRooms,inPropertyRegion} from './property-rooms.js';
 const wallItems=new Set(['wall','window-wall','glass-wall','doorway']);
 const key=p=>p.map(n=>Math.round(n*100)).join(',');
 /** Connected roofed floor tiles, with wall/door partitions separating reflection volumes. */
@@ -23,11 +24,11 @@ export function findRooms(records){
     const nearest=tiles.reduce((best,t)=>Math.hypot(t.position[0]-center.x,t.position[2]-center.z)<Math.hypot(best.position[0]-center.x,best.position[2]-center.z)?t:best,tiles[0]);
     rooms.push({id:key(first.position),tiles,center:new THREE.Vector3(nearest.position[0],center.y,nearest.position[2])});
   }
-  return rooms;
+  return [...propertyRooms(records),...rooms];
 }
 function roomFor(record,rooms){
   const [x,y,z]=record.position;let result=null,level=-Infinity;
-  for(const room of rooms)for(const t of room.tiles)if(Math.abs(x-t.position[0])<=1.65&&Math.abs(z-t.position[2])<=1.65&&y>=t.position[1]-.05&&y<t.position[1]+3.1&&t.position[1]>level){result=room;level=t.position[1];}
+  for(const room of rooms){if(room.regions){for(const region of room.regions)if(inPropertyRegion(region,x,y,z)&&region.record.position[1]>level){result=room;level=region.record.position[1];}continue;}for(const t of room.tiles)if(Math.abs(x-t.position[0])<=1.65&&Math.abs(z-t.position[2])<=1.65&&y>=t.position[1]-.05&&y<t.position[1]+3.1&&t.position[1]>level){result=room;level=t.position[1];}}
   return result;
 }
 /** Only exposed openings contribute sky fill; an interior glazed partition is
@@ -35,14 +36,14 @@ function roomFor(record,rooms){
 export function windowBounces(records,rooms,evening=false){
  const result=[];
  for(const record of records){
-  if(!['window-wall','glass-wall'].includes(record.item))continue;
+  if(!['window-wall','glass-wall'].includes(ITEM_MAP[record.item]?.kind||record.item))continue;
   const rotation=record.rotation||0,normal=new THREE.Vector3(Math.sin(rotation),0,Math.cos(rotation)),position=new THREE.Vector3(...record.position);position.y+=1.5;
   const near=position.clone().addScaledVector(normal,.9),far=position.clone().addScaledVector(normal,-.9),a=roomFor({position:near.toArray()},rooms),b=roomFor({position:far.toArray()},rooms);
   if((!a&&!b)||(a&&b))continue;
   const outside=a?far:near;
   // Also reject covered spaces not recognized by the 3m room heuristic,
   // e.g. a double-height atrium or porch. An open-to-sky courtyard is valid.
-  const covered=records.some(r=>{if(!['roof','gable-roof','floor','foundation'].includes(r.item)||r.position[1]<=outside.y+.1)return false;const [w,,d]=ITEM_MAP[r.item].size,angle=r.rotation||0,dx=outside.x-r.position[0],dz=outside.z-r.position[2];return Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))<=w/2&&Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle))<=d/2;});
+  const covered=records.some(r=>{if(!['roof','gable-roof','floor','foundation','ceiling','hip','gable'].includes(ITEM_MAP[r.item]?.kind||r.item)||r.position[1]<=outside.y+.1)return false;const [w,,d]=ITEM_MAP[r.item].size,angle=r.rotation||0,dx=outside.x-r.position[0],dz=outside.z-r.position[2];return Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))<=w/2&&Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle))<=d/2;});
   if(covered)continue;
   const sign=a?1:-1;
   result.push({position:position.clone().addScaledVector(normal,sign*.15),target:position.clone().addScaledVector(normal,sign*2),intensity:evening?2:3.5,distance:2.8});
@@ -50,11 +51,11 @@ export function windowBounces(records,rooms,evening=false){
  }
  return result;
 }
-function saveRenderState(renderer,scene){return {target:renderer.getRenderTarget?.(),face:renderer.getActiveCubeFace?.()||0,mip:renderer.getActiveMipmapLevel?.()||0,tone:renderer.toneMapping,exposure:renderer.toneMappingExposure,autoClear:renderer.autoClear,xr:renderer.xr?.enabled,color:renderer.getClearColor?.(new THREE.Color()).clone(),alpha:renderer.getClearAlpha?.(),override:scene.overrideMaterial,background:scene.background};}
-function restoreRenderState(renderer,scene,state){renderer.toneMapping=state.tone;renderer.toneMappingExposure=state.exposure;renderer.autoClear=state.autoClear;if(renderer.xr)renderer.xr.enabled=state.xr;renderer.setRenderTarget?.(state.target,state.face,state.mip);if(state.color)renderer.setClearColor(state.color,state.alpha);scene.overrideMaterial=state.override;scene.background=state.background;}
+function saveRenderState(renderer,scene){return {target:renderer.getRenderTarget?.(),face:renderer.getActiveCubeFace?.()||0,mip:renderer.getActiveMipmapLevel?.()||0,tone:renderer.toneMapping,exposure:renderer.toneMappingExposure,autoClear:renderer.autoClear,xr:renderer.xr?.enabled,color:renderer.getClearColor?.(new THREE.Color()).clone(),alpha:renderer.getClearAlpha?.(),override:scene.overrideMaterial,background:scene.background,clipping:renderer.clippingPlanes,localClipping:renderer.localClippingEnabled};}
+function restoreRenderState(renderer,scene,state){renderer.toneMapping=state.tone;renderer.toneMappingExposure=state.exposure;renderer.autoClear=state.autoClear;if(renderer.xr)renderer.xr.enabled=state.xr;renderer.setRenderTarget?.(state.target,state.face,state.mip);if(state.color)renderer.setClearColor(state.color,state.alpha);scene.overrideMaterial=state.override;scene.background=state.background;renderer.clippingPlanes=state.clipping;renderer.localClippingEnabled=state.localClipping;}
 /** Local reflection probes are rebuilt after edits, never as an animation effect. */
 export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
-  let rooms=[],queue=[],clock=0,due=0,lastCapture=-Infinity,evening=false,signature='',children=[],outdoor=null,skyDirty=true,disposed=false,preparedSignature='',prepared=false,failures=0;
+  let rooms=[],queue=[],clock=0,due=0,lastCapture=-Infinity,evening=false,signature='',children=[],outdoor=null,skyDirty=true,disposed=false,preparedSignature='',prepared=false,failures=0,inspectionPlane=null;
   const bindings=new Map(),clones=new Set(),materialCache=new Map(),probes=new Map(),windowLights=new THREE.Group();windowLights.name='Window bounce';scene.add(windowLights);
   // Clamp local radiance at capture: nearby metallic/fixture highlights can overflow
   // a half-float cube, then contaminate its filtered mip chain with NaNs.
@@ -81,14 +82,15 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
   }
   function assignMaterials(){
     for(const group of projectGroup.children){
-      if(!group.visible)continue;const record=group.userData.record||(group.userData.roomPosition?{position:group.userData.roomPosition}:null);if(!record)continue;const room=roomFor(record,rooms);
+      if(!group.visible)continue;const record=group.userData.record||(group.userData.roomPosition?{position:group.userData.roomPosition}:null);if(!record)continue;const room=roomFor(record,rooms),kind=ITEM_MAP[group.userData.item||record.item]?.kind||group.userData.item||record.item,clipped=inspectionPlane&&!['tree','shrub','fence','path','planter','bench'].includes(kind);
       group.traverse(mesh=>{
         if(!mesh.isMesh||bindings.has(mesh))return;const original=mesh.material;
         const adapt=source=>{
-          if(!source.isMeshStandardMaterial||!room)return source;
-          let byRoom=materialCache.get(source);if(!byRoom){byRoom=new Map();materialCache.set(source,byRoom);}const id=room?.id||'outdoors';if(byRoom.has(id))return byRoom.get(id);
-          const material=source.clone();material.userData={...source.userData,lightingRoom:room?.id||null};
-          if(room){material.envMap=probes.get(room.id)?.texture||outdoor?.texture||null;material.envMapIntensity=probes.has(room.id)? .65:.16;}
+          if((!source.isMeshStandardMaterial||!room)&&!clipped)return source;
+          let byRoom=materialCache.get(source);if(!byRoom){byRoom=new Map();materialCache.set(source,byRoom);}const id=`${room?.id||'outdoors'}:${clipped?'cut':'full'}`;if(byRoom.has(id))return byRoom.get(id);
+          const material=source.clone();material.userData={...source.userData,lightingRoom:source.isMeshStandardMaterial?room?.id||null:null};
+          if(room&&source.isMeshStandardMaterial){material.envMap=probes.get(room.id)?.texture||outdoor?.texture||null;material.envMapIntensity=probes.has(room.id)? .65:.16;}
+          material.clippingPlanes=clipped?[inspectionPlane]:null;material.clipShadows=false;
           byRoom.set(id,material);clones.add(material);return material;
         };
         const adapted=Array.isArray(original)?original.map(adapt):adapt(original);if(adapted!==original){bindings.set(mesh,original);mesh.material=adapted;}
@@ -108,11 +110,12 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
     for(const [source,byRoom] of materialCache){for(const [id,material] of byRoom)if(!used.has(material)){material.dispose();clones.delete(material);byRoom.delete(id);}if(!byRoom.size)materialCache.delete(source);}
     children=[...projectGroup.children];
   }
+  function setInspectionCut(height){inspectionPlane=height===null?null:new THREE.Plane(new THREE.Vector3(0,-1,0),height);restore();assignMaterials();}
   function setEvening(value,records){evening=value;skyDirty=true;invalidate(records,true);}
   function update(dt){
     if(disposed)return;clock+=Number.isFinite(dt)&&dt>0?Math.min(dt,1):0;
     if(skyDirty){
-      skyDirty=false;const state=saveRenderState(renderer,skyScene);
+      skyDirty=false;const state=saveRenderState(renderer,skyScene);renderer.clippingPlanes=[];renderer.localClippingEnabled=false;
       try{const next=pmrem.fromScene(skyScene,.02,.1,1000,{size:128}),previous=outdoor;if(!next?.texture)throw new Error('Invalid sky capture');outdoor=next;scene.environment=outdoor.texture;for(const material of clones)if(material.userData.lightingRoom&&!probes.has(material.userData.lightingRoom)){material.envMap=outdoor.texture;material.envMapIntensity=.16;material.needsUpdate=true;}previous?.dispose();}
       catch{failures++;} // Keep the last valid sky (or diffuse lights), never retry every frame.
       finally{restoreRenderState(renderer,skyScene,state);}
@@ -122,7 +125,7 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
     scene.traverse(o=>{if(o.visible&&(o===grid||o.isLine||o.userData.preview||o.userData.id==='preview'||o.name==='Spatial landscape')){hidden.push(o);o.visible=false;}});
     // Capture the diffuse room response with reduced sky, avoiding recursive reflections.
     for(const material of clones){maps.push([material,material.envMap,material.envMapIntensity]);material.envMap=material.userData.lightingRoom?outdoor?.texture||null:null;material.envMapIntensity=material.userData.lightingRoom? .16:1;}
-    const state=saveRenderState(renderer,scene);renderer.toneMapping=THREE.NoToneMapping;
+    const state=saveRenderState(renderer,scene);renderer.clippingPlanes=[];renderer.localClippingEnabled=false;renderer.toneMapping=THREE.NoToneMapping;
     const shadowUpdate=renderer.shadowMap.needsUpdate;renderer.shadowMap.needsUpdate=false;
     let filtered;
     try{cubeCamera.position.copy(room.center);cubeCamera.update(renderer,scene);filtered=pmrem.fromCubemap(captureTarget.texture);if(!filtered?.texture)throw new Error('Invalid local capture');}
@@ -132,5 +135,5 @@ export function createLighting({scene,renderer,projectGroup,sky,grid,pmrem}){
     for(const material of clones)if(material.userData.lightingRoom===room.id){material.envMap=filtered.texture;material.envMapIntensity=.65;material.needsUpdate=true;}
     previous?.dispose();lastCapture=clock;
   }
-  return {prepareRooms,roomKey,prepareRepresentations,refreshRepresentations,invalidate,setEvening,update,get stats(){return {rooms:rooms.length,probes:probes.size,pending:queue.length,failures,captureFormat:'ldr-clamped'};},dispose(){if(disposed)return;disposed=true;restore();for(const p of probes.values())p.dispose();probes.clear();captureTarget.dispose();outdoor?.dispose();windowLights.clear();scene.remove(windowLights);}};
+  return {prepareRooms,roomKey,setInspectionCut,prepareRepresentations,refreshRepresentations,invalidate,setEvening,update,get stats(){return {rooms:rooms.length,probes:probes.size,pending:queue.length,failures,captureFormat:'ldr-clamped'};},dispose(){if(disposed)return;disposed=true;restore();for(const p of probes.values())p.dispose();probes.clear();captureTarget.dispose();outdoor?.dispose();windowLights.clear();scene.remove(windowLights);}};
 }

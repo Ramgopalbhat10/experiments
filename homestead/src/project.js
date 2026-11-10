@@ -4,7 +4,7 @@ const round = n => Math.round(n*1000)/1000;
 export function snapPosition(item, position, rotation=0) {
   const p=position.map(n=>round(Math.round(n/item.grid)*item.grid));
   p[1]=round(position[1]);
-  if(item.slot==='wall') {
+  if(item.slot==='wall'&&!item.property) {
     const axis=Math.abs(Math.sin(rotation))>.5?0:2;
     p[axis]=round(Math.round((position[axis]-1.5)/3)*3+1.5);
   }

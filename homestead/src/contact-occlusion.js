@@ -33,12 +33,12 @@ export function createOcclusionPass(kind,scene,camera,sky){
  */
 export class ContactOcclusion extends Pass{
   constructor(scene,camera,sky,quality,{factory=kind=>createOcclusionPass(kind,scene,camera,sky),supported=()=>true,recover=null}={}){
-    super();this.factory=factory;this.supported=supported;this.recover=recover;this.quality=quality;this.preference='ssao';this.kind=null;this.pass=null;this.width=1;this.height=1;this.failed=false;this.disabled=false;this.reason=null;this.disposed=false;this.configure();
+    super();this.factory=factory;this.supported=supported;this.recover=recover;this.quality=quality;this.preference='ssao';this.kind=null;this.pass=null;this.width=1;this.height=1;this.failed=false;this.disabled=false;this.reason=null;this.disposed=false;this.suspended=false;this.configure();
   }
   configure(){
     if(this.disposed)return;
     if(this.disabled){this.enabled=false;this.needsSwap=false;return;}
-    this.enabled=!!this.quality.ao;
+    this.enabled=!!this.quality.ao&&!this.suspended;
     const desired=this.preference==='gtao'&&this.quality.preset==='high'&&!this.failed?'gtao':'ssao';
     try{
       if(desired!==this.kind){this.pass?.dispose();this.pass=null;this.kind=null;if(desired==='gtao'&&!this.supported())throw new Error('Enhanced contact shadows are not supported.');this.pass=this.factory(desired);this.kind=desired;}
@@ -51,13 +51,14 @@ export class ContactOcclusion extends Pass{
     }
   }
   setQuality(){this.configure();}
+  setSuspended(value){this.suspended=!!value;this.configure();}
   setPreference(preference){
     if(!['ssao','gtao'].includes(preference))throw new RangeError('Unknown contact shadow mode');
     this.preference=preference;this.failed=false;this.disabled=false;this.reason=null;this.configure();return this.stats;
   }
   setSize(width,height){this.width=width;this.height=height;this.configure();}
   get normalRenderTarget(){return this.pass?.normalRenderTarget||{width:Math.max(1,Math.round(this.width*this.quality.aoScale)),height:Math.max(1,Math.round(this.height*this.quality.aoScale))};}
-  get stats(){return {preference:this.preference,active:this.enabled?this.kind:'off',fallbackReason:this.reason,resolution:[this.normalRenderTarget.width,this.normalRenderTarget.height]};}
+  get stats(){return {preference:this.preference,active:this.enabled?this.kind:'off',fallbackReason:this.reason,suspended:this.suspended,resolution:[this.normalRenderTarget.width,this.normalRenderTarget.height]};}
   render(renderer,writeBuffer,readBuffer,...args){
     if(!this.enabled||!this.pass)return;
     this.pass.renderToScreen=this.renderToScreen;

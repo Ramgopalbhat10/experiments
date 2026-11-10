@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {ITEM_MAP} from './catalog.js';
+import {buildPropertyPart} from './property-geometry.js';
 import { ObjectTemplates } from './templates.js';
 const templates=new ObjectTemplates();
 export const invalidateObjectTemplates=item=>templates.invalidate(item);
@@ -71,7 +73,8 @@ function buildObject(record) {
   const g=new THREE.Group(), {item,color='#e9e4d8',finish='plaster'}=record;
   const surface=mat(color,finish), oak=mat(color==='#e9e4d8'?'#bc9163':color,finish==='plaster'?'oak':finish), cream=ceramic();
   const detailed=detailedObject(item,color,record.detail);
-  if(detailed)g.add(detailed);
+  if(ITEM_MAP[item]?.property)buildPropertyPart(g,ITEM_MAP[item],record,{box,cyl,glass,wood,darkMetal});
+  else if(detailed)g.add(detailed);
   else if(item==='floor'||item==='foundation'){
     if(item==='floor'&&['plaster','oak'].includes(finish)){box(g,3,.185,3,0,.0925,0,darkWood());for(let row=0;row<12;row++)for(let part=0;part<3;part++){const tint=new THREE.Color(color).multiplyScalar([.98,1.025,.95][(row+part)%3]);box(g,.997,.015,.247,-1+part,.1925,-1.375+row*.25,mat(tint.getStyle(),'oak'),true);}}
     else box(g,3,.2,3,0,.1,0,item==='foundation'?mat('#bbb8ae','concrete'):mat(color,finish));

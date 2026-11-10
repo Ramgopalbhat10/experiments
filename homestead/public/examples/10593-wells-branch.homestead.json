@@ -1,0 +1,2057 @@
+{
+  "version": 1,
+  "objects": [
+    {
+      "id": "wb-family-floor",
+      "item": "wb-family-floor",
+      "position": [
+        -2.3,
+        0,
+        -4.449999999999999
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-dining-floor",
+      "item": "wb-dining-floor",
+      "position": [
+        -2.075,
+        0,
+        -0.5499999999999999
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-kitchen-floor",
+      "item": "wb-kitchen-floor",
+      "position": [
+        -2.075,
+        0,
+        3.275
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-master-floor",
+      "item": "wb-master-floor",
+      "position": [
+        2.175,
+        0,
+        6.14
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cfccc2"
+    },
+    {
+      "id": "wb-study-floor",
+      "item": "wb-study-floor",
+      "position": [
+        -2.725,
+        0,
+        7.425
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#c9c7bb"
+    },
+    {
+      "id": "wb-game-floor",
+      "item": "wb-game-floor",
+      "position": [
+        -2.075,
+        3,
+        -0.02499999999999991
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-bed2-floor",
+      "item": "wb-bed2-floor",
+      "position": [
+        -2.725,
+        3,
+        7.075
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-bed3-floor",
+      "item": "wb-bed3-floor",
+      "position": [
+        2.7,
+        3,
+        2.775
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-bed4-floor",
+      "item": "wb-bed4-floor",
+      "position": [
+        2.7,
+        3,
+        -1.475
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-bed4-wic-floor",
+      "item": "wb-bed4-wic-floor",
+      "position": [
+        0.39999999999999997,
+        3,
+        -2.65
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-entry-floor",
+      "item": "wb-entry-floor",
+      "position": [
+        -0.5499999999999999,
+        0,
+        6.975
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-stair-hall-floor",
+      "item": "wb-stair-hall-floor",
+      "position": [
+        0.625,
+        0,
+        2.1999999999999997
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-bath-floor",
+      "item": "wb-bath-floor",
+      "position": [
+        2.7,
+        0,
+        2.49
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#d9d4c9"
+    },
+    {
+      "id": "wb-closet-floor",
+      "item": "wb-closet-floor",
+      "position": [
+        2.7,
+        0,
+        -0.07499999999999996
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d1cec5"
+    },
+    {
+      "id": "wb-powder-floor",
+      "item": "wb-powder-floor",
+      "position": [
+        0.7250000000000001,
+        0,
+        -2.725
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#ddd8cc"
+    },
+    {
+      "id": "wb-utility-floor",
+      "item": "wb-utility-floor",
+      "position": [
+        3.025,
+        0,
+        -2.225
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#d1ccc3"
+    },
+    {
+      "id": "wb-utility-hall-floor",
+      "item": "wb-utility-hall-floor",
+      "position": [
+        0.7250000000000001,
+        0,
+        -1.7000000000000002
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-garage-floor",
+      "item": "wb-garage-floor",
+      "position": [
+        2.45,
+        0,
+        -6.25
+      ],
+      "rotation": 0,
+      "finish": "concrete",
+      "color": "#bdbab0"
+    },
+    {
+      "id": "wb-patio-floor",
+      "item": "wb-patio-floor",
+      "position": [
+        -2.3,
+        0,
+        -8.05
+      ],
+      "rotation": 0,
+      "finish": "concrete",
+      "color": "#c6bfae"
+    },
+    {
+      "id": "wb-upper-hall-floor",
+      "item": "wb-upper-hall-floor",
+      "position": [
+        0.625,
+        3,
+        -1.625
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-upper-hall-side",
+      "item": "wb-upper-hall-side",
+      "position": [
+        -0.5499999999999999,
+        3,
+        4
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-upper-landing",
+      "item": "wb-upper-landing",
+      "position": [
+        0.625,
+        3,
+        3.775
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#cbc6b8"
+    },
+    {
+      "id": "wb-porch-step",
+      "item": "wb-porch-step",
+      "position": [
+        -0.5499999999999999,
+        0,
+        8.725
+      ],
+      "rotation": 0,
+      "finish": "concrete",
+      "color": "#c9c4b6"
+    },
+    {
+      "id": "wb-upper-bath-floor",
+      "item": "wb-upper-bath-floor",
+      "position": [
+        -2.725,
+        3,
+        3.45
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#d8d5cb"
+    },
+    {
+      "id": "wb-bed3-closets-floor",
+      "item": "wb-bed3-closets-floor",
+      "position": [
+        2.7,
+        3,
+        0.65
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d0ccbf"
+    },
+    {
+      "id": "wb-study-front",
+      "item": "wb-study-front",
+      "position": [
+        -2.725,
+        0.2,
+        9.25
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-front-door",
+      "item": "wb-front-door",
+      "position": [
+        -0.5499999999999999,
+        0.2,
+        8.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#ddd8cb"
+    },
+    {
+      "id": "wb-master-front",
+      "item": "wb-master-front",
+      "position": [
+        2.175,
+        0.2,
+        8.35
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-entry-return",
+      "item": "wb-entry-return",
+      "position": [
+        -1.2,
+        0.2,
+        8.8
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-west-study",
+      "item": "wb-west-study",
+      "position": [
+        -4.25,
+        0.2,
+        7.425
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-west-kitchen",
+      "item": "wb-west-kitchen",
+      "position": [
+        -4.25,
+        0.2,
+        3.275
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-west-dining",
+      "item": "wb-west-dining",
+      "position": [
+        -4.25,
+        0.2,
+        -0.5499999999999999
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-west-family",
+      "item": "wb-west-family",
+      "position": [
+        -4.25,
+        0.2,
+        -4.449999999999999
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-family-patio",
+      "item": "wb-family-patio",
+      "position": [
+        -2.3,
+        0.2,
+        -6.85
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-family-east",
+      "item": "wb-family-east",
+      "position": [
+        -0.35,
+        0.2,
+        -5.05
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-east-primary",
+      "item": "wb-east-primary",
+      "position": [
+        4.25,
+        0.2,
+        6.14
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-east-bath",
+      "item": "wb-east-bath",
+      "position": [
+        4.25,
+        0.2,
+        2.49
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-east-utility",
+      "item": "wb-east-utility",
+      "position": [
+        4.25,
+        0.2,
+        -1.1
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-garage-back",
+      "item": "wb-garage-back",
+      "position": [
+        2.45,
+        0.2,
+        -9.25
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-garage-east",
+      "item": "wb-garage-east",
+      "position": [
+        5.25,
+        0.2,
+        -6.25
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-garage-west",
+      "item": "wb-garage-west",
+      "position": [
+        -0.35,
+        0.2,
+        -8.05
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-garage-front",
+      "item": "wb-garage-front",
+      "position": [
+        2.45,
+        0.2,
+        -3.25
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-study-hall",
+      "item": "wb-study-hall",
+      "position": [
+        -1.2,
+        0.2,
+        6.975
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-study-kitchen",
+      "item": "wb-study-kitchen",
+      "position": [
+        -2.725,
+        0.2,
+        5.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-master-hall",
+      "item": "wb-master-hall",
+      "position": [
+        0.1,
+        0.2,
+        6.14
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-master-bath",
+      "item": "wb-master-bath",
+      "position": [
+        2.175,
+        0.2,
+        3.93
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath-stair",
+      "item": "wb-bath-stair",
+      "position": [
+        1.15,
+        0.2,
+        2.49
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath-closet",
+      "item": "wb-bath-closet",
+      "position": [
+        2.7,
+        0.2,
+        1.05
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-closet-stair",
+      "item": "wb-closet-stair",
+      "position": [
+        1.15,
+        0.2,
+        -0.07499999999999996
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-closet-utility",
+      "item": "wb-closet-utility",
+      "position": [
+        2.7,
+        0.2,
+        -1.2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-stair-west",
+      "item": "wb-stair-west",
+      "position": [
+        0.1,
+        0.2,
+        0.9
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-powder-front",
+      "item": "wb-powder-front",
+      "position": [
+        0.7250000000000001,
+        0.2,
+        -2.2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-powder-east",
+      "item": "wb-powder-east",
+      "position": [
+        1.8,
+        0.2,
+        -2.725
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-staircase",
+      "item": "wb-staircase",
+      "position": [
+        0.625,
+        0.2,
+        0.9
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#a88a66"
+    },
+    {
+      "id": "wb-upper-west",
+      "item": "wb-upper-west",
+      "position": [
+        -4.25,
+        3.2,
+        3.6
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-upper-front-left",
+      "item": "wb-upper-front-left",
+      "position": [
+        -2.725,
+        3.2,
+        9.25
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#8f928b"
+    },
+    {
+      "id": "wb-upper-entry",
+      "item": "wb-upper-entry",
+      "position": [
+        -0.5499999999999999,
+        3.2,
+        8.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#e2ded4"
+    },
+    {
+      "id": "wb-front-gable-window",
+      "item": "wb-front-gable-window",
+      "position": [
+        2.175,
+        3.2,
+        8.35
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-upper-east",
+      "item": "wb-upper-east",
+      "position": [
+        4.25,
+        3.2,
+        2.55
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-bed4-rear",
+      "item": "wb-bed4-rear",
+      "position": [
+        1.95,
+        3.2,
+        -3.25
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-game-family-railing",
+      "item": "wb-game-family-railing",
+      "position": [
+        -2.3,
+        3.2,
+        -2.05
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-wic-west",
+      "item": "wb-bed4-wic-west",
+      "position": [
+        -0.35,
+        3.2,
+        -2.65
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-wic-front",
+      "item": "wb-bed4-wic-front",
+      "position": [
+        0.39999999999999997,
+        3.2,
+        -2.05
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-wic-door",
+      "item": "wb-bed4-wic-door",
+      "position": [
+        1.15,
+        3.2,
+        -2.65
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-game",
+      "item": "wb-bed4-game",
+      "position": [
+        1.15,
+        3.2,
+        -0.8749999999999999
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-closet",
+      "item": "wb-bed4-closet",
+      "position": [
+        2.7,
+        3.2,
+        0.3
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed3-closet",
+      "item": "wb-bed3-closet",
+      "position": [
+        2.7,
+        3.2,
+        1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed3-hall",
+      "item": "wb-bed3-hall",
+      "position": [
+        1.15,
+        3.2,
+        2.775
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed3-front",
+      "item": "wb-bed3-front",
+      "position": [
+        2.175,
+        3.2,
+        4.55
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath2-game",
+      "item": "wb-bath2-game",
+      "position": [
+        -2.575,
+        3.2,
+        2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath2-hall",
+      "item": "wb-bath2-hall",
+      "position": [
+        -1.2,
+        3.2,
+        3.45
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed2-bath",
+      "item": "wb-bed2-bath",
+      "position": [
+        -2.725,
+        3.2,
+        4.9
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed2-hall",
+      "item": "wb-bed2-hall",
+      "position": [
+        -1.2,
+        3.2,
+        7.075
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-upper-stair-rail",
+      "item": "wb-upper-stair-rail",
+      "position": [
+        0.1,
+        3.2,
+        0.9
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#a38b70"
+    },
+    {
+      "id": "wb-entry-rail",
+      "item": "wb-entry-rail",
+      "position": [
+        -0.55,
+        3.2,
+        6
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#a38b70"
+    },
+    {
+      "id": "wb-family-ceiling",
+      "item": "wb-family-ceiling",
+      "position": [
+        -2.3,
+        6,
+        -4.449999999999999
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-game-ceiling",
+      "item": "wb-game-ceiling",
+      "position": [
+        -2.075,
+        6,
+        -0.02499999999999991
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-bed2-ceiling",
+      "item": "wb-bed2-ceiling",
+      "position": [
+        -2.725,
+        6,
+        7.075
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-bed3-ceiling",
+      "item": "wb-bed3-ceiling",
+      "position": [
+        2.7,
+        6,
+        2.775
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-bed4-ceiling",
+      "item": "wb-bed4-ceiling",
+      "position": [
+        1.95,
+        6,
+        -1.475
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-bath2-ceiling",
+      "item": "wb-bath2-ceiling",
+      "position": [
+        -2.725,
+        6,
+        3.45
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-upper-stair-ceiling",
+      "item": "wb-upper-stair-ceiling",
+      "position": [
+        0.625,
+        6,
+        1.25
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-upper-hall-ceiling",
+      "item": "wb-upper-hall-ceiling",
+      "position": [
+        -0.5499999999999999,
+        6,
+        5.175
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-upper-closets-ceiling",
+      "item": "wb-upper-closets-ceiling",
+      "position": [
+        2.7,
+        6,
+        0.65
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-master-ceiling",
+      "item": "wb-master-ceiling",
+      "position": [
+        2.175,
+        3,
+        6.449999999999999
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-garage-ceiling",
+      "item": "wb-garage-ceiling",
+      "position": [
+        2.45,
+        3,
+        -6.25
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-patio-canopy",
+      "item": "wb-patio-canopy",
+      "position": [
+        -2.3,
+        3,
+        -8.075
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f3f0e8"
+    },
+    {
+      "id": "wb-main-hip-roof",
+      "item": "wb-main-hip-roof",
+      "position": [
+        0,
+        6.1,
+        -0.5
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#9a9d97"
+    },
+    {
+      "id": "wb-left-hip-roof",
+      "item": "wb-left-hip-roof",
+      "position": [
+        -2.75,
+        5.9,
+        7.05
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#9a9d97"
+    },
+    {
+      "id": "wb-front-gable-roof",
+      "item": "wb-front-gable-roof",
+      "position": [
+        2.175,
+        6.08,
+        6.25
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#8f928b"
+    },
+    {
+      "id": "wb-front-gable-infill",
+      "item": "wb-front-gable-infill",
+      "position": [
+        2.175,
+        6,
+        8.35
+      ],
+      "rotation": 0,
+      "finish": "brick",
+      "color": "#f6f3ec"
+    },
+    {
+      "id": "wb-garage-hip-roof",
+      "item": "wb-garage-hip-roof",
+      "position": [
+        2.45,
+        3.15,
+        -6.25
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#9a9d97"
+    },
+    {
+      "id": "wb-front-porch-roof",
+      "item": "wb-front-porch-roof",
+      "position": [
+        -1.95,
+        3.05,
+        8.95
+      ],
+      "rotation": 0,
+      "finish": "slate",
+      "color": "#9a9d97"
+    },
+    {
+      "id": "wb-porch-left-column",
+      "item": "wb-porch-left-column",
+      "position": [
+        -4.2,
+        0.2,
+        9.15
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#393c38"
+    },
+    {
+      "id": "wb-porch-right-column",
+      "item": "wb-porch-right-column",
+      "position": [
+        0.05,
+        0.2,
+        8.3
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#393c38"
+    },
+    {
+      "id": "wb-office-desk",
+      "item": "desk",
+      "position": [
+        -2.75,
+        0.2,
+        7.65
+      ],
+      "rotation": 3.141592653589793,
+      "finish": "oak",
+      "color": "#e3d8c4"
+    },
+    {
+      "id": "wb-office-chair",
+      "item": "chair",
+      "position": [
+        -2.75,
+        0.2,
+        6.85
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#565d5b"
+    },
+    {
+      "id": "wb-office-lounge",
+      "item": "armchair",
+      "position": [
+        -3.55,
+        0.2,
+        8.1
+      ],
+      "rotation": 1.0471975511965976,
+      "finish": "plaster",
+      "color": "#c8c8bd"
+    },
+    {
+      "id": "wb-office-art",
+      "item": "painting",
+      "position": [
+        -4.12,
+        1.25,
+        7.4
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-office-plant",
+      "item": "plant",
+      "position": [
+        -1.65,
+        0.2,
+        8.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-office-feature-panel",
+      "item": "wb-office-feature-panel",
+      "position": [
+        -4.135,
+        0.2,
+        7.4
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#748a85"
+    },
+    {
+      "id": "wb-kitchen-base-0",
+      "item": "counter",
+      "position": [
+        -3.85,
+        0.2,
+        1.6
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#ece9df"
+    },
+    {
+      "id": "wb-kitchen-base-1",
+      "item": "counter",
+      "position": [
+        -3.85,
+        0.2,
+        3.1
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#ece9df"
+    },
+    {
+      "id": "wb-kitchen-base-2",
+      "item": "counter",
+      "position": [
+        -3.85,
+        0.2,
+        4.6
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#ece9df"
+    },
+    {
+      "id": "wb-kitchen-range",
+      "item": "stove",
+      "position": [
+        -3.85,
+        0.2,
+        2.6
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#d9d8cf"
+    },
+    {
+      "id": "wb-kitchen-fridge",
+      "item": "fridge",
+      "position": [
+        -2,
+        0.2,
+        5.2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#c1c5bf"
+    },
+    {
+      "id": "wb-kitchen-island",
+      "item": "island",
+      "position": [
+        -2,
+        0.2,
+        2.6
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae0"
+    },
+    {
+      "id": "wb-kitchen-pendant",
+      "item": "pendant",
+      "position": [
+        -2,
+        1.9,
+        2.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-island-stool-0",
+      "item": "chair",
+      "position": [
+        -1,
+        0.2,
+        1.9
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "oak",
+      "color": "#c3a787"
+    },
+    {
+      "id": "wb-island-stool-1",
+      "item": "chair",
+      "position": [
+        -1,
+        0.2,
+        2.6
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "oak",
+      "color": "#c3a787"
+    },
+    {
+      "id": "wb-island-stool-2",
+      "item": "chair",
+      "position": [
+        -1,
+        0.2,
+        3.3
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "oak",
+      "color": "#c3a787"
+    },
+    {
+      "id": "wb-kitchen-upper-0",
+      "item": "wb-kitchen-upper-0",
+      "position": [
+        -3.96,
+        1.85,
+        1.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f0eee7"
+    },
+    {
+      "id": "wb-kitchen-upper-1",
+      "item": "wb-kitchen-upper-1",
+      "position": [
+        -3.96,
+        1.85,
+        3.1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f0eee7"
+    },
+    {
+      "id": "wb-kitchen-upper-2",
+      "item": "wb-kitchen-upper-2",
+      "position": [
+        -3.96,
+        1.85,
+        4.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f0eee7"
+    },
+    {
+      "id": "wb-dining-table",
+      "item": "dining-table",
+      "position": [
+        -2.2,
+        0.2,
+        -0.55
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c1a17b"
+    },
+    {
+      "id": "wb-dining-chair-0",
+      "item": "chair",
+      "position": [
+        -2.85,
+        0.2,
+        -1.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#4c787a"
+    },
+    {
+      "id": "wb-dining-chair-1",
+      "item": "chair",
+      "position": [
+        -1.55,
+        0.2,
+        -1.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#4c787a"
+    },
+    {
+      "id": "wb-dining-chair-2",
+      "item": "chair",
+      "position": [
+        -2.85,
+        0.2,
+        0.25
+      ],
+      "rotation": 3.141592653589793,
+      "finish": "plaster",
+      "color": "#4c787a"
+    },
+    {
+      "id": "wb-dining-chair-3",
+      "item": "chair",
+      "position": [
+        -1.55,
+        0.2,
+        0.25
+      ],
+      "rotation": 3.141592653589793,
+      "finish": "plaster",
+      "color": "#4c787a"
+    },
+    {
+      "id": "wb-dining-vase",
+      "item": "vase",
+      "position": [
+        -2.2,
+        0.98,
+        -0.55
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-living-sofa",
+      "item": "sofa",
+      "position": [
+        -3.55,
+        0.2,
+        -4.45
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#ded9cb"
+    },
+    {
+      "id": "wb-living-rug",
+      "item": "rug",
+      "position": [
+        -2.2,
+        0.21,
+        -4.5
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#648c99"
+    },
+    {
+      "id": "wb-living-table",
+      "item": "coffee-table",
+      "position": [
+        -2.15,
+        0.23,
+        -4.55
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#8a8170"
+    },
+    {
+      "id": "wb-living-chair",
+      "item": "armchair",
+      "position": [
+        -1.05,
+        0.2,
+        -5.65
+      ],
+      "rotation": 3.141592653589793,
+      "finish": "plaster",
+      "color": "#e4ddd0"
+    },
+    {
+      "id": "wb-living-lamp",
+      "item": "lamp",
+      "position": [
+        -3.7,
+        0.2,
+        -6.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-living-console",
+      "item": "console",
+      "position": [
+        -0.65,
+        0.2,
+        -4.6
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "oak",
+      "color": "#bca78c"
+    },
+    {
+      "id": "wb-living-art",
+      "item": "painting",
+      "position": [
+        -0.48,
+        1.3,
+        -4.6
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-living-plant",
+      "item": "plant",
+      "position": [
+        -3.7,
+        0.2,
+        -2.5
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-bed",
+      "item": "bed",
+      "position": [
+        2.15,
+        0.2,
+        6.45
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#f0e9df"
+    },
+    {
+      "id": "wb-primary-left-table",
+      "item": "nightstand",
+      "position": [
+        0.8999999999999999,
+        0.2,
+        5.7
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-right-table",
+      "item": "nightstand",
+      "position": [
+        3.4,
+        0.2,
+        5.7
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-rug",
+      "item": "rug",
+      "position": [
+        2.15,
+        0.21500000000000002,
+        6.8
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d2cabc"
+    },
+    {
+      "id": "wb-bed2-bed",
+      "item": "bed",
+      "position": [
+        -2.7,
+        3.2,
+        7
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#9eaaa9"
+    },
+    {
+      "id": "wb-bed2-left-table",
+      "item": "nightstand",
+      "position": [
+        -3.95,
+        3.2,
+        6.25
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed2-right-table",
+      "item": "nightstand",
+      "position": [
+        -1.4500000000000002,
+        3.2,
+        6.25
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed2-rug",
+      "item": "rug",
+      "position": [
+        -2.7,
+        3.2150000000000003,
+        7.35
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d2cabc"
+    },
+    {
+      "id": "wb-bed3-bed",
+      "item": "bed",
+      "position": [
+        2.7,
+        3.2,
+        2.85
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d2a16f"
+    },
+    {
+      "id": "wb-bed3-left-table",
+      "item": "nightstand",
+      "position": [
+        1.4500000000000002,
+        3.2,
+        2.1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed3-right-table",
+      "item": "nightstand",
+      "position": [
+        3.95,
+        3.2,
+        2.1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed3-rug",
+      "item": "rug",
+      "position": [
+        2.7,
+        3.2150000000000003,
+        3.2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d2cabc"
+    },
+    {
+      "id": "wb-bed4-bed",
+      "item": "bed",
+      "position": [
+        2.7,
+        3.2,
+        -1.4
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d9e1d8"
+    },
+    {
+      "id": "wb-bed4-left-table",
+      "item": "nightstand",
+      "position": [
+        1.4500000000000002,
+        3.2,
+        -2.15
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-right-table",
+      "item": "nightstand",
+      "position": [
+        3.95,
+        3.2,
+        -2.15
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bed4-rug",
+      "item": "rug",
+      "position": [
+        2.7,
+        3.2150000000000003,
+        -1.0499999999999998
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#d2cabc"
+    },
+    {
+      "id": "wb-primary-wardrobe",
+      "item": "wardrobe",
+      "position": [
+        3.75,
+        0.2,
+        -0.2
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#e9e7de"
+    },
+    {
+      "id": "wb-primary-bath-tub",
+      "item": "bath",
+      "position": [
+        3.55,
+        0.2,
+        2.9
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-shower",
+      "item": "shower",
+      "position": [
+        3.45,
+        0.2,
+        1.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-vanity",
+      "item": "vanity",
+      "position": [
+        1.6,
+        0.2,
+        2.65
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-primary-toilet",
+      "item": "toilet",
+      "position": [
+        1.7,
+        0.2,
+        1.55
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-powder-toilet",
+      "item": "toilet",
+      "position": [
+        0.2,
+        0.2,
+        -2.7
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-powder-vanity",
+      "item": "wb-powder-vanity",
+      "position": [
+        1.3,
+        0.2,
+        -2.7
+      ],
+      "rotation": -1.5707963267948966,
+      "finish": "plaster",
+      "color": "#e9e5db"
+    },
+    {
+      "id": "wb-bath2-tub",
+      "item": "bath",
+      "position": [
+        -3.7,
+        3.2,
+        4
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath2-vanity",
+      "item": "vanity",
+      "position": [
+        -2.1,
+        3.2,
+        2.4
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-bath2-toilet",
+      "item": "toilet",
+      "position": [
+        -3.7,
+        3.2,
+        2.7
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-game-sofa",
+      "item": "sofa",
+      "position": [
+        -3.5,
+        3.2,
+        0.1
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#b6b8b0"
+    },
+    {
+      "id": "wb-game-rug",
+      "item": "rug",
+      "position": [
+        -2.1,
+        3.21,
+        -0.1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#ada590"
+    },
+    {
+      "id": "wb-game-table",
+      "item": "coffee-table",
+      "position": [
+        -2,
+        3.22,
+        -0.15
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-game-chair",
+      "item": "armchair",
+      "position": [
+        -1.1,
+        3.2,
+        0.8
+      ],
+      "rotation": 3.141592653589793,
+      "finish": "plaster",
+      "color": "#496c84"
+    },
+    {
+      "id": "wb-game-bookcase",
+      "item": "bookcase",
+      "position": [
+        -3.3,
+        3.2,
+        1.65
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-patio-bench",
+      "item": "bench",
+      "position": [
+        -2.5,
+        0.2,
+        -8.6
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-patio-planter",
+      "item": "planter",
+      "position": [
+        -4,
+        0.2,
+        -8.1
+      ],
+      "rotation": 1.5707963267948966,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-front-paver-0",
+      "item": "path",
+      "position": [
+        -0.55,
+        0,
+        10.1
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-front-paver-1",
+      "item": "path",
+      "position": [
+        -0.55,
+        0,
+        11.9
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-front-paver-2",
+      "item": "path",
+      "position": [
+        -0.55,
+        0,
+        13.7
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-front-paver-3",
+      "item": "path",
+      "position": [
+        -0.55,
+        0,
+        15.5
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-landscape-0",
+      "item": "shrub",
+      "position": [
+        -4.8,
+        0,
+        9.4
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-landscape-1",
+      "item": "shrub",
+      "position": [
+        4.8,
+        0,
+        9
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-landscape-2",
+      "item": "shrub",
+      "position": [
+        3.9,
+        0,
+        10.3
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-landscape-3",
+      "item": "shrub",
+      "position": [
+        -3.4,
+        0,
+        10.2
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-front-tree",
+      "item": "tree",
+      "position": [
+        5.7,
+        0,
+        10.3
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    },
+    {
+      "id": "wb-rear-tree",
+      "item": "tree",
+      "position": [
+        -7.1,
+        0,
+        -7.5
+      ],
+      "rotation": 0,
+      "finish": "plaster",
+      "color": "#eeeae2"
+    }
+  ]
+}

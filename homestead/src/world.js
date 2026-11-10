@@ -21,7 +21,7 @@ export function createWorld(canvas) {
   renderer.info.autoReset=false;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
-  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.localClippingEnabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
   const scene=new THREE.Scene();scene.environmentIntensity=.5;scene.background=new THREE.Color('#b6c8ce');scene.fog=new THREE.Fog('#b9c5b0',65,170);
   const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.08,250);camera.position.set(13,1.85,17);camera.lookAt(-1,1.8,-1);
   const sky=new Sky();sky.scale.setScalar(450000);scene.add(sky);
@@ -71,7 +71,8 @@ export function createWorld(canvas) {
     resize();
   }
   applyQuality();addEventListener('resize',resize);
-  let lightingRecords=[],elapsed=0;
+  let lightingRecords=[],elapsed=0,inspectionCut=null;
+  function setInspectionCut(height=null){if(height!==null&&(!Number.isFinite(height)||height<0))throw new RangeError('Invalid cutaway height');if(height===inspectionCut)return;inspectionCut=height;roomLighting.setInspectionCut(height);ao.setSuspended(height!==null);}
   function invalidateLighting(records){lightingRecords=records;sunShadows.invalidate(records);roomLighting.invalidate(records);renderer.shadowMap.needsUpdate=true;}
   function refreshRepresentations(){roomLighting.refreshRepresentations();renderer.shadowMap.needsUpdate=true;}
   function lighting(mode){
@@ -99,5 +100,5 @@ export function createWorld(canvas) {
     grassMap.dispose();lawnMap.dispose();lawnNormal.dispose();leafMap.dispose();leafNormal.dispose();sun.shadow.map?.dispose();
     for(const pass of composer.passes)pass.dispose?.();composer.dispose();renderer.dispose();
   }
-  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setQuality,setOcclusion:preference=>ao.setPreference(preference),quality,stats,invalidateLighting,refreshRepresentations,prepareRepresentations:roomLighting.prepareRepresentations,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
+  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setInspectionCut,get inspectionCut(){return inspectionCut;},visiblePoint:point=>inspectionCut===null||point.y<=inspectionCut+.001,setQuality,setOcclusion:preference=>ao.setPreference(preference),quality,stats,invalidateLighting,refreshRepresentations,prepareRepresentations:roomLighting.prepareRepresentations,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
 }

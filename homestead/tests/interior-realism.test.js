@@ -14,6 +14,9 @@ test('enhanced AO is High-only, honors scaling and owns only one delegate across
  Object.assign(q,{preset:'balanced',aoScale:.5});ao.setQuality();assert.equal(ao.stats.active,'ssao');assert.equal(ao.stats.preference,'gtao');assert.equal(created[1].disposed,1);assert.equal(ao.needsSwap,false);
  Object.assign(q,{preset:'low',ao:false,aoScale:.35});ao.setQuality();assert.equal(ao.stats.active,'off');assert.deepEqual(ao.stats.resolution,[35,21]);Object.assign(q,{preset:'high',ao:true,aoScale:.65});ao.setQuality();assert.equal(ao.stats.active,'gtao');ao.dispose();ao.dispose();assert.ok(created.every(p=>p.disposed===1));
 });
+test('inspection pauses AO without losing the preference and tier changes remain safe',()=>{
+ const q={preset:'high',ao:true,aoScale:.65},ao=new ContactOcclusion(null,null,null,q,{factory:kind=>fakePass(kind)});ao.setPreference('gtao');ao.setSuspended(true);assert.equal(ao.stats.active,'off');assert.equal(ao.stats.suspended,true);q.preset='balanced';ao.setQuality();assert.equal(ao.stats.active,'off');ao.setSuspended(false);assert.equal(ao.stats.active,'ssao');q.preset='high';ao.setQuality();assert.equal(ao.stats.active,'gtao');assert.equal(ao.stats.preference,'gtao');ao.dispose();
+});
 test('GTAO init/render/capability failures latch to SSAO and a failed fallback disables only AO',()=>{
  for(const failure of ['init','render','capability','both']){
   const q={preset:'high',ao:true,aoScale:.65},created=[],ao=new ContactOcclusion(null,null,null,q,{supported:()=>failure!=='capability',factory:kind=>{if(kind==='gtao'&&failure==='init')throw new Error('allocation');const p=fakePass(kind,{fail:kind==='gtao'||failure==='both'});created.push({kind,p});return p;}});

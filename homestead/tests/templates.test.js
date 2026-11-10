@@ -36,6 +36,9 @@ test('partial LOD rebatching preserves unaffected spatial cells and their pickin
  const instances=new ProjectInstances(root);instances.sync(meshes);const unchanged=instances.batches.find(b=>b.userData.cell==='2,0,0'),changed=instances.batches.find(b=>b!==unchanged);assert.ok(unchanged&&changed);
  instances.sync(meshes,()=>'outside',new Set(['0,0,0']));assert.ok(instances.batches.includes(unchanged));assert.ok(!instances.batches.includes(changed));assert.equal(instances.ownerFor({object:unchanged,instanceId:0}),meshes.get('lod-3'));assert.equal(instances.ownerFor({object:changed,instanceId:0}),undefined);instances.dispose();
 });
+test('template-owned painted materials retire with their geometry without disposing shared materials',()=>{
+ const cache=new ObjectTemplates(0),group=new THREE.Group(),geometry=new THREE.BoxGeometry(),owned=new THREE.MeshStandardMaterial(),shared=new THREE.MeshStandardMaterial();owned.userData.templateOwned=true;let disposed=0,globalDisposed=0;owned.addEventListener('dispose',()=>disposed++);shared.addEventListener('dispose',()=>globalDisposed++);group.add(new THREE.Mesh(geometry,owned),new THREE.Mesh(geometry,shared));const copy=cache.clone('wb-paint:color',()=>group);assert.equal(disposed,0);cache.release(copy);assert.equal(disposed,1);assert.equal(globalDisposed,0);cache.release(copy);assert.equal(disposed,1);
+});
 test('retired templates dispose geometry only after the final live object releases it',()=>{
  const t=new ObjectTemplates();const a=t.clone('sofa:linen',factory),b=t.clone('sofa:linen',factory);let disposals=0;
  a.children[0].geometry.addEventListener('dispose',()=>disposals++);t.invalidate('sofa');assert.equal(disposals,0);

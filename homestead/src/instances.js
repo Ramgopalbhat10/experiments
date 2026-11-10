@@ -19,7 +19,7 @@ export class ProjectInstances {
    const source=owners[0];
    source.children.forEach((part,index)=>{
     const batch=new THREE.InstancedMesh(part.geometry,part.material,owners.length);batch.castShadow=part.castShadow;batch.receiveShadow=part.receiveShadow;
-    batch.userData.projectInstances=true;batch.userData.cell=instanceCell(source);batch.userData.roomPosition=source.position.toArray();
+    batch.userData.projectInstances=true;batch.userData.item=source.userData.item;batch.userData.cell=instanceCell(source);batch.userData.roomPosition=source.position.toArray();
     owners.forEach((owner,i)=>{batch.setMatrixAt(i,owner.children[index].matrixWorld);});
     batch.instanceMatrix.needsUpdate=true;batch.computeBoundingBox();batch.computeBoundingSphere();
     this.owners.set(batch,owners);this.batches.push(batch);this.root.add(batch);
