@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadTexture,assetsReady } from './assets.js';
+import {createBrickSurface} from './brick-surface.js';
 const textures=new Map(), materials=new Map();
 export const texturesReady=assetsReady;
 const photographed=new Set(['oak','plaster','fabric','grass','concrete','stone']);
@@ -8,6 +9,11 @@ let seed=42;
 const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
 export function texture(kind,channel='color') {
   const key=kind+channel;if(textures.has(key))return textures.get(key);
+  if(kind==='brick'){
+    const surface=createBrickSurface();
+    for(const name of ['color','normal','rough']){const t=new THREE.DataTexture(surface[name],surface.size,surface.size);t.colorSpace=name==='color'?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.anisotropy=8;t.needsUpdate=true;textures.set(kind+name,t);}
+    return textures.get(key);
+  }
   if(photographed.has(kind)){
     const t=loadTexture(`/textures/${kind}-${channel}.jpg`,{color:channel==='color',channel});
     if(channel==='color')t.colorSpace=THREE.SRGBColorSpace;
@@ -22,9 +28,9 @@ export function texture(kind,channel='color') {
 }
 export function mat(color='#e9e4d8',kind='plaster',extra={}) {
   const key=color+kind+JSON.stringify(extra);if(materials.has(key))return materials.get(key);
-  const pbr=photographed.has(kind),cloth=kind==='fabric';
+  const pbr=photographed.has(kind)||kind==='brick',cloth=kind==='fabric';
   const physical=cloth||kind==='oak'||extra.clearcoat;
-  const options={color,map:kind==='plain'?null:texture(kind),normalMap:pbr?texture(kind,'normal'):null,roughnessMap:pbr?texture(kind,'rough'):null,normalScale:new THREE.Vector2(cloth?.24:kind==='plaster'?.24:.5,cloth?.24:kind==='plaster'?.24:.5),roughness:cloth?.95:kind==='plaster'?.98:kind==='oak'?.6:kind==='stone'?.35:.85,sheen:cloth?.5:0,sheenRoughness:.8,sheenColor:new THREE.Color(color),clearcoat:kind==='oak'?.12:0,clearcoatRoughness:.4,...extra};
+  const options={color,map:kind==='plain'?null:texture(kind),normalMap:pbr?texture(kind,'normal'):null,roughnessMap:pbr?texture(kind,'rough'):null,normalScale:new THREE.Vector2(cloth?.24:kind==='plaster'?.24:kind==='brick'?.28:.5,cloth?.24:kind==='plaster'?.24:kind==='brick'?.28:.5),roughness:kind==='brick'?1:cloth?.95:kind==='plaster'?.98:kind==='oak'?.6:kind==='stone'?.35:.85,sheen:cloth?.5:0,sheenRoughness:.8,sheenColor:new THREE.Color(color),clearcoat:kind==='oak'?.12:0,clearcoatRoughness:.4,...extra};
   if(!physical)for(const key of ['sheen','sheenRoughness','sheenColor','clearcoat','clearcoatRoughness'])delete options[key];
   const m=new (physical?THREE.MeshPhysicalMaterial:THREE.MeshStandardMaterial)(options);materials.set(key,m);return m;
 }

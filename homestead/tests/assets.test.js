@@ -156,7 +156,7 @@ test('streamed bed and stove clones preserve saved paint colors without recolori
     }
     const blue=models.applyDetailedFinish(source,item,'#556b77');
     const warm=models.applyDetailedFinish(source,item,'#b27659');
-    const main=mesh=>!mesh.material.name.includes('glass');
+    const main=mesh=>item==='bed'?mesh.material.name.endsWith('_linen'):!mesh.material.name.includes('glass');
     const bluePaint=blue.children.find(main),warmPaint=warm.children.find(main);
     assert.equal(bluePaint.material.color.getHexString(),'556b77');
     assert.equal(warmPaint.material.color.getHexString(),'b27659');
@@ -164,7 +164,7 @@ test('streamed bed and stove clones preserve saved paint colors without recolori
     assert.equal(bluePaint.material.map,map);assert.equal(warmPaint.material.map,map);
     for(let i=0;i<source.children.length;i++){
       const original=source.children[i];assert.equal(original.material.color.getHexString(),'ffffff');
-      if(original.material.name.includes('glass')){
+      if(!main(original)){
         assert.equal(blue.children[i].material,original.material);assert.equal(warm.children[i].material,original.material);
       }else assert.notEqual(blue.children[i].material,original.material);
     }

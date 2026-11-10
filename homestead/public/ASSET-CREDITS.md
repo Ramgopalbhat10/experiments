@@ -34,6 +34,10 @@ The source geometry is grounded, centered and uniformly fitted within catalog di
 
 Both are **CC0 1.0**, verified against [Poly Haven's asset license](https://polyhaven.com/license). Original download URLs and MD5 checksums are recorded in each model's `PROVENANCE.json`. No live Poly Haven API request is made while playing.
 
+## Interior material authoring (2026-11-10)
+
+GothicBed_01 now has separately authored linen/timber primitives identified from five verified linen UV islands. Both share the original CC0 texture set; upstream download checksums in provenance are unchanged and do not describe the locally authored geometry. `scripts/separate-bed-materials.mjs` documents/reproduces the split; both source delivery forms and LODs retain texture coordinates. Brick color/normal/roughness maps are generated locally from one periodic height field, with no new external asset.
+
 ## Runtime detail variants (2026-11-10)
 
 Geometry-only `lod.gltf` / `lod-compressed.gltf` variants of the eight existing CC0 models are generated locally by `scripts/generate-lods.mjs`. Their full-detail originals and provenance are unchanged. LODs reuse the originals' photographed textures and runtime materials; no extra texture assets or runtime network sources were added. Simplification settings and triangle counts are in `lod-manifest.json`.

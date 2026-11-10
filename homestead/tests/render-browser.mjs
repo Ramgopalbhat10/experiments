@@ -29,7 +29,9 @@ try{
   await page.waitForFunction(mode=>window.renderGame.world.stats.preset===window.renderGame.world.quality.preset&&window.renderGame.world.quality.mode===mode,mode);
   const state=await snapshot();console.log('Checked quality '+mode);assert.equal(state.quality.mode,mode);assert.deepEqual(state.renderer,state.composer);assert.equal(state.aoEnabled,state.quality.ao);assert.equal(state.ao[0],Math.round(state.composer[0]*state.quality.aoScale));assert.equal(state.shadowSize,state.quality.shadowSize);checks.push({name:'quality-'+mode,state});
  }
- await page.locator('#settings').click();await page.locator('#quality-select').selectOption('balanced');await page.getByRole('button',{name:'Back to your home',exact:true}).click();
+ await page.locator('#settings').click();await page.locator('#quality-select').selectOption('high');await page.locator('#occlusion-select').selectOption('gtao');await page.getByRole('button',{name:'Back to your home',exact:true}).click();await page.waitForFunction(()=>window.renderGame.world.stats.occlusion.active==='gtao');checks.push({name:'enhanced-high',state:await snapshot()});
+ await page.locator('#settings').click();await page.locator('#quality-select').selectOption('balanced');await page.getByRole('button',{name:'Back to your home',exact:true}).click();assert.equal((await snapshot()).stats.occlusion.active,'ssao');checks.push({name:'enhanced-balanced-fallback',state:await snapshot()});
+ await page.locator('#settings').click();await page.locator('#occlusion-select').selectOption('ssao');await page.getByRole('button',{name:'Back to your home',exact:true}).click();
  await page.setViewportSize({width:960,height:540});await page.waitForFunction(()=>window.renderGame.world.camera.aspect===960/540);const resized=await snapshot();assert.deepEqual(resized.renderer,resized.composer);checks.push({name:'resize',state:resized});await page.setViewportSize({width:1280,height:720});
  await page.locator('#hide-catalog').click();
  const views=[
