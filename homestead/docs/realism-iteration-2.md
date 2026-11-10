@@ -59,3 +59,21 @@ BENCH_QUALITY=high BENCH_AO=gtao BENCH_VIEWS=starter-living BENCH_FRAMES=180 npm
 ```
 
 The runner records requested/active AO, resolution, renderer and software flag. `BENCH_SCREENSHOTS=0` permits data-only runs when software rendering stalls image capture; it does not change the measured rendering loop.
+
+## Final validation and effect cost
+
+- **104/104 Node tests pass**, production build and syntax/diff checks pass (existing Three.js chunk advisory only).
+- Exact-Preview capture/settings script passes, including High effect A/B, Balanced/Low fallback and the 320px dialog. Captures were inspected for bed paint isolation, surface relief and contact artifacts.
+- Full gameplay and streaming/LOD suites pass, including original UV regressions and invalid optional-asset fallback.
+- Render suite passes **11 quality/resize/lighting/paint/resource checks and five captures**; three probe outputs are finite. Three SSAO→GTAO→SSAO cycles end at the original texture count (71→71).
+- Balanced performance suite completes five scenes with 60 samples each. Separate High living-room runs use the same 960×540 viewport, 0.8 render scale and 499×281 AO buffers, with 60 samples each.
+
+| High living room | SSAO | GTAO |
+| --- | ---: | ---: |
+| Median frame interval (SwiftShader) | 273.6 ms | 292.6 ms |
+| p95 frame interval | 300.8 ms | 306.2 ms |
+| Median CPU submission | 3.4 ms | 3.3 ms |
+| Draw calls | 207 | 208 |
+| Texture resource count | 71 | 72 |
+
+Enhanced costs approximately **6.9% more median software frame time** in this limited comparison, plus one draw and one counted texture resource. These are not hardware GPU timings, measured VRAM bytes or proof of a general performance relationship. They support leaving Standard as default and Enhanced opt-in pending hardware profiling. No blanket FPS improvement is claimed.
