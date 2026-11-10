@@ -50,10 +50,22 @@ export function prepareHeroMaterials(scene,item){
 /** Geometry-only LODs share full-model materials/textures and the exact fit transform. */
 export function attachModelLOD(scene,source,item){
   prepareModelSource(scene,item);
-  const byName=new Map(),discard=new Set();let meshCount=0;source.traverse(o=>{if(o.isMesh)byName.set(o.name,o.material);});
-  scene.traverse(o=>{if(!o.isMesh)return;meshCount++;const material=byName.get(o.name);if(!material)throw new Error(`Missing LOD material binding: ${o.name}`);for(const m of Array.isArray(o.material)?o.material:[o.material])discard.add(m);o.material=material;o.castShadow=true;o.receiveShadow=true;});
+  const byName=new Map(),discard=new Set(),bindings=[];source.traverse(o=>{if(o.isMesh)byName.set(o.name,o.material);});
+  scene.traverse(o=>{if(!o.isMesh)return;const material=byName.get(o.name);if(!material)throw new Error(`Missing LOD material binding: ${o.name}`);
+    // Geometry-only files have no texture references of their own. Validate
+    // against the rebound source materials, including alternate UV channels.
+    for(const m of Array.isArray(material)?material:[material])for(const [slot,texture] of Object.entries(m)){
+      if(slot==='envMap'||!texture?.isTexture||texture.mapping!==THREE.UVMapping)continue;
+      const name=texture.channel?`uv${texture.channel}`:'uv',uv=o.geometry.getAttribute(name);
+      if(!uv)throw new Error(`Missing LOD ${name} attribute: ${o.name}`);
+      if(uv.itemSize!==2||uv.count!==o.geometry.getAttribute('position')?.count)throw new Error(`Invalid LOD ${name} attribute: ${o.name}`);
+    }
+    bindings.push([o,material]);
+  });
+  if(!bindings.length)throw new Error('Empty optional LOD');
+  // Do not replace or dispose any placeholder until the entire variant passes.
+  for(const [o,material] of bindings){for(const m of Array.isArray(o.material)?o.material:[o.material])discard.add(m);o.material=material;o.castShadow=true;o.receiveShadow=true;}
   for(const material of discard)material.dispose();
-  if(!meshCount)throw new Error('Empty optional LOD');
   scene.position.copy(source.children[0].position);
   const fitted=new THREE.Group();fitted.add(scene);fitted.scale.copy(source.scale);fitted.updateMatrixWorld(true);return fitted;
 }

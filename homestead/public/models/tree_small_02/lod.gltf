@@ -54,6 +54,13 @@
       "byteOffset": 12
     },
     {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 2184,
+      "bufferView": 1,
+      "byteOffset": 24
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
       "count": 9758,
@@ -78,6 +85,13 @@
       "byteOffset": 12
     },
     {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 9758,
+      "bufferView": 2,
+      "byteOffset": 24
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
       "count": 491,
@@ -100,6 +114,13 @@
       "count": 491,
       "bufferView": 3,
       "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 491,
+      "bufferView": 3,
+      "byteOffset": 24
     }
   ],
   "bufferViews": [
@@ -112,29 +133,29 @@
     {
       "buffer": 0,
       "byteOffset": 47548,
-      "byteLength": 52416,
-      "byteStride": 24,
+      "byteLength": 69888,
+      "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 99964,
-      "byteLength": 234192,
-      "byteStride": 24,
+      "byteOffset": 117436,
+      "byteLength": 312256,
+      "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 334156,
-      "byteLength": 11784,
-      "byteStride": 24,
+      "byteOffset": 429692,
+      "byteLength": 15712,
+      "byteStride": 32,
       "target": 34962
     }
   ],
   "buffers": [
     {
       "uri": "lod-0.bin",
-      "byteLength": 345940
+      "byteLength": 445404
     }
   ],
   "materials": [
@@ -168,7 +189,8 @@
         {
           "attributes": {
             "POSITION": 3,
-            "NORMAL": 4
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
           },
           "mode": 4,
           "material": 0,
@@ -176,8 +198,9 @@
         },
         {
           "attributes": {
-            "POSITION": 5,
-            "NORMAL": 6
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
           },
           "mode": 4,
           "material": 1,
@@ -185,8 +208,9 @@
         },
         {
           "attributes": {
-            "POSITION": 7,
-            "NORMAL": 8
+            "POSITION": 9,
+            "NORMAL": 10,
+            "TEXCOORD_0": 11
           },
           "mode": 4,
           "material": 2,

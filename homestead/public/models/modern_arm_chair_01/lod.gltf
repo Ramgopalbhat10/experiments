@@ -47,6 +47,13 @@
       "byteOffset": 12
     },
     {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 1156,
+      "bufferView": 1,
+      "byteOffset": 24
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
       "count": 454,
@@ -69,6 +76,13 @@
       "count": 454,
       "bufferView": 2,
       "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 454,
+      "bufferView": 2,
+      "byteOffset": 24
     }
   ],
   "bufferViews": [
@@ -81,22 +95,22 @@
     {
       "buffer": 0,
       "byteOffset": 10680,
-      "byteLength": 27744,
-      "byteStride": 24,
+      "byteLength": 36992,
+      "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 38424,
-      "byteLength": 10896,
-      "byteStride": 24,
+      "byteOffset": 47672,
+      "byteLength": 14528,
+      "byteStride": 32,
       "target": 34962
     }
   ],
   "buffers": [
     {
       "uri": "lod-0.bin",
-      "byteLength": 49320
+      "byteLength": 62200
     }
   ],
   "materials": [
@@ -118,7 +132,8 @@
         {
           "attributes": {
             "POSITION": 2,
-            "NORMAL": 3
+            "NORMAL": 3,
+            "TEXCOORD_0": 4
           },
           "mode": 4,
           "material": 0,
@@ -126,8 +141,9 @@
         },
         {
           "attributes": {
-            "POSITION": 4,
-            "NORMAL": 5
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
           },
           "mode": 4,
           "material": 1,

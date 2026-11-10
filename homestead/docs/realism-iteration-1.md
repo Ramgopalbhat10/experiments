@@ -31,7 +31,7 @@ All eight existing imported model types have geometry-only low-detail variants. 
 
 Runtime transitions preserve the authoritative project records, collision, owner IDs and undo/save semantics. They rebuild only affected spatial cells, restore their source materials before batching, and retain unaffected batches and room-material clones. Room inference, light fixtures, reflection captures, save callbacks and collision invalidation do not run for a camera-only LOD switch. Picking still resolves each visible instance to its project owner.
 
-Both variants use the exact full-source fit transform. Low meshes bind to full-model materials by mesh name: no duplicate texture downloads/transcodes/GPU textures. Low geometry has meshopt and ordinary glTF fallbacks. Missing, empty or incompatible optional geometry retains the successfully loaded full model; if the source itself is unavailable, the existing procedural fallback remains usable.
+Both variants use the exact full-source fit transform. Low meshes bind to full-model materials by mesh name: no duplicate texture downloads/transcodes/GPU textures. Texture coordinates remain part of this geometry-only contract: pruning explicitly retains vertex attributes even after texture references are removed. Before rebinding, runtime validation checks every UV channel required by the source material, including alternate channels and matching vertex counts; invalid geometry retains the full model without partially replacing materials. Low geometry has meshopt and ordinary glTF fallbacks. Missing, empty or incompatible optional geometry retains the successfully loaded full model; if the source itself is unavailable, the existing procedural fallback remains usable.
 
 `public/lod-manifest.json` records the offline settings and triangle counts. Rebuild from `homestead/`:
 
@@ -42,7 +42,9 @@ node scripts/generate-lods.mjs
 
 Full-detail assets are never rewritten by this command. UV borders are locked except on the indoor plant, whose distant open foliage/pebble geometry uses bounded-error simplification. Preserve the originals; do not simplify a previously generated LOD again.
 
-## Matched software-rendering comparison
+## Historical first-iteration comparison (before UV correction)
+
+**These captures and timings predate the review fix for missing LOD texture coordinates. They are not evidence of current textured appearance or performance.** The original material-identity and triangle-count checks missed this defect; the correction adds decoded UV validation and runtime fallback coverage.
 
 At 960×540, render scale 0.8 and Balanced quality, 30 controlled samples after five warm-up frames:
 
@@ -53,7 +55,7 @@ At 960×540, render scale 0.8 and Balanced quality, 30 controlled samples after 
 | Golden exterior | 1,058,107 → 839,102 | 616 → 629 | 71 → 71 |
 | 36 distant plants | 3,080,853 → 1,062,905 | 65 → 79 | 68 → 68 |
 
-These count all composer passes. Plant triangles drop 65.5%; some draw calls increase because surfaces remain separately shaded. Cached resident geometries increase from 152 to 163 as both representation tiers warm; this is not a geometry-memory-byte measurement. The bundled LOD variants add 1,999,876 bytes including ordinary fallbacks; compressed-path files total 594,259 bytes before HTTP compression. No textures were added.
+These count all composer passes. Plant triangles drop 65.5%; some draw calls increase because surfaces remain separately shaded. Cached resident geometries increase from 152 to 163 as both representation tiers warm; this is not a geometry-memory-byte measurement. After restoring UV attributes, the regenerated LOD variants total 2,563,176 bytes including ordinary fallbacks; compressed-path files total 779,919 bytes before HTTP compression. This increase preserves the coordinates required by the shared textures. No textures were added.
 
 In the exterior comparison the same 1536² sun map covers approximately 38×29 light-space metres instead of 60×60. Timing is mixed in the software run: exterior/plants improve, living/golden regress. This is **not** proof of a general FPS improvement, hardware 60 FPS, or reduced total VRAM. Use the supplied raw evidence and hardware profiling before spending the remaining rendering budget.
 
@@ -65,6 +67,14 @@ The streaming/browser suite also exercises near/far plants, picking, paint, dele
 
 `tests/performance.mjs` now includes `dense-36-plants` and p99 frame/submission summaries. Use `BENCH_FRAMES=180` or longer on a hardware GPU, fixed quality, viewport and render scale. Isolate walking/editing and probe/shadow refresh spikes from steady-state timing. Resource counts are not memory bytes.
 
-Final validation: **91/91 Node tests pass**, production build passes (existing Three.js chunk-size advisory), gameplay and streaming/LOD browser suites pass, and the rendering suite passes seven quality/resize/lighting checks plus five captures with finite probes and no browser/WebGL errors. The expanded performance suite completes all five scenes with 60 samples each and median/p95/p99 metrics. All eight runtime LOD variants are verified cheaper and share full-source materials; empty optional geometry retains the full model.
+Pre-review validation (before the UV correction): **91/91 Node tests passed**, production build passes (existing Three.js chunk-size advisory), gameplay and streaming/LOD browser suites pass, and the rendering suite passes seven quality/resize/lighting checks plus five captures with finite probes and no browser/WebGL errors. The expanded performance suite completes all five scenes with 60 samples each and median/p95/p99 metrics. All eight runtime LOD variants are verified cheaper and share full-source materials; empty optional geometry retains the full model.
 
-A separate Preview-driven before/after check records identical exterior, living, golden-hour and 36-plant views, plus editing/LOD invariants, tiny-camera-motion stability, a 320px viewport and console/WebGL errors. Cloud captures use SwiftShader at 960×540, render scale 0.8, Balanced quality and 30 measured frames after five controlled warm-up frames. Software timing is comparative only; hardware 60 FPS remains unverified. Final measured results are supplied with the task's visual evidence.
+A separate Preview-driven before/after check records identical exterior, living, golden-hour and 36-plant views, plus editing/LOD invariants, tiny-camera-motion stability, a 320px viewport and console/WebGL errors. Cloud captures use SwiftShader at 960×540, render scale 0.8, Balanced quality and 30 measured frames after five controlled warm-up frames. Software timing is comparative only; hardware 60 FPS remains unverified. The original measured results were supplied with the first iteration's visual evidence; see the UV-correction note above before interpreting them.
+
+## Review correction: retain shared-material UV requirements
+
+All 34 primitives in each of `lod.gltf` and `lod-compressed.gltf` now retain `TEXCOORD_0`. Generation uses `prune({keepAttributes:true})`; the downstream meshopt reorder/quantize stages also preserve attributes. Regenerated both variants and buffers for all eight models without changing full-detail sources or simplification ratios/triangle counts.
+
+The new asset regression derives UV requirements from each full source material (including texture-transform channel overrides), verifies matching vertex counts, decodes the actual ordinary/meshopt buffers, and checks finite, nonconstant coordinates. Runtime tests cover missing UV0/UV1, mismatched counts, and successful shared-material binding. Browser checks inspect UV requirements on all eight loaded variants and exercise full-model fallback for empty and UV-stripped optional assets.
+
+After the correction, **94/94 Node tests pass** and the production build passes. Matched-camera close-ups of full and low geometry are captured through Preview to verify photographed surfaces and alpha-tested foliage, rather than treating shared material identity as sufficient evidence.

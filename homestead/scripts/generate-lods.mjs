@@ -19,7 +19,9 @@ for(const asset of assets){
  // Geometry-only variants bind to the full model's materials by name at runtime.
  // No duplicate texture downloads, transcoding, GPU textures or image ownership.
  for(const texture of doc.getRoot().listTextures())texture.dispose();
- await doc.transform(weld(),simplify({simplifier:MeshoptSimplifier,ratio:.2,error:.008,lockBorder:asset!=='potted_plant_01'}),prune());
+ // Materials are rebound at runtime, so their UV requirements are invisible to
+ // pruning here. Retain vertex attributes even without local texture references.
+ await doc.transform(weld(),simplify({simplifier:MeshoptSimplifier,ratio:.2,error:.008,lockBorder:asset!=='potted_plant_01'}),prune({keepAttributes:true}));
  doc.getRoot().setExtras({...doc.getRoot().getExtras(),homesteadLOD:true});
  doc.getRoot().listBuffers().forEach((b,i)=>b.setURI(`lod-${i}.bin`));
  await io.write(path.join(folder,'lod.gltf'),doc);

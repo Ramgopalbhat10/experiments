@@ -22,8 +22,8 @@ try{
  release();
  const loaded=await page.evaluate(async game=>await game.assetsReady,game);
  assert.equal(loaded.filter(r=>r.status==='loaded').length,8);
- const variants=await page.evaluate(async modelURL=>{const {MODEL_ITEMS}=await import('/src/lod.js'),{detailedObject}=await import(modelURL);return [...MODEL_ITEMS].map(item=>{const near=detailedObject(item,'#e9e4d8'),far=detailedObject(item,'#e9e4d8','low');const inspect=group=>{let triangles=0;const materials=[];group.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3;materials.push(...(Array.isArray(o.material)?o.material:[o.material]));}});return {triangles,materials};};const a=inspect(near),b=inspect(far);return {item,full:a.triangles,low:b.triangles,sharedMaterials:b.materials.every(m=>a.materials.includes(m))};});},await modelModule(page));
- assert.ok(variants.every(v=>v.low<v.full*.8&&v.sharedMaterials),JSON.stringify(variants));
+ const variants=await page.evaluate(async modelURL=>{const {MODEL_ITEMS}=await import('/src/lod.js'),{detailedObject}=await import(modelURL);return [...MODEL_ITEMS].map(item=>{const near=detailedObject(item,'#e9e4d8'),far=detailedObject(item,'#e9e4d8','low');const inspect=group=>{let triangles=0,mappedChannels=0;const materials=[],missingUVs=[];group.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3;const bound=Array.isArray(o.material)?o.material:[o.material];materials.push(...bound);for(const material of bound)for(const [slot,texture] of Object.entries(material)){if(slot==='envMap'||!texture?.isTexture||texture.mapping!==300)continue;const name=texture.channel?`uv${texture.channel}`:'uv',uv=o.geometry.getAttribute(name);mappedChannels++;if(!uv||uv.itemSize!==2||uv.count!==o.geometry.attributes.position.count)missingUVs.push(`${o.name}:${name}`);}}});return {triangles,materials,mappedChannels,missingUVs};};const a=inspect(near),b=inspect(far);return {item,full:a.triangles,low:b.triangles,sharedMaterials:b.materials.every(m=>a.materials.includes(m)),mappedChannels:b.mappedChannels,missingUVs:b.missingUVs};});},await modelModule(page));
+ assert.ok(variants.every(v=>v.low<v.full*.8&&v.sharedMaterials&&v.mappedChannels>0&&v.missingUVs.length===0),JSON.stringify(variants));
  assert.deepEqual(await page.evaluate(game=>game.project.objects.map(r=>r.id),game),ids);
  await page.waitForFunction(()=>[...document.querySelectorAll('.card-preview img')].every(img=>img.complete&&img.naturalWidth>0));
  assert.ok(await page.evaluate(game=>game.builder.instances.batches.length>0,game));
@@ -55,15 +55,17 @@ try{
  },game);
  assert.deepEqual(lod,{far:'low',full:'full',picked:'plant-2',unchanged:true,painted:'#556b77',restored:true,pending:0});
  console.log('PASS: near/far plant LOD preserves picking, paint, delete/undo and serialized records');
- // Valid but empty optional geometry must not hide a successfully loaded source.
+ // Invalid optional geometry must not hide a successfully loaded source.
+ for(const invalid of ['empty','missing-uv']){
  const fallback=await browser.newPage({viewport:{width:640,height:360}});fallback.setDefaultTimeout(180000);let missingLODs=0;
  await fallback.addInitScript(()=>localStorage.setItem('homestead-quality','low'));
- await fallback.route('**/models/**/lod*.gltf',route=>{missingLODs++;return route.fulfill({contentType:'application/json',body:JSON.stringify({asset:{version:'2.0'},scenes:[{nodes:[]}],scene:0})});});
+ await fallback.route('**/models/**/lod*.gltf',async route=>{missingLODs++;if(invalid==='empty')return route.fulfill({contentType:'application/json',body:JSON.stringify({asset:{version:'2.0'},scenes:[{nodes:[]}],scene:0})});const response=await route.fetch(),doc=await response.json();for(const mesh of doc.meshes)for(const primitive of mesh.primitives)for(const name of Object.keys(primitive.attributes))if(name.startsWith('TEXCOORD_'))delete primitive.attributes[name];return route.fulfill({response,json:doc});});
  await fallback.goto(process.env.GAME_URL||'http://127.0.0.1:5174');
  const fallbackResult=await fallback.evaluate(async modelURL=>{const game=(await import(document.querySelector('script[src*="/src/main.js"]').src)).game;await game.assetsReady;const {detailedObject}=await import(modelURL);const near=detailedObject('plant','#e9e4d8'),far=detailedObject('plant','#e9e4d8','low');const geometries=g=>{const result=[];g.traverse(o=>{if(o.isMesh)result.push(o.geometry.uuid);});return result;};return {near:geometries(near),far:geometries(far)};},await modelModule(fallback));
  assert.ok(missingLODs>=8);assert.ok(fallbackResult.near.length>0);assert.deepEqual(fallbackResult.far,fallbackResult.near);await fallback.close();
- console.log('PASS: invalid optional LOD retains the loaded full model without losing objects');
+ console.log(`PASS: ${invalid} optional LOD retains the loaded full model without losing objects`);
+ }
  assert.deepEqual(errors,[]);
- await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum','plant-lod-pick-edit-save','optional-lod-fallback'],lod,variants,errors},null,2));
+ await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum','plant-lod-pick-edit-save','optional-lod-fallback','missing-uv-lod-fallback'],lod,variants,errors},null,2));
  console.log('PASS: collision invalidates immediately and motion clears; no browser errors');
 }finally{release();await browser.close();}

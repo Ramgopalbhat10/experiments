@@ -38,6 +38,13 @@
       "count": 6114,
       "bufferView": 1,
       "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 6114,
+      "bufferView": 1,
+      "byteOffset": 24
     }
   ],
   "bufferViews": [
@@ -50,15 +57,15 @@
     {
       "buffer": 0,
       "byteOffset": 32108,
-      "byteLength": 146736,
-      "byteStride": 24,
+      "byteLength": 195648,
+      "byteStride": 32,
       "target": 34962
     }
   ],
   "buffers": [
     {
       "uri": "lod-0.bin",
-      "byteLength": 178844
+      "byteLength": 227756
     }
   ],
   "materials": [
@@ -75,7 +82,8 @@
         {
           "attributes": {
             "POSITION": 1,
-            "NORMAL": 2
+            "NORMAL": 2,
+            "TEXCOORD_0": 3
           },
           "mode": 4,
           "material": 0,
