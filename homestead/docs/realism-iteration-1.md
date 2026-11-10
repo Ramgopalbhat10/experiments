@@ -21,7 +21,7 @@ Scenery shadows deliberately use a **stable rest-pose proxy** while visible foli
 
 ### Two hero assets and structural material
 
-- Sofa: preserve photographed leather/grain/roughness maps and source geometry; use dielectric shading, moderated normal strength and a restrained rough clearcoat rather than metallic-looking leather. Existing saved tint behavior is retained.
+- Sofa: preserve photographed leather/grain/roughness maps and source geometry; use dielectric shading and moderated normal strength rather than metallic-looking leather. Retain the existing Standard shader and authored roughness map instead of adding an extra per-pixel clearcoat layer. Existing saved tint behavior is retained.
 - Indoor plant: separate leaf, pot, stem and gravel material variants while sharing the original textures. **Only the pot receives saved paint.** Previously the substring `pot` also matched the `potted_plant` prefix on the leaf material. Keep cutout leaves opaque/alpha-tested, not blended. The pot retains paint on the procedural fallback too.
 - Lime plaster: matte dry-surface roughness and restrained normal relief; small real bevels around window reveals and frames provide grazing-light highlights. No added textures, shader hooks, catalog IDs, or save fields.
 
@@ -42,6 +42,21 @@ node scripts/generate-lods.mjs
 
 Full-detail assets are never rewritten by this command. UV borders are locked except on the indoor plant, whose distant open foliage/pebble geometry uses bounded-error simplification. Preserve the originals; do not simplify a previously generated LOD again.
 
+## Matched software-rendering comparison
+
+At 960×540, render scale 0.8 and Balanced quality, 30 controlled samples after five warm-up frames:
+
+| View | Submitted triangles, before → after | Draw calls, before → after | Textures, before → after |
+| --- | ---: | ---: | ---: |
+| Starter exterior | 1,058,107 → 840,434 | 616 → 627 | 71 → 71 |
+| Starter living | 422,851 → 363,019 | 207 → 207 | 71 → 71 |
+| Golden exterior | 1,058,107 → 839,102 | 616 → 629 | 71 → 71 |
+| 36 distant plants | 3,080,853 → 1,062,905 | 65 → 79 | 68 → 68 |
+
+These count all composer passes. Plant triangles drop 65.5%; some draw calls increase because surfaces remain separately shaded. Cached resident geometries increase from 152 to 163 as both representation tiers warm; this is not a geometry-memory-byte measurement. The bundled LOD variants add 1,999,876 bytes including ordinary fallbacks; compressed-path files total 594,259 bytes before HTTP compression. No textures were added.
+
+In the exterior comparison the same 1536² sun map covers approximately 38×29 light-space metres instead of 60×60. Timing is mixed in the software run: exterior/plants improve, living/golden regress. This is **not** proof of a general FPS improvement, hardware 60 FPS, or reduced total VRAM. Use the supplied raw evidence and hardware profiling before spending the remaining rendering budget.
+
 ## Verification
 
 Unit coverage includes receiver coverage at plot corners and upper floors in both sun directions, fixed world-space shadow grids across camera anchors, empty plots, LOD hysteresis/zoom/save immutability, hero paint isolation, shared LOD fits/materials, invalid optional geometry, local asset buffer closure, partial-cell picking ownership, stable foliage-depth uniforms, and retention of unrelated room clones/probe work.
@@ -49,5 +64,7 @@ Unit coverage includes receiver coverage at plot corners and upper floors in bot
 The streaming/browser suite also exercises near/far plants, picking, paint, delete/undo, unchanged serialized records and invalid optional LOD fallback. Existing gameplay, lighting/probe, quality/resize and source asset tests remain applicable.
 
 `tests/performance.mjs` now includes `dense-36-plants` and p99 frame/submission summaries. Use `BENCH_FRAMES=180` or longer on a hardware GPU, fixed quality, viewport and render scale. Isolate walking/editing and probe/shadow refresh spikes from steady-state timing. Resource counts are not memory bytes.
+
+Final validation: **91/91 Node tests pass**, production build passes (existing Three.js chunk-size advisory), gameplay and streaming/LOD browser suites pass, and the rendering suite passes seven quality/resize/lighting checks plus five captures with finite probes and no browser/WebGL errors. The expanded performance suite completes all five scenes with 60 samples each and median/p95/p99 metrics. All eight runtime LOD variants are verified cheaper and share full-source materials; empty optional geometry retains the full model.
 
 A separate Preview-driven before/after check records identical exterior, living, golden-hour and 36-plant views, plus editing/LOD invariants, tiny-camera-motion stability, a 320px viewport and console/WebGL errors. Cloud captures use SwiftShader at 960×540, render scale 0.8, Balanced quality and 30 measured frames after five controlled warm-up frames. Software timing is comparative only; hardware 60 FPS remains unverified. Final measured results are supplied with the task's visual evidence.

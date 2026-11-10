@@ -50,7 +50,7 @@ test('hero materials retain shared photographed maps and plant paint only affect
  for(const mesh of scene.children){assert.equal(mesh.material.map,map);assert.equal(mesh.material.normalMap,normalMap);assert.equal(mesh.material.metalness,0);}
  assert.equal(original.roughness,1);assert.equal(original.color.getHexString(),'ffffff');
  const sofa=new THREE.Group();sofa.add(new THREE.Mesh(new THREE.BoxGeometry(),original));prepareHeroMaterials(sofa,'sofa');const leather=sofa.children[0].material;
- assert.ok(leather.isMeshPhysicalMaterial);assert.equal(leather.map,map);assert.equal(leather.clearcoat,.12);assert.equal(leather.metalness,0);
+ assert.ok(leather.isMeshStandardMaterial);assert.equal(leather.isMeshPhysicalMaterial,undefined);assert.equal(leather.map,map);assert.equal(leather.normalScale.x,.6);assert.equal(leather.metalness,0);
 });
 test('LOD geometry shares hero materials and exact full-source fit without owning its textures',()=>{
  const fullScene=new THREE.Group(),material=new THREE.MeshStandardMaterial({name:'plant:pot'}),mesh=new THREE.Mesh(new THREE.BoxGeometry(2,3,2),material);mesh.name='pot';mesh.position.y=1.5;fullScene.add(mesh);

@@ -34,8 +34,9 @@ export function prepareHeroMaterials(scene,item){
       const key=original.uuid+surface;if(variants.has(key))return variants.get(key);
       let material;
       if(item==='sofa'){
-        material=new THREE.MeshPhysicalMaterial();THREE.MeshStandardMaterial.prototype.copy.call(material,original);
-        material.clearcoat=.12;material.clearcoatRoughness=.65;material.roughness=1;material.normalScale.setScalar(.6);
+        // Keep the existing Standard shader: the source roughness map already
+        // describes finished leather. Extra clearcoat costs pixels, not detail.
+        material=original.clone();material.roughness=1;material.normalScale.setScalar(.6);
       }else{
         material=original.clone();material.roughness=surface==='leaves'?.78:surface==='pot'?.85:1;
         material.normalScale.setScalar(surface==='leaves'?.45:.6);

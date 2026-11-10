@@ -47,7 +47,7 @@ export class Building {
   setHeight(height){this.height=THREE.MathUtils.clamp(height,0,6);this.previewKey='';}
   rotate(){this.rotation=(this.rotation+Math.PI/2)%(Math.PI*2);this.previewKey='';}
   clearPreview(){if(this.guide)this.guide.visible=false;if(this.preview){this.world.scene.remove(this.preview);disposeObject(this.preview);this.preview=null;}this.candidate=null;this.previewKey='';}
-  updateSelection(){const mesh=this.meshes.get(this.selected);this.selectionBox.visible=!!mesh;if(mesh)this.selectionBox.setFromObject(mesh);}
+  updateSelection(){let mesh=this.meshes.get(this.selected);if(mesh?.userData.detail==='low'&&this.lodChoices){this.updateLOD(0,true);mesh=this.meshes.get(this.selected);}this.selectionBox.visible=!!mesh;if(mesh)this.selectionBox.setFromObject(mesh);}
   hits(){return this.instances?this.instances.intersect(this.ray):this.ray.intersectObjects([...this.meshes.values()].filter(m=>m.visible),true).map(h=>({...h,owner:h.object.userData.owner}));}
   hit(){this.ray.setFromCamera(this.pointer,this.world.camera);return this.hits().find(h=>h.owner);}
   aim(locked){

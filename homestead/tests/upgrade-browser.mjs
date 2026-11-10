@@ -4,6 +4,9 @@ import { mkdir,writeFile } from 'node:fs/promises';
 await mkdir('test-artifacts',{recursive:true});
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});page.setDefaultTimeout(180000);
+// Vite may revision-tag module imports after HMR. Import the same model cache
+// as main.js, rather than accidentally creating a second empty module instance.
+const modelModule=page=>page.evaluate(async()=>{const source=await(await fetch(document.querySelector('script[src*="/src/main.js"]').src)).text();return new URL(source.match(/from\s*['"]([^'"]*\/models\.js[^'"]*)['"]/)[1],location.href).href;});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
 let release;const gate=new Promise(resolve=>release=resolve);let held=0;
 await page.route('**/models/**',async route=>{held++;await gate;await route.continue();});
@@ -19,6 +22,8 @@ try{
  release();
  const loaded=await page.evaluate(async game=>await game.assetsReady,game);
  assert.equal(loaded.filter(r=>r.status==='loaded').length,8);
+ const variants=await page.evaluate(async modelURL=>{const {MODEL_ITEMS}=await import('/src/lod.js'),{detailedObject}=await import(modelURL);return [...MODEL_ITEMS].map(item=>{const near=detailedObject(item,'#e9e4d8'),far=detailedObject(item,'#e9e4d8','low');const inspect=group=>{let triangles=0;const materials=[];group.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3;materials.push(...(Array.isArray(o.material)?o.material:[o.material]));}});return {triangles,materials};};const a=inspect(near),b=inspect(far);return {item,full:a.triangles,low:b.triangles,sharedMaterials:b.materials.every(m=>a.materials.includes(m))};});},await modelModule(page));
+ assert.ok(variants.every(v=>v.low<v.full*.8&&v.sharedMaterials),JSON.stringify(variants));
  assert.deepEqual(await page.evaluate(game=>game.project.objects.map(r=>r.id),game),ids);
  await page.waitForFunction(()=>[...document.querySelectorAll('.card-preview img')].every(img=>img.complete&&img.naturalWidth>0));
  assert.ok(await page.evaluate(game=>game.builder.instances.batches.length>0,game));
@@ -55,10 +60,10 @@ try{
  await fallback.addInitScript(()=>localStorage.setItem('homestead-quality','low'));
  await fallback.route('**/models/**/lod*.gltf',route=>{missingLODs++;return route.fulfill({contentType:'application/json',body:JSON.stringify({asset:{version:'2.0'},scenes:[{nodes:[]}],scene:0})});});
  await fallback.goto(process.env.GAME_URL||'http://127.0.0.1:5174');
- const fallbackResult=await fallback.evaluate(async()=>{const game=(await import(document.querySelector('script[src*="/src/main.js"]').src)).game;await game.assetsReady;const {detailedObject}=await import('/src/models.js');const near=detailedObject('plant','#e9e4d8'),far=detailedObject('plant','#e9e4d8','low');const geometries=g=>{const result=[];g.traverse(o=>{if(o.isMesh)result.push(o.geometry.uuid);});return result;};return {near:geometries(near),far:geometries(far)};});
+ const fallbackResult=await fallback.evaluate(async modelURL=>{const game=(await import(document.querySelector('script[src*="/src/main.js"]').src)).game;await game.assetsReady;const {detailedObject}=await import(modelURL);const near=detailedObject('plant','#e9e4d8'),far=detailedObject('plant','#e9e4d8','low');const geometries=g=>{const result=[];g.traverse(o=>{if(o.isMesh)result.push(o.geometry.uuid);});return result;};return {near:geometries(near),far:geometries(far)};},await modelModule(fallback));
  assert.ok(missingLODs>=8);assert.ok(fallbackResult.near.length>0);assert.deepEqual(fallbackResult.far,fallbackResult.near);await fallback.close();
  console.log('PASS: invalid optional LOD retains the loaded full model without losing objects');
  assert.deepEqual(errors,[]);
- await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum','plant-lod-pick-edit-save','optional-lod-fallback'],lod,errors},null,2));
+ await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum','plant-lod-pick-edit-save','optional-lod-fallback'],lod,variants,errors},null,2));
  console.log('PASS: collision invalidates immediately and motion clears; no browser errors');
 }finally{release();await browser.close();}
