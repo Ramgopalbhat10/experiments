@@ -24,7 +24,7 @@ export function mat(color='#e9e4d8',kind='plaster',extra={}) {
   const key=color+kind+JSON.stringify(extra);if(materials.has(key))return materials.get(key);
   const pbr=photographed.has(kind),cloth=kind==='fabric';
   const physical=cloth||kind==='oak'||extra.clearcoat;
-  const options={color,map:kind==='plain'?null:texture(kind),normalMap:pbr?texture(kind,'normal'):null,roughnessMap:pbr?texture(kind,'rough'):null,normalScale:new THREE.Vector2(cloth?.24:kind==='plaster'?.16:.5,cloth?.24:kind==='plaster'?.16:.5),roughness:cloth?.95:kind==='oak'?.6:kind==='stone'?.35:.85,sheen:cloth?.5:0,sheenRoughness:.8,sheenColor:new THREE.Color(color),clearcoat:kind==='oak'?.12:0,clearcoatRoughness:.4,...extra};
+  const options={color,map:kind==='plain'?null:texture(kind),normalMap:pbr?texture(kind,'normal'):null,roughnessMap:pbr?texture(kind,'rough'):null,normalScale:new THREE.Vector2(cloth?.24:kind==='plaster'?.24:.5,cloth?.24:kind==='plaster'?.24:.5),roughness:cloth?.95:kind==='plaster'?.98:kind==='oak'?.6:kind==='stone'?.35:.85,sheen:cloth?.5:0,sheenRoughness:.8,sheenColor:new THREE.Color(color),clearcoat:kind==='oak'?.12:0,clearcoatRoughness:.4,...extra};
   if(!physical)for(const key of ['sheen','sheenRoughness','sheenColor','clearcoat','clearcoatRoughness'])delete options[key];
   const m=new (physical?THREE.MeshPhysicalMaterial:THREE.MeshStandardMaterial)(options);materials.set(key,m);return m;
 }

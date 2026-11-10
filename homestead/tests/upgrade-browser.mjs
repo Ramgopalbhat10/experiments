@@ -41,7 +41,24 @@ try{
  assert.equal(await page.evaluate(game=>game.player.spatial.rebuildCount,game),rebuild+1);
  await page.evaluate(game=>{game.player.keys.add('KeyW');game.player.horizontalVelocity.set(1,1);game.player.clearMotion();},game);
  assert.equal(await page.evaluate(game=>game.player.keys.size+game.player.horizontalVelocity.length(),game),0);
+ const lod=await page.evaluate(async game=>{
+  game.player.locked=false;game.builder.selected=null;game.builder.setMode('select');game.project.replace({version:1,objects:Array.from({length:6},(_,i)=>({id:`plant-${i}`,item:'plant',position:[i,0,0],rotation:0,finish:'plaster',color:'#e9e4d8'}))});game.world.camera.position.set(2.5,2,30);game.builder.sync();
+  const saved=game.project.serialize(),owner=game.builder.meshes.get('plant-2'),far=owner.userData.detail,batch=game.builder.instances.batches[0],picked=game.builder.instances.ownerFor({object:batch,instanceId:2}).userData.id;
+  game.builder.selected='plant-2';game.builder.updateLOD(.25,true);const selected=game.builder.meshes.get('plant-2');const full=selected.userData.detail,unchanged=saved===game.project.serialize();
+  game.builder.color='#556b77';game.builder.paintSelected();const painted=game.project.objects.find(r=>r.id==='plant-2').color;game.builder.remove();game.builder.undo();
+  return {far,full,picked,unchanged,painted,restored:game.project.objects.some(r=>r.id==='plant-2'),pending:game.world.stats.reflections.pending};
+ },game);
+ assert.deepEqual(lod,{far:'low',full:'full',picked:'plant-2',unchanged:true,painted:'#556b77',restored:true,pending:0});
+ console.log('PASS: near/far plant LOD preserves picking, paint, delete/undo and serialized records');
+ // Valid but empty optional geometry must not hide a successfully loaded source.
+ const fallback=await browser.newPage({viewport:{width:640,height:360}});fallback.setDefaultTimeout(180000);let missingLODs=0;
+ await fallback.addInitScript(()=>localStorage.setItem('homestead-quality','low'));
+ await fallback.route('**/models/**/lod*.gltf',route=>{missingLODs++;return route.fulfill({contentType:'application/json',body:JSON.stringify({asset:{version:'2.0'},scenes:[{nodes:[]}],scene:0})});});
+ await fallback.goto(process.env.GAME_URL||'http://127.0.0.1:5174');
+ const fallbackResult=await fallback.evaluate(async()=>{const game=(await import(document.querySelector('script[src*="/src/main.js"]').src)).game;await game.assetsReady;const {detailedObject}=await import('/src/models.js');const near=detailedObject('plant','#e9e4d8'),far=detailedObject('plant','#e9e4d8','low');const geometries=g=>{const result=[];g.traverse(o=>{if(o.isMesh)result.push(o.geometry.uuid);});return result;};return {near:geometries(near),far:geometries(far)};});
+ assert.ok(missingLODs>=8);assert.ok(fallbackResult.near.length>0);assert.deepEqual(fallbackResult.far,fallbackResult.near);await fallback.close();
+ console.log('PASS: invalid optional LOD retains the loaded full model without losing objects');
  assert.deepEqual(errors,[]);
- await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum'],errors},null,2));
+ await writeFile('test-artifacts/upgrade-browser.json',JSON.stringify({models:loaded.map(({item,status})=>({item,status})),heldRequests:held,checks:['progressive-ready','live-edit-preservation','static-thumbnails','instance-pick-paint-remove-undo','rotated-wall-mount','collision-invalidation','clear-momentum','plant-lod-pick-edit-save','optional-lod-fallback'],lod,errors},null,2));
  console.log('PASS: collision invalidates immediately and motion clears; no browser errors');
 }finally{release();await browser.close();}

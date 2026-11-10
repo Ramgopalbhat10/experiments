@@ -2,30 +2,46 @@ import * as THREE from 'three';
 import { ITEM_MAP } from './catalog.js';
 import { createObject, disposeObject } from './objects.js';
 import { SpatialIndex } from './spatial.js';
-import { ProjectInstances } from './instances.js';
+import { ProjectInstances,instanceCell } from './instances.js';
 import { snapPosition } from './project.js';
+import {chooseModelDetail} from './lod.js';
 export class Building {
   constructor(world,project,onChange,notify) {
     this.world=world;this.project=project;this.onChange=onChange;this.notify=notify;
     this.spatial=new SpatialIndex();this.instances=new ProjectInstances(world.projectGroup);this.meshes=new Map();this.aimCache=null;this.previewMaterial=new THREE.MeshBasicMaterial({color:'#85c6cd',transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide});this.mode='build';this.item='wall';this.finish='plaster';this.color='#e9e4d8';this.rotation=0;this.height=0;this.selected=null;this.moving=null;this.preview=null;this.candidate=null;
+    this.lodChoices=new Map();this.lodClock=0;this.lodStats={full:0,low:0,switches:0};
     this.ray=new THREE.Raycaster();this.pointer=new THREE.Vector2(0,-.12);this.hovering=false;this.previewKey='';
     this.selectionBox=new THREE.BoxHelper(new THREE.Object3D(),'#779da8');this.selectionBox.visible=false;world.scene.add(this.selectionBox);this.guide=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#86bbc3',transparent:true,opacity:.8,depthTest:false}));this.guide.visible=false;this.guide.renderOrder=5;world.scene.add(this.guide);this.sync();
   }
   sync(forceItem=null){
     this.instances?.clear();this.aimCache=null;this.spatial?.invalidate();this.spatial?.ensure(this.project.objects);
     const ids=new Set(this.project.objects.map(o=>o.id));
-    for(const [id,mesh] of this.meshes)if(!ids.has(id)){this.world.projectGroup.remove(mesh);disposeObject(mesh);this.meshes.delete(id);}
-    for(const o of this.project.objects){const key=JSON.stringify(o),existing=this.meshes.get(o.id);if(existing?.userData.key===key&&forceItem!==o.item&&!forceItem?.has?.(o.item)){existing.visible=o.id!==this.moving;continue;}if(existing){this.world.projectGroup.remove(existing);disposeObject(existing);}const mesh=createObject(o);mesh.userData.key=key;this.world.projectGroup.add(mesh);this.meshes.set(o.id,mesh);}
+    for(const [id,mesh] of this.meshes)if(!ids.has(id)){this.world.projectGroup.remove(mesh);disposeObject(mesh);this.meshes.delete(id);this.lodChoices.delete(id);}
+    for(const o of this.project.objects){const detail=o.id===this.selected||o.id===this.moving?'full':chooseModelDetail(o,this.world.camera,this.lodChoices.get(o.id));this.lodChoices.set(o.id,detail);const key=JSON.stringify(o)+':'+detail,existing=this.meshes.get(o.id);if(existing?.userData.key===key&&forceItem!==o.item&&!forceItem?.has?.(o.item)){existing.visible=o.id!==this.moving;continue;}if(existing){this.world.projectGroup.remove(existing);disposeObject(existing);}const mesh=createObject(o,{detail});mesh.userData.key=key;this.world.projectGroup.add(mesh);this.meshes.set(o.id,mesh);}
     for(const [id,mesh] of this.meshes)mesh.userData.moving=id===this.moving;
     this.world.prepareRooms?.(this.project.objects);
     this.instances?.sync(this.meshes,p=>this.world.roomKey?.(p)||'outside');
     this.world.renderer.shadowMap.needsUpdate=true;
-    this.world.updateFixtures?.(this.project.objects);
-    this.world.invalidateLighting?.(this.project.objects);
-    this.onSpatialChange?.();
+    this.world.updateFixtures?.(this.project.objects);this.world.invalidateLighting?.(this.project.objects);this.onSpatialChange?.();
+    this.updateLODStats();
     if(this.selected&&!this.meshes.has(this.selected))this.selected=null;
     this.updateSelection();this.onChange?.();
   }
+  updateLOD(dt=0,force=false){
+    this.lodClock+=Number.isFinite(dt)&&dt>0?Math.min(dt,.25):0;
+    if(!force&&this.lodClock<.2)return false;this.lodClock=0;
+    const changed=[];for(const record of this.project.objects){const detail=record.id===this.selected||record.id===this.moving?'full':chooseModelDetail(record,this.world.camera,this.lodChoices.get(record.id));if(detail!==this.lodChoices.get(record.id))changed.push({record,detail});}
+    if(!changed.length)return false;
+    const cells=new Set(changed.map(({record})=>instanceCell(this.meshes.get(record.id))));
+    const affected=[...this.meshes.values()].filter(owner=>cells.has(instanceCell(owner)));
+    this.world.prepareRepresentations?.([...affected,...this.instances.batches.filter(batch=>cells.has(batch.userData.cell))]);
+    // Release instance references before retiring any old template geometry.
+    this.instances.clearCells(cells);
+    for(const {record,detail} of changed){const previous=this.meshes.get(record.id);this.world.projectGroup.remove(previous);disposeObject(previous);const mesh=createObject(record,{detail});mesh.userData.key=JSON.stringify(record)+':'+detail;mesh.userData.moving=record.id===this.moving;this.world.projectGroup.add(mesh);this.meshes.set(record.id,mesh);this.lodChoices.set(record.id,detail);}
+    this.instances.sync(this.meshes,p=>this.world.roomKey?.(p)||'outside',cells);
+    this.world.refreshRepresentations?.();this.aimCache=null;this.lodStats.switches++;this.updateLODStats();this.updateSelection();return true;
+  }
+  updateLODStats(){this.lodStats.full=0;this.lodStats.low=0;for(const mesh of this.meshes.values())this.lodStats[mesh.userData.detail]++;}
   setItem(id){this.cancelMove();this.item=id;this.mode='build';this.selected=null;this.previewKey='';this.updateSelection();}
   setMode(mode){this.cancelMove();this.mode=mode;this.clearPreview();this.updateSelection();}
   setHeight(height){this.height=THREE.MathUtils.clamp(height,0,6);this.previewKey='';}

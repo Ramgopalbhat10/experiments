@@ -66,7 +66,7 @@ try {
   });
   let animationFrame,last=performance.now(),bearingTime=0,statsTime=0;
   document.addEventListener('visibilitychange',()=>{if(document.hidden){player.clearMotion?.();player.keys.clear();cancelAnimationFrame(animationFrame);save();}else{last=performance.now();animationFrame=requestAnimationFrame(tick);}});addEventListener('pagehide',()=>save());
-  function tick(now){if(document.hidden)return;const dt=Math.max(0,(now-last)/1000);last=now;player.advance(dt,project.objects);builder.aim(player.locked);if(!builder.preview?.visible)ui.placement(null);world.render(dt);if(now-bearingTime>250){ui.compass(player.yaw);bearingTime=now;}if(now-statsTime>1000){ui.performance(world.stats);ui.quality(world.quality);statsTime=now;}animationFrame=requestAnimationFrame(tick);}
+  function tick(now){if(document.hidden)return;const dt=Math.max(0,(now-last)/1000);last=now;player.advance(dt,project.objects);builder.updateLOD(dt);builder.aim(player.locked);if(!builder.preview?.visible)ui.placement(null);world.render(dt);if(now-bearingTime>250){ui.compass(player.yaw);bearingTime=now;}if(now-statsTime>1000){ui.performance(world.stats);ui.quality(world.quality);statsTime=now;}animationFrame=requestAnimationFrame(tick);}
   animationFrame=requestAnimationFrame(tick);
 } catch(error) {
   console.error(error);const el=document.getElementById('failure');el.hidden=false;el.innerHTML='<h1>Let’s make room for your world.</h1><p>Homestead needs a browser with WebGL enabled.<br>Try a current desktop browser with hardware acceleration turned on.</p>';

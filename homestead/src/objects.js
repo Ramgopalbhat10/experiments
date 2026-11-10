@@ -21,7 +21,7 @@ export function sphere(parent,rx,ry,rz,x,y,z,material) {
 }
 function rod(parent,a,b,r,material) {const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b);const m=cyl(parent,r,r,start.distanceTo(end),0,0,0,material,12);m.position.copy(start.add(end).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.sub(new THREE.Vector3(...a)).normalize());return m;}
 function legs(g,w,d,h,material=wood(),inset=.12) {for(const x of [-w/2+inset,w/2-inset])for(const z of [-d/2+inset,d/2-inset])box(g,.07,h,.07,x,h/2,z,material);}
-function frame(g,w,h,y,z,material=wood(),th=.055) {box(g,w,th,.08,0,y-h/2,z,material);box(g,w,th,.08,0,y+h/2,z,material);for(const x of [-w/2,w/2])box(g,th,h,.08,x,y,z,material);}
+function frame(g,w,h,y,z,material=wood(),th=.055) {box(g,w,th,.08,0,y-h/2,z,material,.0025);box(g,w,th,.08,0,y+h/2,z,material,.0025);for(const x of [-w/2,w/2])box(g,th,h,.08,x,y,z,material,.0025);}
 // Curved leaf surfaces catch light differently along their spine and edges.
 function leafGeometry(){return geometry('curved-leaf',()=>{const points=[],uv=[],indices=[],rows=8,cols=2;for(let j=0;j<=rows;j++){const t=j/rows,width=Math.pow(Math.sin(t*Math.PI),.8)*.5;for(let i=0;i<=cols;i++){const u=i/cols*2-1;points.push(u*width,t,Math.sin(t*Math.PI)*.14+Math.abs(u)*width*.24);uv.push(i/cols,t);}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+cols+1;indices.push(a,b,a+1,b,b+1,a+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(points,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();return g;});}
 function foliage(g,x,y,z,r,count=80,offset=0) {
@@ -29,8 +29,8 @@ function foliage(g,x,y,z,r,count=80,offset=0) {
   for(let i=0;i<count;i++){const a=rnd(i*7)*Math.PI*2,v=rnd(i*7+1)*2-1,radius=r*(.15+rnd(i*7+2)*.85),ring=Math.sqrt(1-v*v);const material=mat(['#64733b','#7c884b','#425e2d','#939957'][i%4],'plain',{side:THREE.DoubleSide,roughness:.74});const m=new THREE.Mesh(leafGeometry(),material);m.position.set(x+Math.cos(a)*ring*radius,y+v*radius,z+Math.sin(a)*ring*radius);m.rotation.set(rnd(i*7+3)*Math.PI,rnd(i*7+4)*Math.PI,rnd(i*7+5)*Math.PI);m.scale.set(.2+rnd(i*7+6)*.12,.28+rnd(i*7+2)*.18,.28);g.add(m);}
 }
 function lathe(g,profile,x,y,z,material,sx=1,sz=1){const geo=new THREE.LatheGeometry(profile.map(p=>new THREE.Vector2(...p)),48);const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,1,sz);g.add(m);m.userData.ownedGeometry=true;return m;}
-function plant(g,x=0,y=0,z=0,scale=1,pot=true) {
-  if(pot){lathe(g,[[0,0],[.15,0],[.17,.035],[.21,.3],[.21,.33],[.185,.33],[.18,.29]],x,y,z,mat('#c7b9a1','concrete'),scale,scale).scale.y=scale;cyl(g,.18*scale,.18*scale,.025*scale,x,y+.3*scale,z,mat('#423b2b','plain'));}
+function plant(g,x=0,y=0,z=0,scale=1,pot=true,potColor='#c7b9a1') {
+  if(pot){lathe(g,[[0,0],[.15,0],[.17,.035],[.21,.3],[.21,.33],[.185,.33],[.18,.29]],x,y,z,mat(potColor,'concrete'),scale,scale).scale.y=scale;cyl(g,.18*scale,.18*scale,.025*scale,x,y+.3*scale,z,mat('#423b2b','plain'));}
   for(let i=0;i<15;i++){const a=i*2.4,h=(.52+(i%5)*.13)*scale,ex=x+Math.cos(a)*.22*scale,ez=z+Math.sin(a)*.22*scale;rod(g,[x,y+.22*scale,z],[ex,y+h,ez],.006*scale,leaf());const m=new THREE.Mesh(leafGeometry(),mat(i%3?'#456437':'#73844e','plain',{side:THREE.DoubleSide,roughness:.65}));m.position.set(ex,y+h,ez);m.rotation.set(.6,a,-.35);m.scale.set(.19*scale,.34*scale,.34*scale);g.add(m);rod(g,[ex,y+h,ez],[ex+Math.sin(a)*.065*scale,y+h+.25*scale,ez+Math.cos(a)*.06*scale],.002*scale,mat('#8a9b64','plain'));}
 }
 function painting(g,w=1,h=.8,y=.5,z=0) {
@@ -70,7 +70,7 @@ function sofa(g,w,color) {
 function buildObject(record) {
   const g=new THREE.Group(), {item,color='#e9e4d8',finish='plaster'}=record;
   const surface=mat(color,finish), oak=mat(color==='#e9e4d8'?'#bc9163':color,finish==='plaster'?'oak':finish), cream=ceramic();
-  const detailed=detailedObject(item,color);
+  const detailed=detailedObject(item,color,record.detail);
   if(detailed)g.add(detailed);
   else if(item==='floor'||item==='foundation'){
     if(item==='floor'&&['plaster','oak'].includes(finish)){box(g,3,.185,3,0,.0925,0,darkWood());for(let row=0;row<12;row++)for(let part=0;part<3;part++){const tint=new THREE.Color(color).multiplyScalar([.98,1.025,.95][(row+part)%3]);box(g,.997,.015,.247,-1+part,.1925,-1.375+row*.25,mat(tint.getStyle(),'oak'),true);}}
@@ -78,7 +78,7 @@ function buildObject(record) {
   }
   else if(['wall','window-wall','doorway','glass-wall'].includes(item)) {
     if(item==='wall')box(g,3,2.8,.18,0,1.4,0,surface,.004);
-    if(item==='window-wall'){box(g,3,.7,.18,0,.35,0,surface);box(g,3,.4,.18,0,2.6,0,surface);for(const x of [-1.35,1.35])box(g,.3,1.7,.18,x,1.55,0,surface);box(g,2.4,1.65,.035,0,1.55,0,glass());frame(g,2.4,1.7,1.55,.015,oak,.07);box(g,.055,1.7,.085,0,1.55,.015,oak);box(g,2.58,.045,.3,0,.69,0,oak);}
+    if(item==='window-wall'){box(g,3,.7,.18,0,.35,0,surface,.004);box(g,3,.4,.18,0,2.6,0,surface,.004);for(const x of [-1.35,1.35])box(g,.3,1.7,.18,x,1.55,0,surface,.004);box(g,2.4,1.65,.035,0,1.55,0,glass());frame(g,2.4,1.7,1.55,.015,oak,.07);box(g,.055,1.7,.085,0,1.55,.015,oak);box(g,2.58,.045,.3,0,.69,0,oak);}
     if(item==='doorway'){for(const x of [-1.025,1.025])box(g,.95,2.8,.18,x,1.4,0,surface);box(g,1.1,.5,.18,0,2.55,0,surface);frame(g,1.1,2.3,1.15,0,oak,.065);const pivot=new THREE.Group();pivot.position.set(-.5,0,0);pivot.rotation.y=-1.15;g.add(pivot);box(pivot,1,2.25,.07,.5,1.125,0,oak);sphere(pivot,.025,.025,.04,.91,1.05,.07,metal());}
     if(item==='glass-wall'){box(g,2.95,2.74,.025,0,1.4,0,glass());frame(g,3,2.8,1.4,0,darkMetal(),.06);box(g,.055,2.8,.055,0,1.4,0,darkMetal());}
     for(const z of [-.12,.12]){box(g,3,.1,.035,0,.05,z,mat('#e9e4d8','plaster'),true);box(g,3,.025,.035,0,2.775,z,mat('#e9e4d8','plaster'),true);}
@@ -122,7 +122,7 @@ function buildObject(record) {
   else if(item==='rug'){box(g,2.6,.023,1.8,0,.012,0,mat(color,'fabric'),true);for(const z of [-.84,.84])box(g,2.5,.002,.035,0,.025,z,mat('#9a8f76','fabric'));for(let i=0;i<25;i++)for(const z of [-.91,.91])box(g,.02,.006,.1,-1.22+i*.1,.015,z,mat('#d1c7b5','fabric'));}
   else if(item==='lamp'){cyl(g,.2,.21,.045,0,.023,0,metal());cyl(g,.015,.015,1.3,0,.68,0,metal());const shade=new THREE.Mesh(geometry('lamp-shade',()=>new THREE.CylinderGeometry(.18,.29,.39,48,1,true)),mat(color,'fabric',{side:THREE.DoubleSide,emissive:'#ebd2ae',emissiveIntensity:.18}));shade.position.y=1.43;g.add(shade);for(const [r,y] of [[.18,1.625],[.29,1.235]]){const ring=new THREE.Mesh(geometry('shade-ring'+r,()=>new THREE.TorusGeometry(r,.006,6,48)),wood());ring.rotation.x=Math.PI/2;ring.position.y=y;g.add(ring);}sphere(g,.09,.09,.09,0,1.3,0,mat('#fff1c3','plain',{emissive:'#e1bb62',emissiveIntensity:2}));}
   else if(item==='pendant'){cyl(g,.012,.012,.72,0,.64,0,darkMetal());const shade=new THREE.Mesh(geometry('pendant-shade',()=>new THREE.CylinderGeometry(.12,.33,.32,48,1,true)),mat(color,'plain',{roughness:.35,side:THREE.DoubleSide}));shade.position.y=.32;g.add(shade);cyl(g,.28,.28,.015,0,.16,0,mat('#fff0c5','plain',{emissive:'#d9ac59',emissiveIntensity:2}));}
-  else if(item==='plant')plant(g,0,0,0,1.3);
+  else if(item==='plant')plant(g,0,0,0,1.3,true,color);
   else if(item==='vase'){cyl(g,.07,.13,.26,0,.13,0,mat(color,'concrete'));sphere(g,.13,.15,.13,0,.14,0,mat(color,'concrete'));for(let i=0;i<5;i++){rod(g,[0,.15,0],[(i-2)*.045,.5+(i%2)*.12,.03],.007,mat('#af996e','plain'));sphere(g,.025,.07,.02,(i-2)*.045,.52+(i%2)*.12,.03,mat('#c5b896','fabric'));}}
   else if(item==='tree'){
     const bark=mat('#685b46','oak');cyl(g,.1,.16,2.2,0,1.1,0,bark,24);
@@ -138,10 +138,10 @@ function buildObject(record) {
   mergeMeshes(g);
   return g;
 }
-export function createObject(record){
-  const key=[record.item,record.color||'#e9e4d8',record.finish||'plaster',record.detail||'full'].join(':');
-  const g=templates.clone(key,()=>buildObject(record));g.position.fromArray(record.position||[0,0,0]);g.rotation.y=record.rotation||0;
-  g.userData={id:record.id,item:record.item,record};g.traverse(o=>{if(o.isMesh)o.userData.owner=g;});return g;
+export function createObject(record,{detail=record.detail||'full'}={}){
+  const key=[record.item,record.color||'#e9e4d8',record.finish||'plaster',detail].join(':');
+  const g=templates.clone(key,()=>buildObject({...record,detail}));g.position.fromArray(record.position||[0,0,0]);g.rotation.y=record.rotation||0;
+  g.userData={id:record.id,item:record.item,record,detail};g.traverse(o=>{if(o.isMesh)o.userData.owner=g;});return g;
 }
 export function disposeObject(group) {
   templates.release(group);
