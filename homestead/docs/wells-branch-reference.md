@@ -32,7 +32,7 @@ All 21 listing photos were inspected. The first/second-floor diagrams supplied d
 
 The MLS/Zillow lists **2,394 sq ft and 3½ baths**. The builder's exact-address page says **2,335 sq ft and 2½ baths**, while the current D413 design page says approximately **2,391 sq ft** but still supplies the older two-full-bath diagrams. No documented position of an extra full bath was found. The model follows the supplied plans: primary ensuite, upstairs bath and powder room. It does **not invent a third full bathroom**.
 
-This is a plan/photo-based reconstruction, not a survey, permit model or engineering document. Roof intersections, attic/front-gable massing, story heights and hidden construction are approximated from photographs. The front gable's feature window does not establish a verified habitable room behind it. Furnishings and appliances are editable catalog substitutes, not copies of the exact staged products. Doors are posed ajar and the rear garage overhead door raised for walkthroughs. Neighborhood houses and unphotographed details are not invented.
+This is a plan/photo-based reconstruction, not a survey, permit model or engineering document. Roof intersections, attic/front-gable massing, story heights and hidden construction are approximated from photographs. The front gable's feature window does not establish a verified habitable room behind it. Furnishings and appliances are editable catalog substitutes, not copies of the exact staged products. Doors are posed ajar and the rear garage overhead door raised for walkthroughs. Neighboring houses are not modeled. Rear landscaping, small fixtures and staged furnishings are illustrative where the photos do not establish their exact form or placement.
 
 ### Plan labels used for scale
 
@@ -62,5 +62,11 @@ The traced outline is approximately 8.5 m wide at the front / 9.5 m at the rear 
 ## Verification
 
 Unit coverage includes v1 round-trip/download consistency, immutable layout generation, workspace isolation/load-failure protection, dimensions/voids, real and offset openings, porch entry without jumping, the full stair rise/upper landing, sloped ceiling clearance, actual slab closure, finite/UV-mapped roof geometry, isolated material clipping and template-owned material lifetime. Browser validation covers workspace switching/storage failure, views without save mutation, walking/upper access, paint/export/reload, preserved sandbox data, unreadable-save protection and a 320px viewport.
+
+Run `npm run test:reference` with `GAME_URL` and `CHROME_PATH` for the property flow; set `REFERENCE_OUTPUT` for capture/export evidence. `BENCH_HOME=wells-branch` selects exterior/family/game-room scenes in the existing performance runner. Default benchmarks and the native palette remain unchanged.
+
+Final validation: **121/121 Node tests pass**, production build passes (existing Three.js chunk advisory), and the dedicated reference browser flow passes all four views, unclipped landscape, porch/stair navigation, paint/export/reload, private-workspace isolation, protected unreadable saves and 320px layout. Native gameplay/streaming suites pass; native rendering passes 11 checks and five captures with finite probes. Coplanar authored slabs are tested not to overlap.
+
+The final reference has **172 editable records**. Continuous-RAF Balanced benchmarks completed exterior/family/game views at 960×540, 0.8 render scale and 60 samples each. Submitted work (all composer passes): exterior 838 calls / 610,907 triangles; family 156 / 297,615; game 300 / 410,455. Texture resource count is 75; thirteen authored room volumes use at most four local probes. These are resource counts, not memory bytes. The existing five-scene sandbox benchmark also completes.
 
 As elsewhere in Homestead, SwiftShader counts/timings are diagnostics, not proof of hardware 60 FPS or measured VRAM. Reference source plans/photos were used for inspection, not redistributed as application assets.

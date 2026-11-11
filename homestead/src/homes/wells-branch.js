@@ -19,7 +19,7 @@ const ceiling=(id,x0,x1,z0,z1,y)=>part(id,'ceiling',[x1-x0,.12,z1-z0],(x0+x1)/2,
 // partition/circulation space and are not an as-built dimensional survey.
 // The family is double height; neither its void nor the entry void gets an upper floor.
 floor('family-floor',-4.25,-.35,-6.85,-2.05,0,'living',5.8);
-floor('dining-floor',-4.25,.1,-2.05,.95,0,'living');floor('kitchen-floor',-4.25,.1,.95,5.6,0,'living');
+floor('dining-floor',-4.25,-.35,-2.05,.95,0,'living');floor('dining-edge-floor',-.35,.1,-1.2,.95,0,'living');floor('kitchen-floor',-4.25,.1,.95,5.6,0,'living');
 floor('master-floor',.1,4.25,3.93,8.35,0,'primary',2.8,'plaster','#cfccc2');
 floor('study-floor',-4.25,-1.2,5.6,9.25,0,'study',2.8,'plaster','#c9c7bb');
 floor('game-floor',-4.25,.1,-2.05,2.0,3,'game',2.8,'plaster','#cbc6b8');
@@ -27,7 +27,7 @@ floor('bed2-floor',-4.25,-1.2,4.9,9.25,3,'bed2',2.8,'plaster','#cbc6b8');
 floor('bed3-floor',1.15,4.25,1.0,4.55,3,'bed3',2.8,'plaster','#cbc6b8');
 floor('bed4-floor',1.15,4.25,-3.25,.3,3,'bed4',2.8,'plaster','#cbc6b8');
 floor('bed4-wic-floor',-.35,1.15,-3.25,-2.05,3,'bed4',2.8,'plaster','#cbc6b8');
-floor('entry-floor',-1.2,.1,5.6,8.35);floor('stair-hall-floor',.1,1.15,-1.2,5.6);
+floor('entry-floor',-1.2,.1,5.6,8.35);floor('stair-hall-floor',.1,1.15,-1.2,3.93);
 floor('bath-floor',1.15,4.25,1.05,3.93,0,'primary-bath',2.8,'slate','#d9d4c9');
 floor('closet-floor',1.15,4.25,-1.2,1.05,0,'primary-closet',2.8,'plaster','#d1cec5');
 floor('powder-floor',-.35,1.8,-3.25,-2.2,0,'powder',2.8,'slate','#ddd8cc');
@@ -38,7 +38,7 @@ floor('patio-floor',-4.25,-.35,-9.25,-6.85,0,null,2.8,'concrete','#c6bfae');
 floor('upper-hall-floor',.1,1.15,-2.05,-1.2,3,'game',2.8,'plaster','#cbc6b8');
 floor('upper-hall-side',-1.2,.1,2.0,6.0,3,'game',2.8,'plaster','#cbc6b8');
 floor('upper-landing',.1,1.15,3.0,4.55,3,'game',2.8,'plaster','#cbc6b8');
-floor('porch-step',-1.4,.3,8.35,9.1,0,null,2.8,'concrete','#c9c4b6');
+floor('porch-step',-1.2,.3,8.35,9.1,0,null,2.8,'concrete','#c9c4b6');
 floor('upper-bath-floor',-4.25,-1.2,2,4.9,3,'bath2',2.8,'slate','#d8d5cb');
 floor('bed3-closets-floor',1.15,4.25,.3,1,3,'bed3',2.8,'plaster','#d0ccbf');
 // Ground perimeter: front has a projecting study, inset entry and right primary wing.

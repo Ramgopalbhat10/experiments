@@ -45,6 +45,9 @@ test('selecting a distant model promotes its representation before drawing selec
  const b={meshes,selected:'plant',lodChoices:new Map(),selectionBox:{visible:false,setFromObject:mesh=>drawn=mesh},updateLOD:()=>{promotions++;meshes.set('plant',full);}};
  Building.prototype.updateSelection.call(b);assert.equal(promotions,1);assert.equal(drawn,full);assert.equal(b.selectionBox.visible,true);
 });
+test('cutaway hit testing skips invisible roofs and reaches the visible room object',()=>{
+ const roof={point:new THREE.Vector3(0,7,0),owner:{id:'roof'}},bed={point:new THREE.Vector3(0,1,0),owner:{id:'bed'}};const b={instances:{intersect:()=>[roof,bed]},world:{visiblePoint:p=>p.y<=2.4},ray:{}};assert.deepEqual(Building.prototype.hits.call(b),[bed]);
+});
 test('ordinary placement does not scan all records to find a nonexistent moving piece',()=>{
  const b=fixture([record('floor','floor',[0,0,0])]);b.project.objects.find=()=>{throw new Error('Unexpected whole-project lookup while not moving');};
  b.aim(false);assert.equal(b.candidate.position[1],.2);

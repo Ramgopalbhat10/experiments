@@ -13,7 +13,7 @@ import {wallRectangles,containsPart} from '../src/part-shapes.js';
 import {createObject,disposeObject} from '../src/objects.js';
 
 test('reference is valid, deterministic, editable v1 data and matches the downloadable project',async()=>{
- const a=wellsBranchProject(),b=wellsBranchProject();assert.deepEqual(a,b);assert.equal(a.objects.length,171);assert.equal(CATALOG.length,43);assert.ok(a.objects.length<2000);
+ const a=wellsBranchProject(),b=wellsBranchProject();assert.deepEqual(a,b);assert.equal(a.objects.length,172);assert.equal(CATALOG.length,43);assert.ok(a.objects.length<2000);
  const project=new Project(a);assert.deepEqual(JSON.parse(project.serialize()),b);assert.deepEqual(JSON.parse(await readFile(new URL('../public/examples/10593-wells-branch.homestead.json',import.meta.url),'utf8')),b);
  a.objects[0].position[0]=999;assert.notEqual(wellsBranchProject().objects[0].position[0],999);
  const id=project.objects.find(o=>o.item.startsWith('wb-')).id;project.update(id,{color:'#687b67'});assert.equal(project.objects.find(o=>o.id===id).color,'#687b67');project.undo();assert.deepEqual(project.objects,b.objects);
@@ -28,6 +28,10 @@ test('floor dimensions and authored voids follow the builder plan, not a stretch
  const parts=WELLS_BRANCH_PARTS;assert.deepEqual(parts['wb-study-floor'].size,[3.05,.2,3.6500000000000004]);assert.ok(Math.abs(parts['wb-master-floor'].size[0]-4.15)<1e-6);assert.equal(parts['wb-family-floor'].roomHeight,5.8);
  const data=wellsBranchProject(),upper=data.objects.filter(o=>ITEM_MAP[o.item].slot==='floor'&&o.position[1]===3);assert.ok(!upper.some(o=>containsPart(o,ITEM_MAP[o.item],-2.3,-4.5)));assert.ok(!upper.some(o=>containsPart(o,ITEM_MAP[o.item],-.55,7.5)));assert.ok(upper.some(o=>containsPart(o,ITEM_MAP[o.item],.65,3.8)));
  const p=snapPosition(parts['wb-master-front'],[1.11,.2,8.35],0);assert.deepEqual(p,[1.1,.2,8.35]);
+});
+test('authored slabs do not overlap and z-fight at the same level',()=>{
+ const floors=wellsBranchProject().objects.filter(o=>ITEM_MAP[o.item].property&&ITEM_MAP[o.item].kind==='floor');
+ for(let i=0;i<floors.length;i++)for(let j=i+1;j<floors.length;j++){const a=floors[i],b=floors[j];if(a.position[1]!==b.position[1])continue;const sa=ITEM_MAP[a.item].size,sb=ITEM_MAP[b.item].size,dx=(sa[0]+sb[0])/2-Math.abs(a.position[0]-b.position[0]),dz=(sa[2]+sb[2])/2-Math.abs(a.position[2]-b.position[2]);assert.ok(dx<1e-7||dz<1e-7,`${a.id} overlaps ${b.id}`);}
 });
 test('walls share exact visual/collision openings, retaining glass and offset jambs',()=>{
  const visual=wallRectangles(4,2.8,[{x:-1,width:.9,height:2.3,sill:0,kind:'door'},{x:1,width:1,height:1.5,sill:.6,kind:'window'}]);assert.ok(visual.length>3);

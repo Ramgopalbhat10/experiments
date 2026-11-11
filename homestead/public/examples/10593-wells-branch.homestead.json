@@ -17,9 +17,21 @@
       "id": "wb-dining-floor",
       "item": "wb-dining-floor",
       "position": [
-        -2.075,
+        -2.3,
         0,
         -0.5499999999999999
+      ],
+      "rotation": 0,
+      "finish": "oak",
+      "color": "#c2a786"
+    },
+    {
+      "id": "wb-dining-edge-floor",
+      "item": "wb-dining-edge-floor",
+      "position": [
+        -0.12499999999999999,
+        0,
+        -0.125
       ],
       "rotation": 0,
       "finish": "oak",
@@ -139,7 +151,7 @@
       "position": [
         0.625,
         0,
-        2.1999999999999997
+        1.3650000000000002
       ],
       "rotation": 0,
       "finish": "oak",
@@ -269,7 +281,7 @@
       "id": "wb-porch-step",
       "item": "wb-porch-step",
       "position": [
-        -0.5499999999999999,
+        -0.44999999999999996,
         0,
         8.725
       ],

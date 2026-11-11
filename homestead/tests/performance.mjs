@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
-const software=process.env.SOFTWARE_GPU==='1';
+const software=process.env.SOFTWARE_GPU==='1',reference=process.env.BENCH_HOME==='wells-branch';
 const samples=Number(process.env.BENCH_FRAMES||90);
 const output=process.env.BENCH_OUTPUT||'test-artifacts/performance.json';
 await mkdir(output.slice(0,output.lastIndexOf('/'))||'.',{recursive:true});
@@ -10,21 +10,25 @@ page.setDefaultTimeout(180000);
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const results=[];
 try{
- await page.goto(process.env.GAME_URL||'http://127.0.0.1:5174');
+ const target=new URL(process.env.GAME_URL||'http://127.0.0.1:5174');if(reference)target.searchParams.set('home','wells-branch');await page.goto(target.href);
  await page.waitForFunction(()=>Number(document.getElementById('object-count')?.textContent)>70);
  const game=await page.evaluateHandle(async()=>(await import(document.querySelector('script[src*="/src/main.js"]').src)).game);
  await page.waitForFunction(()=>document.querySelectorAll('.card-preview img').length===10);
  await page.evaluate(async game=>{if(game.assetsReady)await game.assetsReady;},game);
 
- await page.evaluate(({game,scale,quality,occlusion})=>{game.world.setQuality?.(quality);game.world.setOcclusion?.(occlusion);if(scale){game.world.renderer.setPixelRatio(scale);game.world.composer.setPixelRatio(scale);const fxaa=game.world.composer.passes.at(-1);if(fxaa.uniforms?.resolution)fxaa.uniforms.resolution.value.set(1/(innerWidth*scale),1/(innerHeight*scale));}game.builder.setMode('select');game.ui.setMode('select',false);game.world.grid.visible=false;game.builder.hovering=false;},{game,scale:Number(process.env.RENDER_SCALE||0),quality:process.env.BENCH_QUALITY||'balanced',occlusion:process.env.BENCH_AO||'ssao'});
- const metadata=await page.evaluate(({game,software})=>{const r=game.world.renderer,gl=r.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');return {softwareRendering:software||/swiftshader|llvmpipe|softpipe|software/i.test(ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)),requestedSoftwareRendering:software,userAgent:navigator.userAgent,renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),viewport:[innerWidth,innerHeight],pixelRatio:r.getPixelRatio(),webgl2:r.capabilities.isWebGL2,occlusion:game.world.stats.occlusion};},{game,software});
- for(const view of [
+ await page.evaluate(({game,scale,quality,occlusion})=>{game.world.setQuality?.(quality);game.world.setInspectionCut?.(null);game.world.setOcclusion?.(occlusion);if(scale){game.world.renderer.setPixelRatio(scale);game.world.composer.setPixelRatio(scale);const fxaa=game.world.composer.passes.at(-1);if(fxaa.uniforms?.resolution)fxaa.uniforms.resolution.value.set(1/(innerWidth*scale),1/(innerHeight*scale));}game.builder.setMode('select');game.ui.setMode('select',false);game.world.grid.visible=false;game.builder.hovering=false;},{game,scale:Number(process.env.RENDER_SCALE||0),quality:process.env.BENCH_QUALITY||'balanced',occlusion:process.env.BENCH_AO||'ssao'});
+ const metadata=await page.evaluate(({game,software})=>{const r=game.world.renderer,gl=r.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');return {home:new URL(location.href).searchParams.get('home')||'sandbox',softwareRendering:software||/swiftshader|llvmpipe|softpipe|software/i.test(ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)),requestedSoftwareRendering:software,userAgent:navigator.userAgent,renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),viewport:[innerWidth,innerHeight],pixelRatio:r.getPixelRatio(),webgl2:r.capabilities.isWebGL2,occlusion:game.world.stats.occlusion};},{game,software});
+ for(const view of (reference?[
+  {name:'wells-exterior',position:[13,9,22],target:[0,3.3,0]},
+  {name:'wells-family',position:[-1.1,1.85,-2.8],target:[-2.8,.8,-4.8]},
+  {name:'wells-game',position:[-.3,4.85,1.4],target:[-2.3,4,-.2]},
+ ]:[
   {name:'starter-exterior',position:[8,1.85,14],target:[-2,1.6,-1]},
   {name:'starter-living',position:[-2.65,1.85,-.9],target:[-5.3,.8,.4]},
   {name:'dense-200-chairs',position:[0,8,20],target:[0,0,0],dense:true},
   {name:'dense-36-plants',position:[0,9,25],target:[0,.65,0],plants:true},
   {name:'blank-plot',position:[8,1.85,14],target:[-2,1.6,-1],blank:true},
- ].filter(view=>!process.env.BENCH_VIEWS||process.env.BENCH_VIEWS.split(',').includes(view.name))){
+ ]).filter(view=>!process.env.BENCH_VIEWS||process.env.BENCH_VIEWS.split(',').includes(view.name))){
   console.log('Benchmark:',view.name);
   await page.evaluate(({game,view})=>{if(view.blank){game.project.replace({version:1,objects:[]});game.builder.sync();}if(view.plants){game.project.replace({version:1,objects:Array.from({length:36},(_,i)=>({id:`plant-${i}`,item:'plant',position:[(i%6-2.5)*1.5,0,(Math.floor(i/6)-2.5)*1.5],rotation:0,color:'#e9e4d8',finish:'plaster'}))});game.builder.sync();}if(view.dense){game.project.replace({version:1,objects:Array.from({length:200},(_,i)=>({id:`bench-${i}`,item:'chair',position:[(i%20-9.5)*1.8,0,(Math.floor(i/20)-4.5)*2.1],rotation:0,color:'#e9e4d8',finish:'oak'}))});game.builder.sync();}game.world.camera.position.fromArray(view.position);game.world.camera.lookAt(...view.target);game.player.yaw=game.world.camera.rotation.y;game.player.pitch=game.world.camera.rotation.x;game.builder.clearPreview();game.builder.updateLOD?.(.25,true);},{game,view});
   await page.waitForTimeout(800);
