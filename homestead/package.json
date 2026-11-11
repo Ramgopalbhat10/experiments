@@ -12,6 +12,7 @@
     "test:performance": "node tests/performance.mjs",
     "test:upgrade": "node tests/upgrade-browser.mjs",
     "test:render": "node tests/render-browser.mjs",
+    "test:reference": "node tests/reference-browser.mjs",
     "thumbnails": "node scripts/generate-thumbnails.mjs"
   },
   "dependencies": {

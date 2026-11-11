@@ -5,29 +5,41 @@
   },
   "extras": {
     "homesteadOptimized": true,
+    "homesteadBedSurfaces": {
+      "linenTriangles": 2419,
+      "timberTriangles": 16326,
+      "islands": 5
+    },
     "homesteadLOD": true
   },
   "accessors": [
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 16053,
+      "count": 14790,
       "bufferView": 0,
       "byteOffset": 0
     },
     {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1449,
+      "bufferView": 0,
+      "byteOffset": 29580
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 6114,
+      "count": 5770,
       "max": [
-        0.7808247804641724,
+        0.7292245030403137,
         1.5338401794433594,
-        0.9826018810272217
+        0.9868184924125671
       ],
       "min": [
-        -0.71014803647995,
+        -0.6587342619895935,
         -1.181181374931839e-7,
-        -1.0507320165634155
+        -1.0530290603637695
       ],
       "bufferView": 1,
       "byteOffset": 0
@@ -35,15 +47,46 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 6114,
+      "count": 5770,
       "bufferView": 1,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 6114,
+      "count": 5770,
       "bufferView": 1,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 380,
+      "max": [
+        0.7808247804641724,
+        0.6060092449188232,
+        0.9413961172103882
+      ],
+      "min": [
+        -0.71014803647995,
+        0.11216090619564056,
+        -1.0092109441757202
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 380,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 380,
+      "bufferView": 2,
       "byteOffset": 24
     }
   ],
@@ -51,13 +94,20 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 32108,
+      "byteLength": 32480,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteOffset": 32108,
-      "byteLength": 195648,
+      "byteOffset": 32480,
+      "byteLength": 184640,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 217120,
+      "byteLength": 12160,
       "byteStride": 32,
       "target": 34962
     }
@@ -65,14 +115,23 @@
   "buffers": [
     {
       "uri": "lod-0.bin",
-      "byteLength": 227756
+      "byteLength": 229280
     }
   ],
   "materials": [
     {
-      "name": "GothicBed_01",
+      "name": "GothicBed_01_timber",
       "doubleSided": true,
-      "pbrMetallicRoughness": {}
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "GothicBed_01_linen",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
     }
   ],
   "meshes": [
@@ -81,13 +140,23 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 1,
-            "NORMAL": 2,
-            "TEXCOORD_0": 3
+            "POSITION": 2,
+            "NORMAL": 3,
+            "TEXCOORD_0": 4
           },
           "mode": 4,
           "material": 0,
           "indices": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 1
         }
       ]
     }

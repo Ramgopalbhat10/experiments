@@ -1,3 +1,4 @@
+import {WELLS_BRANCH_PARTS} from './homes/wells-branch.js';
 export const CATEGORIES = [
   {id:'structure',name:'Build',icon:'wall'}, {id:'living',name:'Living',icon:'sofa'},
   {id:'kitchen',name:'Kitchen',icon:'counter'}, {id:'bedroom',name:'Bedroom',icon:'bed'},
@@ -50,7 +51,7 @@ export const CATALOG = [
   item('bench','Garden bench','garden','Simple oak for a moment outdoors',{size:[1.5,.85,.55]}),
   item('pergola','Timber pergola','garden','Filtered light over an open terrace',{size:[12,2.95,3.2]}),
 ];
-export const ITEM_MAP = Object.fromEntries(CATALOG.map(i=>[i.id,i]));
+export const ITEM_MAP = {...Object.fromEntries(CATALOG.map(i=>[i.id,i])),...WELLS_BRANCH_PARTS};
 export const FINISHES = [
   {id:'plaster',name:'Lime plaster',color:'#e9e4d8'},
   {id:'oak',name:'Natural oak',color:'#b98b59'},

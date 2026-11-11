@@ -1,30 +1,42 @@
 {
   "asset": {
-    "generator": "glTF-Transform v4.5.1",
+    "generator": "glTF-Transform v4.2.1",
     "version": "2.0"
   },
   "extras": {
-    "homesteadOptimized": true
+    "homesteadOptimized": true,
+    "homesteadBedSurfaces": {
+      "linenTriangles": 2419,
+      "timberTriangles": 16326,
+      "islands": 5
+    }
   },
   "accessors": [
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 56235,
+      "count": 48978,
       "bufferView": 0,
       "byteOffset": 0
     },
     {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 7257,
+      "bufferView": 0,
+      "byteOffset": 97956
+    },
+    {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 17068,
+      "count": 15701,
       "max": [
-        0.782444417476654,
+        0.7293006777763367,
         1.5338401794433594,
         0.9868945479393005
       ],
       "min": [
-        -0.7113074660301208,
+        -0.6630310416221619,
         -1.181181374931839e-7,
         -1.053105354309082
       ],
@@ -34,15 +46,46 @@
     {
       "type": "VEC3",
       "componentType": 5126,
-      "count": 17068,
+      "count": 15701,
       "bufferView": 1,
       "byteOffset": 12
     },
     {
       "type": "VEC2",
       "componentType": 5126,
-      "count": 17068,
+      "count": 15701,
       "bufferView": 1,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1367,
+      "max": [
+        0.782444417476654,
+        0.6067749261856079,
+        0.9413961172103882
+      ],
+      "min": [
+        -0.7113074660301208,
+        0.11216090619564056,
+        -1.0092109441757202
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 1367,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 1367,
+      "bufferView": 2,
       "byteOffset": 24
     }
   ],
@@ -56,7 +99,14 @@
     {
       "buffer": 0,
       "byteOffset": 112472,
-      "byteLength": 546176,
+      "byteLength": 502432,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 614904,
+      "byteLength": 43744,
       "byteStride": 32,
       "target": 34962
     }
@@ -108,9 +158,26 @@
   ],
   "materials": [
     {
-      "name": "GothicBed_01",
+      "name": "GothicBed_01_timber",
       "doubleSided": true,
       "pbrMetallicRoughness": {
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      },
+      "normalTexture": {
+        "index": 1
+      }
+    },
+    {
+      "name": "GothicBed_01_linen",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0,
         "baseColorTexture": {
           "index": 0
         },
@@ -129,13 +196,23 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 1,
-            "NORMAL": 2,
-            "TEXCOORD_0": 3
+            "POSITION": 2,
+            "NORMAL": 3,
+            "TEXCOORD_0": 4
           },
           "mode": 4,
           "material": 0,
           "indices": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 1
         }
       ]
     }

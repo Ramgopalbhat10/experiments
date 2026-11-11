@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PLOT_LIMIT } from './catalog.js';
 import { SpatialIndex } from './spatial.js';
+import {wallRectangles,partSurface} from './part-shapes.js';
 import { FixedStepSimulation } from './simulation.js';
 
 const RADIUS=.2,HEIGHT=1.6,EYE=1.65,STEP_HEIGHT=.34,EPSILON=1e-6;
@@ -11,12 +12,14 @@ const stairHeight=z=>Math.ceil(THREE.MathUtils.clamp((1.5-z)/3,0,1)*12-1e-8)*2.8
 
 // Doorways retain a real opening and lintel instead of a full-width wall collider.
 function shapes(entry,lz) {
+  if(entry.item.openings?.some(o=>['door','garage'].includes(o.kind)))return wallRectangles(entry.item.size[0],entry.height,entry.item.openings,true).map(r=>({x:r.x,halfX:r.width/2,halfZ:entry.halfZ,bottom:entry.y+r.y-r.height/2,top:entry.y+r.y+r.height/2}));
+  if(entry.item.kind==='slope'){const bottom=entry.y+partSurface(entry,lz||0);return [{x:0,halfX:entry.halfX,halfZ:entry.halfZ,bottom,top:bottom+.12}];}
   if(entry.item.id==='doorway')return [
     {x:-1.025,halfX:.475,halfZ:.09,bottom:entry.y,top:entry.y+2.8},
     {x:1.025,halfX:.475,halfZ:.09,bottom:entry.y,top:entry.y+2.8},
     {x:0,halfX:.55,halfZ:.09,bottom:entry.y+2.3,top:entry.y+2.8},
   ];
-  return [{x:0,halfX:entry.halfX,halfZ:entry.halfZ,bottom:entry.y,top:entry.y+(entry.item.id==='stairs'?stairHeight(lz):entry.height)}];
+  return [{x:0,halfX:entry.halfX,halfZ:entry.halfZ,bottom:entry.y,top:entry.y+((entry.item.kind||entry.item.id)==='stairs'?partSurface(entry,lz):entry.height)}];
 }
 
 export class Player {
@@ -73,11 +76,11 @@ export class Player {
   support(x,z,feet,objects) {return this._surface(x,z,feet+STEP_HEIGHT,objects);}
   _surface(x,z,maxHeight,objects) {
     let height=0;
-    for(const entry of this._candidates(x,z,objects,.08)) {
+    for(const entry of this._candidates(x,z,objects,RADIUS)) {
       if(!entry.support)continue;
       const [lx,lz]=local(entry,x,z);
-      if(Math.abs(lx)>entry.halfX+.08||Math.abs(lz)>entry.halfZ+.08)continue;
-      const top=entry.y+(entry.item.id==='stairs'?stairHeight(lz):entry.item.slot==='floor'?.2:entry.height);
+      if(!overlaps(lx,lz,entry.halfX,entry.halfZ))continue;
+      const top=entry.y+((entry.item.kind||entry.item.id)==='stairs'?partSurface(entry,lz):entry.item.slot==='floor'?entry.item.size[1]:entry.height);
       if(top<=maxHeight+EPSILON)height=Math.max(height,top);
     }
     return height;
@@ -85,9 +88,9 @@ export class Player {
   _ceiling(x,z,feet,nextFeet,objects) {
     let result=nextFeet;
     for(const entry of this._candidates(x,z,objects)) {
-      if(entry.item.id==='stairs'||entry.item.id==='tree')continue;
+      if((entry.item.kind||entry.item.id)==='stairs'||entry.item.id==='tree')continue;
       const [lx,lz]=local(entry,x,z);
-      for(const shape of shapes(entry)) {
+      for(const shape of shapes(entry,lz)) {
         if(feet+HEIGHT<=shape.bottom+EPSILON&&nextFeet+HEIGHT>shape.bottom&&overlaps(lx,lz,shape.halfX,shape.halfZ,shape.x))result=Math.min(result,shape.bottom-HEIGHT);
       }
     }

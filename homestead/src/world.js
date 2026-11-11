@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import {ContactOcclusion} from './contact-occlusion.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
@@ -21,13 +21,13 @@ export function createWorld(canvas) {
   renderer.info.autoReset=false;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
-  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.localClippingEnabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
   const scene=new THREE.Scene();scene.environmentIntensity=.5;scene.background=new THREE.Color('#b6c8ce');scene.fog=new THREE.Fog('#b9c5b0',65,170);
   const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.08,250);camera.position.set(13,1.85,17);camera.lookAt(-1,1.8,-1);
   const sky=new Sky();sky.scale.setScalar(450000);scene.add(sky);
   const su=sky.material.uniforms;su.turbidity.value=2.4;su.rayleigh.value=1.7;su.mieCoefficient.value=.006;su.mieDirectionalG.value=.82;
   const sunPosition=new THREE.Vector3(-35,38,26);su.sunPosition.value.copy(sunPosition);
-  const hemi=new THREE.HemisphereLight('#e2edff','#ac9f85',.48);scene.add(hemi);
+  const hemi=new THREE.HemisphereLight('#e2edff','#ac9f85',.36);scene.add(hemi);
   const sun=new THREE.DirectionalLight('#fff2df',3);sun.position.copy(sunPosition);sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);scene.add(sun);scene.add(sun.target);
   const sunShadows=new SunShadows(sun);
@@ -48,17 +48,14 @@ export function createWorld(canvas) {
   // The same atmospheric sky supplies visible and reflected daylight.
   const pmrem=new THREE.PMREMGenerator(renderer);
   const roomLighting=createLighting({scene,renderer,projectGroup,sky,grid,pmrem});
-  const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));
-  class ContactOcclusionPass extends SSAOPass {
-    _overrideVisibility(){super._overrideVisibility();this.scene.traverse(o=>{if(o.visible&&(o===sky||(o.isMesh&&(Array.isArray(o.material)?o.material.some(m=>m.transparent||m.alphaTest>0):(o.material.transparent||o.material.alphaTest>0))))){o.visible=false;this._visibilityCache.push(o);}});}
-  }
-  const ao=new ContactOcclusionPass(scene,camera,innerWidth,innerHeight,12);ao.kernelRadius=.35;ao.minDistance=.002;ao.maxDistance=.05;const aoSize=ao.setSize.bind(ao);ao.setSize=(w,h)=>aoSize(Math.max(1,Math.round(w*quality.aoScale)),Math.max(1,Math.round(h*quality.aoScale)));composer.addPass(ao);composer.addPass(new OutputPass());const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);antialias.uniforms.resolution.value.set(1/(innerWidth*renderer.getPixelRatio()),1/(innerHeight*renderer.getPixelRatio()));
+  const composer=new EffectComposer(renderer),basePass=new RenderPass(scene,camera);composer.addPass(basePass);
+  const ao=new ContactOcclusion(scene,camera,sky,quality,{supported:()=>renderer.extensions.has('EXT_color_buffer_float'),recover:(r,readBuffer)=>basePass.render(r,null,readBuffer)});composer.addPass(ao);composer.addPass(new OutputPass());const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);antialias.uniforms.resolution.value.set(1/(innerWidth*renderer.getPixelRatio()),1/(innerHeight*renderer.getPixelRatio()));
   const fixtures=new THREE.Group();scene.add(fixtures);
   function updateFixtures(records){
     fixtures.clear();
     // Limit realtime fixtures so large user-built homes keep a predictable GPU cost.
     for(const record of records.filter(r=>['lamp','pendant'].includes(r.item)).slice(0,8)){
-      const pendant=record.item==='pendant',light=new THREE.PointLight('#ffd6a3',pendant?32:16,pendant?6:4,2);
+      const pendant=record.item==='pendant',light=new THREE.PointLight('#ffd6a3',pendant?18:9,pendant?4.5:3,2);
       light.position.fromArray(record.position);light.position.y+=pendant?.12:1.3;fixtures.add(light);
     }
   }
@@ -69,22 +66,23 @@ export function createWorld(canvas) {
     antialias.uniforms.resolution.value.set(1/(innerWidth*quality.pixelRatio),1/(innerHeight*quality.pixelRatio));
   }
   function applyQuality(){
-    ao.enabled=quality.ao;
+    ao.setQuality();
     if(sun.shadow.mapSize.x!==quality.shadowSize){sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null;renderer.shadowMap.needsUpdate=true;}
     resize();
   }
   applyQuality();addEventListener('resize',resize);
-  let lightingRecords=[],elapsed=0;
+  let lightingRecords=[],elapsed=0,inspectionCut=null;
+  function setInspectionCut(height=null){if(height!==null&&(!Number.isFinite(height)||height<0))throw new RangeError('Invalid cutaway height');if(height===inspectionCut)return;inspectionCut=height;roomLighting.setInspectionCut(height);ao.setSuspended(height!==null);}
   function invalidateLighting(records){lightingRecords=records;sunShadows.invalidate(records);roomLighting.invalidate(records);renderer.shadowMap.needsUpdate=true;}
   function refreshRepresentations(){roomLighting.refreshRepresentations();renderer.shadowMap.needsUpdate=true;}
   function lighting(mode){
     const evening=mode==='evening';sun.color.set(evening?'#ffb36c':'#fff2df');sun.intensity=evening?2.1:3;
     sunPosition.set(-35,evening?14:38,26);su.sunPosition.value.copy(sunPosition);
-    hemi.intensity=evening?.28:.48;scene.environmentIntensity=evening?.32:.5;
+    hemi.intensity=evening?.2:.36;scene.environmentIntensity=evening?.32:.5;
     renderer.toneMappingExposure=evening?1.15:1.1;renderer.shadowMap.needsUpdate=true;
     roomLighting.setEvening(evening,lightingRecords);
   }
-  const stats={preset:quality.preset,pixelRatio:renderer.getPixelRatio(),calls:0,triangles:0,geometries:0,textures:0,frameMs:0,cpuMs:0,get reflections(){return roomLighting.stats;},get shadows(){return sunShadows.stats;}};
+  const stats={preset:quality.preset,pixelRatio:renderer.getPixelRatio(),calls:0,triangles:0,geometries:0,textures:0,frameMs:0,cpuMs:0,get reflections(){return roomLighting.stats;},get shadows(){return sunShadows.stats;},get occlusion(){return ao.stats;}};
   function render(dt=0){
     const start=performance.now();if(qualityController.sample(dt))applyQuality();
     elapsed+=Number.isFinite(dt)&&dt>0?Math.min(dt,.1):0;
@@ -100,7 +98,7 @@ export function createWorld(canvas) {
     for(const child of scene.children)if(child!==projectGroup&&child!==scenery.group)child.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)for(const material of Array.isArray(o.material)?o.material:[o.material])materials.add(material);});
     for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();
     grassMap.dispose();lawnMap.dispose();lawnNormal.dispose();leafMap.dispose();leafNormal.dispose();sun.shadow.map?.dispose();
-    for(const pass of composer.passes)pass.dispose?.();ao.ssaoMaterial.dispose();ao.noiseTexture.dispose();composer.dispose();renderer.dispose();
+    for(const pass of composer.passes)pass.dispose?.();composer.dispose();renderer.dispose();
   }
-  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setQuality,quality,stats,invalidateLighting,refreshRepresentations,prepareRepresentations:roomLighting.prepareRepresentations,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
+  return {scene,camera,renderer,projectGroup,grid,lighting,updateFixtures,composer,render,setInspectionCut,get inspectionCut(){return inspectionCut;},visiblePoint:point=>inspectionCut===null||point.y<=inspectionCut+.001,setQuality,setOcclusion:preference=>ao.setPreference(preference),quality,stats,invalidateLighting,refreshRepresentations,prepareRepresentations:roomLighting.prepareRepresentations,prepareRooms:roomLighting.prepareRooms,roomKey:roomLighting.roomKey,resize,dispose};
 }

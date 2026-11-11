@@ -138,8 +138,9 @@ export function applyDetailedFinish(source,item,color){
   result.traverse(object=>{if(!object.isMesh)return;
     const tint=material=>{
       const name=material.name.toLowerCase();
-      // Bed's single baked atlas includes both linen and timber; the range has separate glass.
-      const paintable=item==='sofa'||item==='bed'||(item==='armchair'&&name.includes('pillow'))||(item==='plant'&&(name.endsWith(':pot')||name.endsWith('_pot')))||(item==='stove'&&!name.includes('glass')&&!material.transparent);
+      // Bed linen and timber share an atlas but have separate authored primitives.
+      // Legacy/unseparated beds stay untinted instead of recoloring their timber.
+      const paintable=item==='sofa'||(item==='bed'&&name.endsWith('_linen'))||(item==='armchair'&&name.includes('pillow'))||(item==='plant'&&(name.endsWith(':pot')||name.endsWith('_pot')))||(item==='stove'&&!name.includes('glass')&&!material.transparent);
       if(!paintable||!color)return material;
       const key=item+material.uuid+color;
       if(!finishes.has(key)){const finish=material.clone();finish.color.set(color);finishes.set(key,finish);}

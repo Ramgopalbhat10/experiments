@@ -4,6 +4,7 @@ import { createObject, disposeObject } from './objects.js';
 import { SpatialIndex } from './spatial.js';
 import { ProjectInstances,instanceCell } from './instances.js';
 import { snapPosition } from './project.js';
+import {containsPart} from './part-shapes.js';
 import {chooseModelDetail} from './lod.js';
 export class Building {
   constructor(world,project,onChange,notify) {
@@ -48,7 +49,7 @@ export class Building {
   rotate(){this.rotation=(this.rotation+Math.PI/2)%(Math.PI*2);this.previewKey='';}
   clearPreview(){if(this.guide)this.guide.visible=false;if(this.preview){this.world.scene.remove(this.preview);disposeObject(this.preview);this.preview=null;}this.candidate=null;this.previewKey='';}
   updateSelection(){let mesh=this.meshes.get(this.selected);if(mesh?.userData.detail==='low'&&this.lodChoices){this.updateLOD(0,true);mesh=this.meshes.get(this.selected);}this.selectionBox.visible=!!mesh;if(mesh)this.selectionBox.setFromObject(mesh);}
-  hits(){return this.instances?this.instances.intersect(this.ray):this.ray.intersectObjects([...this.meshes.values()].filter(m=>m.visible),true).map(h=>({...h,owner:h.object.userData.owner}));}
+  hits(){const hits=this.instances?this.instances.intersect(this.ray):this.ray.intersectObjects([...this.meshes.values()].filter(m=>m.visible),true).map(h=>({...h,owner:h.object.userData.owner}));return hits.filter(h=>!this.world.visiblePoint||this.world.visiblePoint(h.point));}
   hit(){this.ray.setFromCamera(this.pointer,this.world.camera);return this.hits().find(h=>h.owner);}
   aim(locked){
     if(locked)this.pointer.set(0,0);
@@ -65,8 +66,8 @@ export class Building {
     if(!mount&&(!intersection||this.world.camera.position.distanceTo(hit)>30)){if(this.preview)this.preview.visible=false;if(this.guide)this.guide.visible=false;this.candidate=null;return;}
     const p=mount?.position||snapPosition(item,[hit.x,this.height,hit.z],this.rotation),rotation=mount?.rotation??this.rotation;
     let support=this.height;
-    if(!['foundation','floor','path'].includes(item.id)){
-      for(const o of (this.spatial?this.spatial.ensure(this.project.objects).query(p[0],p[2],.08).map(e=>e.record):this.project.objects))if(ITEM_MAP[o.item].slot==='floor'&&Math.abs(o.position[1]-this.height)<.01&&Math.abs(o.position[0]-p[0])<=1.51&&Math.abs(o.position[2]-p[2])<=1.51)support=this.height+.2;
+    if(!['foundation','floor','path'].includes(item.kind||item.id)){
+      for(const o of (this.spatial?this.spatial.ensure(this.project.objects).query(p[0],p[2],.08).map(e=>e.record):this.project.objects))if(ITEM_MAP[o.item].slot==='floor'&&Math.abs(o.position[1]-this.height)<.01&&containsPart(o,ITEM_MAP[o.item],p[0],p[2],.01))support=this.height+ITEM_MAP[o.item].size[1];
     }
     if(!mount)p[1]=item.slot==='roof'?this.height+3:item.mounted?this.height+(item.id==='pendant'?1.9:1.3):support;
     const movingRecord=this.moving?this.project.objects.find(o=>o.id===this.moving):null;

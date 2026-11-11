@@ -5,29 +5,42 @@
   },
   "extras": {
     "homesteadOptimized": true,
+    "homesteadBedSurfaces": {
+      "linenTriangles": 2419,
+      "timberTriangles": 16326,
+      "islands": 5
+    },
     "homesteadLOD": true
   },
   "accessors": [
     {
       "type": "SCALAR",
       "componentType": 5123,
-      "count": 16053,
+      "count": 14790,
       "normalized": false,
       "byteOffset": 0,
       "bufferView": 0
     },
     {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1449,
+      "normalized": false,
+      "byteOffset": 29580,
+      "bufferView": 0
+    },
+    {
       "type": "VEC3",
       "componentType": 5122,
-      "count": 6114,
+      "count": 5770,
       "max": [
-        24026,
-        24719,
+        22294,
+        24639,
         32767
       ],
       "min": [
-        -24026,
-        -24719,
+        -22298,
+        -24639,
         -32767
       ],
       "normalized": true,
@@ -37,7 +50,7 @@
     {
       "type": "VEC3",
       "componentType": 5122,
-      "count": 6114,
+      "count": 5770,
       "normalized": true,
       "byteOffset": 0,
       "bufferView": 2
@@ -45,77 +58,162 @@
     {
       "type": "VEC2",
       "componentType": 5123,
-      "count": 6114,
+      "count": 5770,
       "normalized": true,
       "byteOffset": 0,
       "bufferView": 3
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 380,
+      "max": [
+        23950,
+        -5168,
+        31307
+      ],
+      "min": [
+        -23950,
+        -21034,
+        -31359
+      ],
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 4
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5122,
+      "count": 380,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 5
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5123,
+      "count": 380,
+      "normalized": true,
+      "byteOffset": 0,
+      "bufferView": 6
     }
   ],
   "bufferViews": [
     {
       "buffer": 1,
       "byteOffset": 0,
-      "byteLength": 32106,
+      "byteLength": 32478,
       "target": 34963,
       "extensions": {
         "EXT_meshopt_compression": {
           "buffer": 0,
           "byteOffset": 0,
-          "byteLength": 5622,
+          "byteLength": 5674,
           "mode": "TRIANGLES",
           "byteStride": 2,
-          "count": 16053
+          "count": 16239
         }
       }
     },
     {
       "buffer": 1,
-      "byteOffset": 32108,
-      "byteLength": 48912,
+      "byteOffset": 32480,
+      "byteLength": 46160,
       "target": 34962,
       "byteStride": 8,
       "extensions": {
         "EXT_meshopt_compression": {
           "buffer": 0,
-          "byteOffset": 5624,
-          "byteLength": 26287,
+          "byteOffset": 5676,
+          "byteLength": 24323,
           "mode": "ATTRIBUTES",
           "byteStride": 8,
-          "count": 6114
+          "count": 5770
         }
       }
     },
     {
       "buffer": 1,
-      "byteOffset": 81020,
-      "byteLength": 48912,
+      "byteOffset": 78640,
+      "byteLength": 46160,
       "target": 34962,
       "byteStride": 8,
       "extensions": {
         "EXT_meshopt_compression": {
           "buffer": 0,
-          "byteOffset": 31912,
-          "byteLength": 32496,
+          "byteOffset": 30000,
+          "byteLength": 30342,
           "mode": "ATTRIBUTES",
           "byteStride": 8,
-          "count": 6114
+          "count": 5770
         }
       }
     },
     {
       "buffer": 1,
-      "byteOffset": 129932,
-      "byteLength": 24456,
+      "byteOffset": 124800,
+      "byteLength": 23080,
       "target": 34962,
       "byteStride": 4,
       "extensions": {
         "EXT_meshopt_compression": {
           "buffer": 0,
-          "byteOffset": 64408,
-          "byteLength": 20237,
+          "byteOffset": 60344,
+          "byteLength": 18983,
           "mode": "ATTRIBUTES",
           "byteStride": 4,
-          "count": 6114
+          "count": 5770
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 147880,
+      "byteLength": 3040,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 79328,
+          "byteLength": 2079,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 380
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 150920,
+      "byteLength": 3040,
+      "target": 34962,
+      "byteStride": 8,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 81408,
+          "byteLength": 2380,
+          "mode": "ATTRIBUTES",
+          "byteStride": 8,
+          "count": 380
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 153960,
+      "byteLength": 1520,
+      "target": 34962,
+      "byteStride": 4,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 83788,
+          "byteLength": 1377,
+          "mode": "ATTRIBUTES",
+          "byteStride": 4,
+          "count": 380
         }
       }
     }
@@ -123,10 +221,10 @@
   "buffers": [
     {
       "uri": "lod-compressed-0.bin",
-      "byteLength": 84648
+      "byteLength": 85168
     },
     {
-      "byteLength": 154388,
+      "byteLength": 155480,
       "extensions": {
         "EXT_meshopt_compression": {
           "fallback": true
@@ -136,9 +234,18 @@
   ],
   "materials": [
     {
-      "name": "GothicBed_01",
+      "name": "GothicBed_01_timber",
       "doubleSided": true,
-      "pbrMetallicRoughness": {}
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "GothicBed_01_linen",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
     }
   ],
   "meshes": [
@@ -147,13 +254,23 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 1,
-            "NORMAL": 2,
-            "TEXCOORD_0": 3
+            "POSITION": 2,
+            "NORMAL": 3,
+            "TEXCOORD_0": 4
           },
           "mode": 4,
           "material": 0,
           "indices": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 1
         }
       ]
     }
@@ -164,12 +281,12 @@
       "translation": [
         0.035338371992111206,
         0.7669200306626109,
-        -0.034065067768096924
+        -0.033105283975601196
       ],
       "scale": [
-        1.0166669487953186,
-        1.0166669487953186,
-        1.0166669487953186
+        1.0199237763881683,
+        1.0199237763881683,
+        1.0199237763881683
       ],
       "mesh": 0
     }

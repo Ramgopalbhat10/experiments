@@ -8,6 +8,6 @@ export class ObjectTemplates {
     const copy=entry.template.clone(true);copy.traverse(o=>{if(o.isMesh){delete o.userData.owner;o.userData.ownedGeometry=false;}});entry.live++;this.copies.set(copy,entry);return copy;
   }
   invalidate(item){for(const [key,entry] of this.entries)if(key.startsWith(`${item}:`)){this.entries.delete(key);entry.retired=true;this.retire(entry);}}
-  retire(entry){if(entry.retired&&entry.live===0)entry.template.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+  retire(entry){if(entry.retired&&entry.live===0&&!entry.disposed){entry.disposed=true;const geometries=new Set(),materials=new Set();entry.template.traverse(o=>{if(o.isMesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.userData.templateOwned)materials.add(m);}});for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();}}
   release(copy){const entry=this.copies.get(copy);if(!entry)return false;this.copies.delete(copy);entry.live--;this.retire(entry);return true;}
 }

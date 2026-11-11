@@ -13,7 +13,7 @@ License verified on 2026-10-03 against https://polyhaven.com/license: all Poly H
 
 The imported bed is a full sleeping bed, approximately 1.51m wide × 2.06m long after fitting. Its catalog headboard height is 1.55m, preserving adult mattress length while the 1.8 × 2.2m catalog footprint remains unchanged. Model height, width and depth are bounded by the catalog dimensions, with one uniform scale applied to all axes. The coffee-table source axes are rotated before fitting. All model bottoms are grounded and footprints centered. Saves and collisions continue to use the catalog.
 
-The previous sofa, lounge chair, coffee table, plant, shrub and tree remain Poly Haven CC0. Potted-plant geometry received bounded-error simplification; foliage borders are locked to preserve silhouette and texture coverage. The garden tree retains three source leaf layers, with two additional rotations at 2.1 and 4.2 radians applied before uniform fitting; all three layers share their geometry and material. Source material and geometry are shared among cached clones. Imported finishes retain each saved record color on the mapped surfaces: sofa upholstery, armchair pillow, plant pot, bed atlas, and opaque range enamel/cabinet. The sleeping bed uses one baked material for quilt, pillow and timber, so its tint affects that complete atlas; the range keeps its separate transparent oven-glass material unchanged. Tint variants share the source textures and are cached by item, source material and color. Other imported timber and foliage retain their photographed colors. This is a color mapping onto selected imported surfaces; it does not replace their baked texture set with arbitrary plaster/oak/brick finish textures.
+The previous sofa, lounge chair, coffee table, plant, shrub and tree remain Poly Haven CC0. Potted-plant geometry received bounded-error simplification; foliage borders are locked to preserve silhouette and texture coverage. The garden tree retains three source leaf layers, with two additional rotations at 2.1 and 4.2 radians applied before uniform fitting; all three layers share their geometry and material. Source material and geometry are shared among cached clones. Imported finishes retain each saved record color on the mapped surfaces: sofa upholstery, armchair pillow, plant pot, bed atlas, and opaque range enamel/cabinet. The sleeping bed retains one shared photographed atlas but has separately authored linen/timber primitives; saved tint affects only linen, while timber stays unchanged (see `realism-iteration-2.md` and `scripts/separate-bed-materials.mjs`); the range keeps its separate transparent oven-glass material unchanged. Tint variants share the source textures and are cached by item, source material and color. Other imported timber and foliage retain their photographed colors. This is a color mapping onto selected imported surfaces; it does not replace their baked texture set with arbitrary plaster/oak/brick finish textures.
 
 ## Offline recipe
 
@@ -30,6 +30,8 @@ Download the official [KTX-Software 4.4.2 Linux package](https://github.com/Khro
 ```sh
 python scripts/fetch-models.py GothicBed_01 electric_stove
 ASSET_TOOLS=/tmp/homestead-asset-tools node scripts/optimize-models.mjs
+ASSET_TOOLS=/tmp/homestead-asset-tools node scripts/separate-bed-materials.mjs
+ASSET_TOOLS=/tmp/homestead-asset-tools node scripts/generate-lods.mjs
 python scripts/prepare-assets.py --toktx /tmp/ktx-software/bin/toktx
 node --test tests/assets.test.js
 npm run build
