@@ -3,6 +3,23 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeMeshes } from '../src/objects.js';
+import {chairBackGeometry,sinkBowlGeometry,sinkTopGeometry} from '../src/furniture-details.js';
+
+test('sink floor slopes toward an open drain underneath a continuous rolled rim',()=>{
+  const geo=sinkBowlGeometry(),mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial()),ray=new THREE.Raycaster();
+  const height=x=>{ray.set(new THREE.Vector3(x,2,0),new THREE.Vector3(0,-1,0));return ray.intersectObject(mesh)[0]?.point.y;};
+  assert.ok(height(.298)>.915);assert.ok(height(.20)>height(.05));assert.ok(height(.05)<.76);assert.equal(height(0),undefined);
+  assert.ok([...geo.attributes.normal.array].every(Number.isFinite));
+  const slab=new THREE.Mesh(sinkTopGeometry());ray.set(new THREE.Vector3(.4,2,0),new THREE.Vector3(0,-1,0));assert.ok(ray.intersectObject(slab)[0].point.y>.91);
+  ray.ray.origin.x=.2;assert.equal(ray.intersectObject(slab).length,0,'the slab must not occlude the basin');
+});
+test('chair back curves toward its side posts and stays inside the catalog footprint',()=>{
+  const back=chairBackGeometry();back.translate(0,.799,-.229);back.computeBoundingBox();
+  const b=back.boundingBox;assert.ok(b.min.x>=-.24&&b.max.x<=.24&&b.min.z>=-.26&&b.max.y<=.9);
+  const p=back.attributes.position;let mid=-Infinity,end=-Infinity;
+  for(let i=0;i<p.count;i++){if(Math.abs(p.getX(i))<.01)mid=Math.max(mid,p.getZ(i));if(p.getX(i)>.209)end=Math.max(end,p.getZ(i));}
+  assert.ok(end-mid>.04);assert.ok([...back.attributes.normal.array].every(Number.isFinite));
+});
 
 test('batches rounded and square furniture parts without losing transformed geometry',()=>{
   const group=new THREE.Group(),material=new THREE.MeshStandardMaterial();
