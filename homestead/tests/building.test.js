@@ -52,3 +52,15 @@ test('ordinary placement does not scan all records to find a nonexistent moving 
  const b=fixture([record('floor','floor',[0,0,0])]);b.project.objects.find=()=>{throw new Error('Unexpected whole-project lookup while not moving');};
  b.aim(false);assert.equal(b.candidate.position[1],.2);
 });
+test('the ghost explains occupied slots, plot bounds and a full plot before clicking',()=>{
+  for(const reason of ['occupied','bounds','limit']){
+    const b=fixture(reason==='occupied'?[record('floor','floor',[0,0,0])]:[]);
+    if(reason==='occupied'){b.item='floor';b.previewKey='floor:plaster:#e9e4d8:true';}
+    if(reason==='bounds'){b.world.camera.position.set(25,8,10);b.world.camera.lookAt(25,0,0);b.world.camera.updateMatrixWorld();}
+    if(reason==='limit')b.project.objects=Array.from({length:2000},(_,i)=>record('rug-'+i,'rug',[1,0,1]));
+    let checked=0,state;const check=b.project.check.bind(b.project);
+    b.project.check=(...args)=>{checked++;return check(...args);};b.onAim=value=>state=value;
+    b.aim(false);b.aim(false);assert.equal(checked,1);assert.equal(state.valid,false);
+    assert.equal(state.message,check(b.candidate).message);assert.match(state.message,{occupied:/already/,bounds:/inside/,limit:/2,000/}[reason]);
+  }
+});

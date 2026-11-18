@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { ITEM_MAP } from './catalog.js';
 import { configureAssets,getKTX2Loader,loadWithFallback } from './assets.js';
+import {createModelStream} from './model-stream.js';
 const models=new Map(),lowModels=new Map(),finishes=new Map(),revisions=new Map();
 const sources={sofa:'sofa_02',armchair:'modern_arm_chair_01','coffee-table':'modern_coffee_table_01',plant:'potted_plant_01',tree:'tree_small_02',shrub:'shrub_04',bed:'GothicBed_01',stove:'electric_stove'};
 const rotations={'coffee-table':Math.PI/2};
@@ -87,25 +88,16 @@ export function prepareModelSource(scene,item){
 }
 /** Settled-count progress and per-item callbacks; failed downloads leave procedural fallbacks. */
 export async function streamAssets(entries,load,{onLoaded,onProgress,concurrency=2}={}){
-  let index=0,loaded=0,failed=0;const results=[];
-  const report=progress=>{try{onProgress?.(progress);}catch(error){console.error('Asset progress callback failed.',error);}};
-  report({loaded,failed,completed:0,total:entries.length,item:null,status:'loading'});
-  const worker=async()=>{while(index<entries.length){
-    const [item,asset]=entries[index++];let status='loaded';
-    try{await load(item,asset);loaded++;results.push({item,status});try{onLoaded?.(item);}catch(error){console.error('Asset loaded callback failed.',error);}}
-    catch(error){failed++;status='failed';results.push({item,status,error});console.warn(`Detailed ${item} unavailable; using the built-in model.`);}
-    report({loaded,failed,completed:loaded+failed,total:entries.length,item,status});
-  }};
-  await Promise.all(Array.from({length:Math.min(concurrency,entries.length)},worker));
-  return results;
+  const assets=new Map(entries);
+  return createModelStream(item=>load(item,assets.get(item)),null,{onLoaded,onProgress,concurrency})(assets.keys());
 }
-export function loadDetailedModels({onProgress,onLoaded,renderer}={}){
-  if(active)return active;
+export function createDetailedModelStream({renderer,...callbacks}={}){
   configureAssets(renderer);
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),ktx=getKTX2Loader();
   if(ktx)loader.setKTX2Loader(ktx);
-  const entries=Object.entries(sources).filter(([item])=>!models.has(item));
-  active=streamAssets(entries,async(item,asset)=>{
+  async function full(item){
+    if(models.has(item))return;
+    const asset=sources[item];
     const fallback=`/models/${asset}/model.gltf`,compressed=ktx?`/models/${asset}/compressed.gltf`:null;
     const {scene}=await loadWithFallback(url=>loader.loadAsync(url),compressed,fallback);
     prepareHeroMaterials(scene,item);prepareModelSource(scene,item);
@@ -119,14 +111,19 @@ export function loadDetailedModels({onProgress,onLoaded,renderer}={}){
       }
     });
     models.set(item,fitted);
-    // Optional detail is loaded under the same two-worker limit. Failure keeps
-    // the loaded full model; absent sources still use the procedural fallback.
-    try{
-      const low=await loadWithFallback(url=>loader.loadAsync(url),`/models/${asset}/lod-compressed.gltf`,`/models/${asset}/lod.gltf`);
-      lowModels.set(item,attachModelLOD(low.scene,fitted,item));
-    }catch{/* Missing optional geometry does not fail the source model. */}
     revisions.set(item,getModelRevision(item)+1);
-  },{onProgress,onLoaded}).finally(()=>{active=null;});
+  }
+  async function low(item){
+    if(lowModels.has(item))return;
+    const asset=sources[item];
+    const {scene}=await loadWithFallback(url=>loader.loadAsync(url),`/models/${asset}/lod-compressed.gltf`,`/models/${asset}/lod.gltf`);
+    lowModels.set(item,attachModelLOD(scene,models.get(item),item));
+  }
+  return createModelStream(full,low,callbacks);
+}
+export function loadDetailedModels(options={}){
+  if(active)return active;
+  active=createDetailedModelStream(options)(Object.keys(sources).filter(item=>!models.has(item))).finally(()=>{active=null;});
   return active;
 }
 export function detailedObject(item,color,detail='full'){

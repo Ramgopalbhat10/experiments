@@ -21,7 +21,8 @@ export function starterProject() {
   add('dining-table',1.7,.2,-.15,0,'oak','#c5a477');
   for(const x of [.95,2.45]){add('chair',x,.2,.6);add('chair',x,.2,-.9,Math.PI);}
   add('vase',1.7,.99,-.15,0,'plaster','#b99675');
-  add('counter',3.98,.2,-6.2,-Math.PI/2);add('sink',3.98,.2,-4.65,-Math.PI/2);add('stove',3.98,.2,-3.48,-Math.PI/2);add('fridge',2.5,.2,-7.02);
+  // Sink faces the back window; the fridge and range back onto the solid east wall.
+  add('counter',3.98,.2,-5.68,-Math.PI/2);add('sink',3,.2,-7.04);add('stove',3.98,.2,-4.52,-Math.PI/2);add('fridge',3.98,.2,-3.64,-Math.PI/2);
   add('island',2.65,.2,-4.3,Math.PI/2);add('pendant',2.65,1.9,-4.3);
   add('bed',-5.5,.2,-5.65,0,'plaster','#aeb6a0');add('nightstand',-6.75,.2,-6.05);add('nightstand',-4.25,.2,-6.05);add('wardrobe',-2.25,.2,-6.1,-Math.PI/2,'oak','#c1a27e');
   add('painting',-5.5,1.5,-7.35);add('rug',-5.5,.21,-4.65,0,'plaster','#c8b896');

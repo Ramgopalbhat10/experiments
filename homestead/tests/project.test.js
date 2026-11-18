@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Project, snapPosition, validateProject } from '../src/project.js';
 import { CATALOG } from '../src/catalog.js';
+import { starterProject } from '../src/starter.js';
 
 const piece = (id='a', item='wall', position=[0,0,0]) => ({id,item,position,rotation:0,finish:'plaster',color:'#e9e4d8'});
 
@@ -53,4 +54,11 @@ test('large and rotated pieces stay entirely inside the plot', () => {
 });
 test('a save with overlapping structural slots is rejected',()=>{
   assert.throws(()=>validateProject({version:1,objects:[piece(),piece('b','window-wall')]}));
+});
+test('starter kitchen centers the sink at its window and backs the fridge onto solid wall',()=>{
+  const {objects}=validateProject(starterProject()),find=item=>objects.find(o=>o.item===item);
+  const sink=find('sink'),fridge=find('fridge');
+  assert.ok(objects.some(w=>w.item==='window-wall'&&w.position[0]===sink.position[0]&&Math.abs(w.position[2]-sink.position[2])<.5));
+  assert.equal(sink.rotation,0);assert.equal(fridge.rotation,-Math.PI/2);
+  assert.ok(objects.some(w=>w.item==='wall'&&w.rotation===Math.PI/2&&Math.abs(w.position[0]-fridge.position[0])<.6&&Math.abs(w.position[2]-fridge.position[2])<1.1));
 });

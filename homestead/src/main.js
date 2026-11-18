@@ -6,8 +6,8 @@ import { Player } from './player.js';
 import { Building } from './building.js';
 import { createUI } from './ui.js';
 import { Feedback } from './feedback.js';
-import { invalidateObjectTemplates } from './objects.js';
-import { loadDetailedModels } from './models.js';
+import { createDetailedModelStream } from './models.js';
+import {modelDemand} from './lod.js';
 
 import { assetsReady as texturesReady } from './assets.js';
 import { HOTBAR } from './catalog.js';
@@ -26,11 +26,12 @@ try {
   function save(show=false){if(!canSave){ui?.saved(false);if(show)notify('The original unreadable save is protected. Export your work or confirm a reset first.');return false;}try{localStorage.setItem(STORAGE,project.serialize());ui?.saved(true);if(show)notify('Your home is saved on this device.');return true;}catch{ui?.saved(false);if(show)notify('Local storage is unavailable. Export your project to keep it.');return false;}}
   const hasReference=()=>project.objects.some(o=>o.item.startsWith('wb-'));
   function referenceView(name='exterior'){if(!hasReference())return;const view=WELLS_BRANCH.views[name]||WELLS_BRANCH.views.exterior;world.setInspectionCut(view.cut??null);world.camera.fov=view.fov||65;world.camera.updateProjectionMatrix();world.camera.position.fromArray(view.position);world.camera.lookAt(...view.target);player.yaw=world.camera.rotation.y;player.pitch=world.camera.rotation.x;player.clearMotion();builder?.clearPreview();ui?.view(name);}
-  function changed(){if(!hasReference())world.setInspectionCut(null);ui?.update(project,builder);ui?.workspace({property:workspace.property,reference:hasReference()});clearTimeout(saveTimer);saveTimer=setTimeout(()=>save(),180);}
+  let requestDetails;
+  function changed(){if(!hasReference())world.setInspectionCut(null);ui?.update(project,builder);ui?.workspace({property:workspace.property,reference:hasReference()});requestDetails?.();clearTimeout(saveTimer);saveTimer=setTimeout(()=>save(),180);}
   builder=new Building(world,project,changed,notify);builder.onSpatialChange=()=>player.invalidateSpatial();builder.onFeedback=kind=>feedback.play(kind);builder.onAim=state=>ui?.placement(state);
   function level(delta){builder.setHeight(builder.height+delta);ui.level(builder.height);notify(builder.height?`Building at ${builder.height} m`:'Building at ground level');}
   ui=createUI({
-    item(id){builder.setItem(id);ui.update(project,builder);},
+    item(id){builder.setItem(id);ui.update(project,builder);requestDetails?.();},
     mode(mode){builder.setMode(mode);ui.update(project,builder);},
     color(color){builder.color=color;},finish(finish,color){builder.finish=finish;builder.color=color;},
     async walk(){try{world.setInspectionCut(null);if(hasReference()){world.camera.fov=65;world.camera.updateProjectionMatrix();world.camera.position.fromArray(WELLS_BRANCH.spawn);world.camera.rotation.set(0,0,0,'YXZ');player.yaw=0;player.pitch=0;player.clearMotion();ui.view('exterior');}await player.enter();}catch(err){notify(err.message);}},release(){player.leave();},
@@ -44,8 +45,16 @@ try {
     reset(kind){builder.cancelMove();canSave=true;project.replace(kind==='blank'?{version:1,objects:[]}:workspace.create());builder.selected=null;builder.sync();world.setInspectionCut(null);player.reset();if(hasReference())referenceView('exterior');builder.setHeight(0);ui.level(0);ui.title(kind==='blank'?'A New Beginning':workspace.title);save();notify(kind==='blank'?'A blank canvas. Make yourself at home.':`${workspace.title} is ready to explore.`);},
   });
   Object.assign(game,{world,project,player,builder,ui,referenceView});ui.title(workspace.title);ui.workspace({property:workspace.property,reference:hasReference()});if(hasReference())referenceView(new URLSearchParams(location.search).get('view')||'exterior');ui.quality(world.quality);ui.occlusion(world.stats.occlusion);try{feedback.enabled=localStorage.getItem('homestead-sound')==='true';}catch{}ui.sound(feedback.enabled);
-  const pending=new Set();let detailTimer;function refreshDetails(){const items=new Set(pending);pending.clear();for(const item of items)invalidateObjectTemplates(item);builder.sync(items);}
-  game.assetsReady=loadDetailedModels({renderer:world.renderer,onProgress:progress=>ui.loading(progress),onLoaded:item=>{pending.add(item);clearTimeout(detailTimer);detailTimer=setTimeout(refreshDetails,80);}}).then(async result=>{await texturesReady();clearTimeout(detailTimer);if(pending.size)refreshDetails();return result;});
+  const pending=new Map();let detailTimer,lastDemand;
+  function flushDetails(){clearTimeout(detailTimer);detailTimer=null;if(pending.size){builder.refreshModelDetails(pending);pending.clear();}}
+  function detailReady(item,tier){if(pending.get(item)!=='full')pending.set(item,tier);detailTimer??=setTimeout(flushDetails,32);}
+  const stream=createDetailedModelStream({renderer:world.renderer,onProgress:p=>ui.loading(p),onLoaded:item=>detailReady(item,'full'),onLow:item=>detailReady(item,'low')});
+  const requested=new Set();
+  requestDetails=()=>{
+    const items=modelDemand(project.objects,world.camera,builder.item),key=items.join(',');if(key===lastDemand)return;lastDemand=key;
+    for(const item of items)requested.add(item);
+    game.assetsReady=stream([...items,...requested]).then(async results=>{flushDetails();await texturesReady();return results;});
+  };requestDetails();
   ui.update(project,builder);save();
   if(loadMessage)notify(loadMessage);
   const canvas=world.renderer.domElement;
