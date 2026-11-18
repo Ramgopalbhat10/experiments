@@ -22,8 +22,9 @@ export function starterProject() {
   for(const x of [.95,2.45]){add('chair',x,.2,.6);add('chair',x,.2,-.9,Math.PI);}
   add('vase',1.7,.99,-.15,0,'plaster','#b99675');
   // Sink faces the back window; the fridge and range back onto the solid east wall.
-  add('counter',3.98,.2,-5.68,-Math.PI/2);add('sink',3,.2,-7.04);add('stove',3.98,.2,-4.52,-Math.PI/2);add('fridge',3.98,.2,-3.64,-Math.PI/2);
-  add('island',2.65,.2,-4.3,Math.PI/2);add('pendant',2.65,1.9,-4.3);
+  add('counter',3.98,.2,-5.05,-Math.PI/2);add('sink',3,.2,-7.04);add('stove',3.98,.2,-3.89,-Math.PI/2);add('fridge',3.98,.2,-6.24,-Math.PI/2);
+  // Use the island against the partition as a worktop, leaving a walkable aisle.
+  add('island',2.09,.2,-4.3,Math.PI/2);add('pendant',2.09,1.9,-4.3);
   add('bed',-5.5,.2,-5.65,0,'plaster','#aeb6a0');add('nightstand',-6.75,.2,-6.05);add('nightstand',-4.25,.2,-6.05);add('wardrobe',-2.25,.2,-6.1,-Math.PI/2,'oak','#c1a27e');
   add('painting',-5.5,1.5,-7.35);add('rug',-5.5,.21,-4.65,0,'plaster','#c8b896');
   add('bath',-.2,.2,-6.35);add('vanity',-1.08,.2,-4.85,Math.PI/2);add('toilet',.85,.2,-6.8);add('shower',.75,.2,-3.65);add('wall',1.5,.2,-6,Math.PI/2);add('wall',1.5,.2,-3,Math.PI/2);
