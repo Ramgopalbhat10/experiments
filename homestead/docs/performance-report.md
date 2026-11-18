@@ -1,5 +1,17 @@
 # Performance and realism verification
 
+## Follow-up: distant foliage in planted scenes
+
+Only the three foliage LODs changed; nearby photographed models, material maps and the existing screen-size switch thresholds are unchanged. The distant potted plant went from **16,358 to 7,818** source triangles, tree **7,924 to 6,478**, and shrub **2,632 to 1,595**. An aggressive uniform tree simplification was rejected: from one angle its alpha silhouette overlapped the full tree by only 38%. The generator now preserves more of the cutout leaf cards than the woody parts.
+
+`test:upgrade` compares full and distant masks from three angles per species at 96 × 96 with about 64 pixels of object extent. The final masks had 78.5–88.3% intersection-over-union in Chromium; the test guards a 75% floor in addition to triangle budgets and mapped UV validation.
+
+Matched `dense-36-plants` runs before/after (Balanced, 960 × 540, 0.8 render scale, 5 warm-up + 20 measured frames): **1,062,105 → 470,193 rendered triangles**, 79 draw calls in both. On this SwiftShader run, median frame interval was 206.1 → 168.8 ms and p95 was 324.6 → 307.9 ms. These are software-rendered frame intervals, **not hardware GPU timings**. The triangle counts include composer passes.
+
+On a hardware-accelerated machine with Vite running, profile with `HEADED=1 GAME_URL=http://localhost:5173 BENCH_VIEWS=dense-36-plants BENCH_FRAMES=180 npm run test:performance` (set `CHROME_PATH` if necessary). Check the report's renderer name and `softwareRendering: false` before interpreting it as a desktop GPU result.
+
+## Earlier upgrade baseline
+
 The upgrade starts from merged main `deb3f1b`, preserving project JSON version 1, the 43 catalog entries and the 108-piece example layout. Both versions were measured sequentially in the same Chromium 151 / ANGLE SwiftShader cloud environment, with a 960 × 540 viewport, 0.8 render scale, half-resolution contact occlusion and identical camera positions. The upgrade uses Balanced quality; its 1536px sun-shadow map replaces the original 2048px map. Reflection updates and shader warm-up settled before steady-state recording. Each scenario records 12 frames after five warm-up frames.
 
 **These are comparative software-rendering diagnostics. They do not establish 60 FPS on a hardware desktop.** CPU render time measures JavaScript/driver submission, including possible backpressure; frame cadence includes GPU work and browser scheduling. A 12-frame sample is small and does not represent a long gameplay soak.

@@ -24,6 +24,7 @@ The production output is in `dist/`. All game assets and fonts are local; the ru
 ## Play
 
 - Click **Walk around**, then use **WASD** and the mouse. **Shift** runs, **Space** jumps, **Escape** releases the cursor.
+- For keyboard-only building, **Tab** to the plot or press **F** outside a text field. Use the **arrow keys** to aim the crosshair (hold **Shift** for finer steps), **R** to rotate and **Enter** to place, select or paint with the active tool. **Tab** returns to the controls; no pointer lock is required.
 - Outside Walk mode, right-drag on the world to look around. Click the ground to place the active piece.
 - Select catalog pieces or use **1–8** for quick building selections. **R** rotates 90°. **Page Up / Down** changes the building level; the HUD also has level buttons.
 - Structural pieces use a 3 m module; furniture uses a 0.25 m grid. Walls align with floor edges. Roofs are placed 3 m above the active floor.
@@ -52,6 +53,7 @@ Browser interaction checks require Chromium and the dev server:
 npm run dev -- --port 5173
 # In another terminal:
 CHROME_PATH=/usr/bin/chromium npm run test:browser
+CHROME_PATH=/usr/bin/chromium npm run test:keyboard
 GAME_URL=http://127.0.0.1:5173 npm run test:upgrade
 GAME_URL=http://127.0.0.1:5173 npm run test:render
 ```
