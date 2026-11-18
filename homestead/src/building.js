@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ITEM_MAP } from './catalog.js';
-import { createObject, disposeObject } from './objects.js';
+import { createObject, disposeObject,invalidateObjectTemplates } from './objects.js';
 import { SpatialIndex } from './spatial.js';
 import { ProjectInstances,instanceCell } from './instances.js';
 import { snapPosition } from './project.js';
@@ -33,6 +33,18 @@ export class Building {
     if(!force&&this.lodClock<.2)return false;this.lodClock=0;
     const changed=[];for(const record of this.project.objects){const detail=record.id===this.selected||record.id===this.moving?'full':chooseModelDetail(record,this.world.camera,this.lodChoices.get(record.id));if(detail!==this.lodChoices.get(record.id))changed.push({record,detail});}
     if(!changed.length)return false;
+    this.replaceRepresentations(changed);this.lodStats.switches++;return true;
+  }
+  refreshModelDetails(items){
+    // A full arrival replaces both procedural tiers. A low-only arrival
+    // leaves nearby objects, the placement ghost and their templates alone.
+    for(const [item,tier] of items)invalidateObjectTemplates(item,tier==='low'?'low':null);
+    if(items.get(this.item)==='full')this.previewKey='';
+    const changed=[];
+    for(const record of this.project.objects){const tier=items.get(record.item),detail=this.lodChoices.get(record.id);if(tier==='full'||(tier==='low'&&detail==='low'))changed.push({record,detail});}
+    if(changed.length)this.replaceRepresentations(changed);
+  }
+  replaceRepresentations(changed){
     const cells=new Set(changed.map(({record})=>instanceCell(this.meshes.get(record.id))));
     const affected=[...this.meshes.values()].filter(owner=>cells.has(instanceCell(owner)));
     this.world.prepareRepresentations?.([...affected,...this.instances.batches.filter(batch=>cells.has(batch.userData.cell))]);
@@ -40,7 +52,7 @@ export class Building {
     this.instances.clearCells(cells);
     for(const {record,detail} of changed){const previous=this.meshes.get(record.id);this.world.projectGroup.remove(previous);disposeObject(previous);const mesh=createObject(record,{detail});mesh.userData.key=JSON.stringify(record)+':'+detail;mesh.userData.moving=record.id===this.moving;this.world.projectGroup.add(mesh);this.meshes.set(record.id,mesh);this.lodChoices.set(record.id,detail);}
     this.instances.sync(this.meshes,p=>this.world.roomKey?.(p)||'outside',cells);
-    this.world.refreshRepresentations?.();this.aimCache=null;this.lodStats.switches++;this.updateLODStats();this.updateSelection();return true;
+    this.world.refreshRepresentations?.();this.aimCache=null;this.updateLODStats();this.updateSelection();
   }
   updateLODStats(){this.lodStats.full=0;this.lodStats.low=0;for(const mesh of this.meshes.values())this.lodStats[mesh.userData.detail]++;}
   setItem(id){this.cancelMove();this.item=id;this.mode='build';this.selected=null;this.previewKey='';this.updateSelection();}
@@ -72,9 +84,11 @@ export class Building {
     if(!mount)p[1]=item.slot==='roof'?this.height+3:item.mounted?this.height+(item.id==='pendant'?1.9:1.3):support;
     const movingRecord=this.moving?this.project.objects.find(o=>o.id===this.moving):null;
     this.candidate={id:this.moving||'preview',item:this.item,position:p,rotation,finish:movingRecord?.finish||this.finish,color:movingRecord?.color||this.color};
-    const signature=JSON.stringify(this.candidate);const valid=this.aimCache?.signature===signature?this.aimCache.valid:this.project.check(this.candidate,this.moving).ok;this.aimCache={signature,valid};const key=`${item.id}:${this.candidate.finish}:${this.candidate.color}:${valid}`;
+    const signature=JSON.stringify(this.candidate);
+    if(this.aimCache?.signature!==signature)this.aimCache={signature,result:this.project.check(this.candidate,this.moving)};
+    const {ok:valid,message}=this.aimCache.result,key=`${item.id}:${this.candidate.finish}:${this.candidate.color}:${valid}`;
     if(this.previewKey?.split(':').slice(0,3).join(':')!==key.split(':').slice(0,3).join(':')){this.clearPreview();this.candidate={id:this.moving||'preview',item:this.item,position:p,rotation,finish:movingRecord?.finish||this.finish,color:movingRecord?.color||this.color};this.preview=createObject({...this.candidate,position:[0,0,0],rotation:0});this.preview.traverse(o=>{if(o.isMesh){o.material=this.previewMaterial;o.userData.temporaryMaterial=false;o.castShadow=false;}});this.world.scene.add(this.preview);this.previewKey=key;}
-    this.previewMaterial?.color.set(valid?'#85c6cd':'#e5937d');this.preview.visible=true;this.preview.position.fromArray(p);this.preview.rotation.y=rotation;this.updateGuide?.(p,item,rotation,valid);this.onAim?.({valid,item:item.id,position:p});
+    this.previewMaterial?.color.set(valid?'#85c6cd':'#e5937d');this.preview.visible=true;this.preview.position.fromArray(p);this.preview.rotation.y=rotation;this.updateGuide?.(p,item,rotation,valid);this.onAim?.({valid,message,item:item.id,position:p});
   }
   updateGuide(position,item,rotation,valid){
     if(!this.guide)return;const [w,,d]=item.size;const points=[];const center=new THREE.Vector3(position[0],position[1]+.025,position[2]);

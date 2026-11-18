@@ -3,7 +3,7 @@ import {ITEM_MAP} from './catalog.js';
 import {buildPropertyPart} from './property-geometry.js';
 import { ObjectTemplates } from './templates.js';
 const templates=new ObjectTemplates();
-export const invalidateObjectTemplates=item=>templates.invalidate(item);
+export const invalidateObjectTemplates=(item,detail)=>templates.invalidate(item,detail);
 import { detailedObject } from './models.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries,mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
