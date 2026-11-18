@@ -61,4 +61,7 @@ test('starter kitchen centers the sink at its window and backs the fridge onto s
   assert.ok(objects.some(w=>w.item==='window-wall'&&w.position[0]===sink.position[0]&&Math.abs(w.position[2]-sink.position[2])<.5));
   assert.equal(sink.rotation,0);assert.equal(fridge.rotation,-Math.PI/2);
   assert.ok(objects.some(w=>w.item==='wall'&&w.rotation===Math.PI/2&&Math.abs(w.position[0]-fridge.position[0])<.6&&Math.abs(w.position[2]-fridge.position[2])<1.1));
+  const rightEdge=find('island').position[0]+CATALOG.find(i=>i.id==='island').size[2]/2;
+  for(const item of ['counter','stove','fridge'])assert.ok(find(item).position[0]-CATALOG.find(i=>i.id===item).size[2]/2-rightEdge>=1,`one-metre aisle beside ${item}`);
+  assert.equal(find('pendant').position[0],find('island').position[0]);
 });
