@@ -30,7 +30,7 @@ export class Player {
     this.spatial=new SpatialIndex();this.simulation=new FixedStepSimulation();this.jumpHeld=false;
     camera.rotation.order='YXZ';this.yaw=camera.rotation.y;this.pitch=camera.rotation.x;
     document.addEventListener('pointerlockchange',()=>{this.locked=document.pointerLockElement===canvas;this._clearMotion();onLock(this.locked);});
-    document.addEventListener('mousemove',e=>{if(this.locked||this.dragging){this.yaw-=e.movementX*.0021;this.pitch=THREE.MathUtils.clamp(this.pitch-e.movementY*.0021,-1.35,1.35);camera.rotation.set(this.pitch,this.yaw,0,'YXZ');}});
+    document.addEventListener('mousemove',e=>{if(this.locked||this.dragging)this.look(-e.movementX*.0021,-e.movementY*.0021);});
     canvas.addEventListener('mousedown',e=>{if(e.button===2&&!this.locked)this.dragging=true;});
     addEventListener('mouseup',()=>this.dragging=false);addEventListener('blur',()=>this._clearMotion());
     addEventListener('keydown',e=>{if(!this.locked)return;if(e.code==='Escape'){this.leave();return;}this.keys.add(e.code);if(['Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code))e.preventDefault();});
@@ -38,6 +38,7 @@ export class Player {
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
   }
   async enter(){try{await this.canvas.requestPointerLock();}catch{throw new Error('Click Walk again to allow mouse-look in your browser.');}}
+  look(yaw,pitch){this.yaw+=yaw;this.pitch=THREE.MathUtils.clamp(this.pitch+pitch,-1.35,1.35);this.camera.rotation.set(this.pitch,this.yaw,0,'YXZ');this.camera.updateMatrixWorld();}
   leave(){if(this.locked)document.exitPointerLock();this._clearMotion();}
   reset(){this.camera.position.set(8,1.85,14);this.camera.lookAt(-2,1.6,-1);this.yaw=this.camera.rotation.y;this.pitch=this.camera.rotation.x;this._clearMotion();this._syncTeleport();}
   invalidateSpatial(){this.spatial.invalidate();}

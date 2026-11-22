@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,access} from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
+import {readBufferURI} from './gltf-buffer.js';
 import * as THREE from 'three';
 import {SunShadows} from '../src/shadows.js';
 import {chooseModelDetail,MODEL_ITEMS} from '../src/lod.js';
@@ -63,6 +64,6 @@ test('empty or unmatched optional geometry is rejected so its full-detail fallba
 });
 test('all eight lower-detail assets are cheaper and have complete geometry-only fallbacks',async()=>{
  const root=new URL('../public/models/',import.meta.url),manifest=JSON.parse(await readFile(new URL('../lod-manifest.json',root),'utf8'));assert.equal(manifest.models.length,8);
- for(const row of manifest.models){assert.ok(row.lowTriangles<row.fullTriangles*.8,row.asset);for(const variant of ['lod.gltf','lod-compressed.gltf']){const gltf=JSON.parse(await readFile(new URL(`${row.asset}/${variant}`,root),'utf8'));assert.equal(gltf.images?.length||0,0);assert.equal(gltf.textures?.length||0,0);for(const buffer of gltf.buffers){if(!buffer.uri){assert.equal(buffer.extensions?.EXT_meshopt_compression?.fallback,true);continue;}const url=new URL(`${row.asset}/${buffer.uri}`,root);await access(url);assert.equal((await readFile(url)).byteLength,buffer.byteLength);}}}
- const plant=manifest.models.find(m=>m.asset==='potted_plant_01');assert.ok(plant.lowTriangles<plant.fullTriangles*.4);
+ for(const row of manifest.models){assert.ok(row.lowTriangles<row.fullTriangles*.8,row.asset);for(const variant of ['lod.gltf','lod-compressed.gltf']){const folder=new URL(`${row.asset}/`,root),gltf=JSON.parse(await readFile(new URL(variant,folder),'utf8'));assert.equal(gltf.images?.length||0,0);assert.equal(gltf.textures?.length||0,0);for(const buffer of gltf.buffers){if(!buffer.uri){assert.equal(buffer.extensions?.EXT_meshopt_compression?.fallback,true);continue;}assert.equal((await readBufferURI(buffer.uri,folder)).byteLength,buffer.byteLength);}}}
+ for(const [asset,budget] of [['potted_plant_01',8000],['tree_small_02',6500],['shrub_04',1600]])assert.ok(manifest.models.find(m=>m.asset===asset).lowTriangles<=budget,`${asset} distant triangle budget`);
 });

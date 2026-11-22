@@ -58,21 +58,39 @@ try {
   ui.update(project,builder);save();
   if(loadMessage)notify(loadMessage);
   const canvas=world.renderer.domElement;
-  canvas.addEventListener('mousemove',e=>{if(!player.locked){builder.pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);builder.hovering=true;}});
-  canvas.addEventListener('mouseleave',()=>builder.hovering=false);
+  let keyboardAim=false;
+  function setKeyboardAim(on){
+    if(keyboardAim===on)return;
+    keyboardAim=on;document.body.classList.toggle('keyboard-aim',on);document.getElementById('plot-keys').hidden=!on;
+    builder.hovering=on;if(on)builder.pointer.set(0,0);
+  }
+  canvas.addEventListener('focus',()=>setKeyboardAim(canvas.matches(':focus-visible')));
+  canvas.addEventListener('blur',()=>setKeyboardAim(false));
+  canvas.addEventListener('pointerdown',()=>setKeyboardAim(false));
+  canvas.addEventListener('mousemove',e=>{setKeyboardAim(false);if(!player.locked){builder.pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);builder.hovering=true;}});
+  canvas.addEventListener('mouseleave',()=>{if(!keyboardAim)builder.hovering=false;});
   canvas.addEventListener('click',e=>{if(e.button!==0||player.dragging)return;builder.pointer.set(player.locked?0:e.clientX/innerWidth*2-1,player.locked?0:-e.clientY/innerHeight*2+1);builder.hovering=true;builder.aim(player.locked);builder.act();});
   addEventListener('keydown',e=>{
     if(e.target.matches('input,select,textarea')||document.querySelector('dialog[open]'))return;
+    if(!e.altKey&&!e.ctrlKey&&!e.metaKey){
+      if(e.code==='KeyF'){e.preventDefault();canvas.focus({preventScroll:true});setKeyboardAim(true);return;}
+      if(e.target===canvas&&(e.key.startsWith('Arrow')||e.key==='Enter')){
+        e.preventDefault();setKeyboardAim(true);builder.pointer.set(0,0);builder.hovering=true;
+        const step=e.shiftKey ? .008 : .075;
+        player.look(e.key==='ArrowLeft'?step:e.key==='ArrowRight'?-step:0,e.key==='ArrowUp'?step:e.key==='ArrowDown'?-step:0);
+        builder.aim(player.locked);if(e.key==='Enter'&&!e.repeat)builder.act();return;
+      }
+    }
     const number=Number(e.key);if(number>=1&&number<=8){ui.setItem(HOTBAR[number-1]);e.preventDefault();}
     if(e.code==='KeyR'){builder.rotate();notify('Rotated 90°');}
-    if(e.code==='KeyB'){if(player.locked)player.leave();ui.toggleCatalog();}
+    if(e.code==='KeyB'){if(player.locked)player.leave();if(keyboardAim){setKeyboardAim(false);ui.search();}else ui.toggleCatalog();}
     if(e.code==='KeyV'){ui.setMode('select');}
     if(e.code==='KeyP'){ui.setMode('paint');}
     if(e.code==='PageUp'){e.preventDefault();level(3);}
     if(e.code==='PageDown'){e.preventDefault();level(-3);}
     if(e.code==='Delete'||e.code==='Backspace'){e.preventDefault();builder.remove();}
     if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();builder.undo();}
-    if(e.code==='Slash'&&!player.locked){e.preventDefault();ui.search();}
+    if(e.code==='Slash'&&!player.locked){e.preventDefault();setKeyboardAim(false);ui.search();}
     if(e.code==='Escape'&&builder.moving){builder.cancelMove();builder.setMode('select');ui.setMode('select',false);ui.update(project,builder);}
   });
   let animationFrame,last=performance.now(),bearingTime=0,statsTime=0;

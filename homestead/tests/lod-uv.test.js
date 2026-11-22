@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {readBufferURI} from './gltf-buffer.js';
 import * as THREE from 'three';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {attachModelLOD,fitModel} from '../src/models.js';
@@ -22,11 +23,11 @@ async function readCoordinates(root,doc,accessor){
  const view=doc.bufferViews[accessor.bufferView],ext=view.extensions?.EXT_meshopt_compression;
  let bytes;
  if(ext){
-  const buffer=await readFile(new URL(doc.buffers[ext.buffer].uri,root));
+  const buffer=await readBufferURI(doc.buffers[ext.buffer].uri,root);
   bytes=new Uint8Array(ext.count*ext.byteStride);
   MeshoptDecoder.decodeGltfBuffer(bytes,ext.count,ext.byteStride,buffer.subarray(ext.byteOffset||0,(ext.byteOffset||0)+ext.byteLength),ext.mode,ext.filter);
  }else{
-  const buffer=await readFile(new URL(doc.buffers[view.buffer].uri,root));
+  const buffer=await readBufferURI(doc.buffers[view.buffer].uri,root);
   bytes=buffer.subarray(view.byteOffset||0,(view.byteOffset||0)+view.byteLength);
  }
  const types={5121:[1,'getUint8',255],5123:[2,'getUint16',65535],5126:[4,'getFloat32',1]},type=types[accessor.componentType];
